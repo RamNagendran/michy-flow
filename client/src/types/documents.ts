@@ -11,7 +11,6 @@ export interface ParsedValue<T = string | number> {
 }
 
 export interface ParsedBill {
-  party_gstin: ParsedValue<string> | null
   party_name: ParsedValue<string> | null
   invoice_no: ParsedValue<string> | null
   invoice_date: ParsedValue<string> | null
@@ -33,7 +32,6 @@ export interface ParsedBill {
   tax_amount: ParsedValue<number> | null
   total: ParsedValue<number> | null
   einvoice: boolean
-  addressed_to_us: boolean | null
   warnings: string[]
 }
 
@@ -49,7 +47,7 @@ export interface BillDocument {
   created_at: string
   parsed: ParsedBill
   lines: string[]
-  /** The supplier / buyer in this company whose GSTIN matches the bill. */
+  /** The supplier / buyer in this company whose name matches the one read from the bill. */
   party_id: number | null
   /** Set when this exact file is already the bill of a live entry. */
   duplicate_of: string | null

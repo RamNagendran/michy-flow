@@ -63,9 +63,11 @@ def require_system_permission(permission: SystemPermission) -> Callable[..., Awa
 
 
 def require_company_permission(
-    permission: CompanyPermission,
+    *permissions: CompanyPermission,
 ) -> Callable[..., Awaitable[CompanyContext]]:
     """Dependency factory for routes under /companies/{company_id}/...
+
+    Passes when the caller holds at least one of `permissions` in that company.
 
     A company the caller cannot see answers 404, the same as one that does not exist,
     so ids from other accounts or companies cannot be probed.
@@ -80,7 +82,7 @@ def require_company_permission(
         perms = permissions_in(user, company) if company else frozenset()
         if not company or not perms:
             raise NotFoundError("Company not found")
-        if permission not in perms:
+        if perms.isdisjoint(permissions):
             raise ForbiddenError("Not allowed")
         return CompanyContext(user=user, company=company, permissions=perms)
 

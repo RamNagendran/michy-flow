@@ -1,6 +1,7 @@
 """Get the text off a bill: the PDF's own text layer when it has one, OCR otherwise."""
 
 import io
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 
 from PIL import Image, ImageOps
@@ -11,6 +12,9 @@ from app.parsing.files import MAX_IMAGE_PIXELS, MAX_PDF_PAGES, FileKind, Unsuppo
 # A PDF with less real text than this is a scan, and gets OCR.
 _MIN_TEXT_CHARS = 40
 _RENDER_DPI = 200
+# Signed e-invoice QR codes are dense; below ~400 dpi the modules blur together.
+_QR_DPI = 400
+_QR_PAGES = 2
 
 
 @dataclass
@@ -51,6 +55,15 @@ def _ocr(images: list[Image.Image]) -> tuple[list[str], list[float], list[str]]:
             ["Photos and scans cannot be read on this server; please type the details in"],
         )
     return lines, confidence, []
+
+
+def pdf_pages_for_qr(content: bytes) -> Iterator[Image.Image]:
+    """The first pages again at high resolution, one at a time, for reading a dense QR code."""
+    import pdfplumber
+
+    with pdfplumber.open(io.BytesIO(content)) as pdf:
+        for page in pdf.pages[:_QR_PAGES]:
+            yield page.to_image(resolution=_QR_DPI).original
 
 
 def extract(content: bytes, kind: FileKind) -> BillText:

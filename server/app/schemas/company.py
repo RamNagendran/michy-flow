@@ -13,8 +13,6 @@ from app.models.catalog import (
 )
 from app.models.enums import CompanyCategory
 
-# GSTIN: 2-digit state code, 10-char PAN, entity number, 'Z', check character.
-_GSTIN = re.compile(r"^[0-3][0-9][A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$")
 _CODE = re.compile(r"^[A-Z0-9]{1,10}$")
 
 
@@ -22,15 +20,6 @@ def _clean_code(value: str) -> str:
     value = value.strip().upper()
     if not _CODE.fullmatch(value):
         raise ValueError("code must be 1-10 letters or digits")
-    return value
-
-
-def _clean_gstin(value: str | None) -> str | None:
-    if value is None or not value.strip():
-        return None
-    value = value.strip().upper()
-    if not _GSTIN.fullmatch(value):
-        raise ValueError("GSTIN is not in the right format")
     return value
 
 
@@ -44,7 +33,6 @@ class CompanyBrief(BaseModel):
 
 class CompanyRead(CompanyBrief):
     city: str
-    gstin: str | None
     category: CompanyCategory
     # Inventory configuration: what this company processes and makes.
     input_items: list[str]
@@ -81,11 +69,9 @@ class CompanyCreate(BaseModel):
     code: str = Field(min_length=1, max_length=10)
     name: str = Field(min_length=1, max_length=200)
     city: str = Field(default="", max_length=100)
-    gstin: str | None = Field(default=None, max_length=15)
     category: CompanyCategory
 
     _code = field_validator("code")(_clean_code)
-    _gstin = field_validator("gstin")(_clean_gstin)
 
     @field_validator("name", "city")
     @classmethod
@@ -99,7 +85,6 @@ class CompanyUpdate(BaseModel):
     code: str | None = Field(default=None, min_length=1, max_length=10)
     name: str | None = Field(default=None, min_length=1, max_length=200)
     city: str | None = Field(default=None, max_length=100)
-    gstin: str | None = Field(default=None, max_length=15)
     # Can change only while the company has no entries.
     category: CompanyCategory | None = None
     is_active: bool | None = None
@@ -108,8 +93,6 @@ class CompanyUpdate(BaseModel):
     @classmethod
     def _code(cls, value: str | None) -> str | None:
         return None if value is None else _clean_code(value)
-
-    _gstin = field_validator("gstin")(_clean_gstin)
 
     @field_validator("name", "city")
     @classmethod

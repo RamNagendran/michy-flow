@@ -128,7 +128,7 @@ def test_oil_bill_is_read_in_litres() -> None:
         f"Bill To: Apex Fuels GSTIN: {SELLER_GSTIN}",
         "Tyre Pyrolysis Oil 27101990 12 KL 42,000.00 5,04,000.00",
     ]
-    bill = parse_lines(lines, [1.0] * len(lines), "sale", OUR_GSTIN, None)
+    bill = parse_lines(lines, [1.0] * len(lines), "sale", None)
     assert bill.item.value == "oil" and bill.grade == "A"
     assert (bill.unit_on_bill, bill.unit) == ("KL", "L")
     assert bill.qty.value == Decimal("12000")

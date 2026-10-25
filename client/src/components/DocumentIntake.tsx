@@ -177,8 +177,8 @@ export default function DocumentIntake({ kind, save, renderManual, renderDone, o
           </div>
           <div className="grid grid-3" style={{ marginTop: 20 }}>
             {[
-              ['Works with most bills', 'PDF text, photos and scans, and the GST e-invoice QR code.'],
-              ['Checks the maths', 'Quantity × rate, GST and totals are re-calculated every time.'],
+              ['Works with most bills', 'PDF text, photos and scans, and the e-invoice QR code.'],
+              ['Checks the maths', 'Quantity × rate, tax and totals are re-calculated every time.'],
               ['You stay in control', 'Nothing is saved until you confirm it.'],
             ].map(([t, d]) => (
               <div key={t} style={{ display: 'flex', gap: 10 }}>

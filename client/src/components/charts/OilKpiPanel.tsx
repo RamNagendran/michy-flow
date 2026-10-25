@@ -1,10 +1,7 @@
-import { CartesianGrid, Line, LineChart, ReferenceArea, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { ChartFrame, flowColors, LineChart } from '../../charts'
 import type { Bucket, OilKpi, OilStatus } from '../../types/reports'
 import { formatKg, formatPercent, formatQty } from '../../utils/format'
 import { periodLabel } from '../../utils/period'
-import ChartTooltip from '../ChartTooltip'
-import ChartCard from './ChartCard'
-import { ANIMATION_MS, axisProps, gridProps, reportColors as c, xTick } from './chartKit'
 
 const statusText: Record<OilStatus, string> = {
   green: 'On target',
@@ -58,29 +55,28 @@ export default function OilKpiPanel({ kpi, bucket, loading, refreshing }: { kpi:
           Green at {kpi?.green_at ?? 40}% or more · red under {kpi?.red_below ?? 39}% · visible to the CEO and Managers only
         </div>
       </div>
-      <ChartCard
+      <ChartFrame
         title="Oil % over time"
-        sub="Each point is that period's oil weight ÷ weight processed"
-        legend={[
-          { label: 'Oil %', color: c.oil },
-          { label: 'Target', color: '#1F9D6B', dashed: true },
-        ]}
+        sub={`Each point is that period's oil weight ÷ weight processed · target ${kpi?.green_at ?? 40}%`}
         loading={loading}
         refreshing={refreshing}
         empty={!kpi?.series.some((p) => p.processed_kg > 0)}
+        height={240}
+        table={{ columns: ['Period', 'Oil %', 'Oil', 'Processed'], rows: (kpi?.series ?? []).map((p) => [periodLabel(p.period, bucket), formatPercent(p.pct), formatQty(p.oil_l, 'L'), formatKg(p.processed_kg)]) }}
       >
-        <ResponsiveContainer>
-          <LineChart data={kpi?.series} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-            <CartesianGrid {...gridProps} />
-            <XAxis dataKey="period" tickFormatter={xTick(bucket)} {...axisProps} minTickGap={24} />
-            <YAxis tickFormatter={(v) => `${v}%`} {...axisProps} width={44} domain={[0, scaleMax]} />
-            <ReferenceArea y1={0} y2={kpi?.red_below ?? 39} fill="#D4380D" fillOpacity={0.04} />
-            <ReferenceLine y={kpi?.green_at ?? 40} stroke="#1F9D6B" strokeDasharray="5 4" />
-            <Tooltip content={<ChartTooltip format={(v) => formatPercent(v)} labelFormat={(v) => periodLabel(v, bucket)} />} />
-            <Line type="monotone" dataKey="pct" name="Oil %" stroke={c.oil} strokeWidth={2.5} dot={{ r: 3 }} connectNulls animationDuration={ANIMATION_MS} />
-          </LineChart>
-        </ResponsiveContainer>
-      </ChartCard>
+        <LineChart
+          // A period with nothing processed has no oil % (a gap), not 0%.
+          data={(kpi?.series ?? []).map((p) => ({ label: periodLabel(p.period, bucket), pct: p.processed_kg > 0 ? p.pct : null }))}
+          categoryField="label"
+          series={[{ field: 'pct', name: 'Oil %', color: flowColors.oil }]}
+          format={(v) => formatPercent(v)}
+          min={0}
+          max={scaleMax}
+          target={{ value: kpi?.green_at ?? 40, label: `Target ${kpi?.green_at ?? 40}%`, color: flowColors.good }}
+          band={{ from: 0, to: kpi?.red_below ?? 39, color: flowColors.critical }}
+          height={240}
+        />
+      </ChartFrame>
     </div>
   )
 }

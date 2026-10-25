@@ -1,13 +1,14 @@
-"""The signed QR code printed on GST e-invoices.
+"""The signed QR code printed on e-invoices.
 
-It is a JWT issued by the government's e-invoice system (NIC). Its payload holds the seller and
-buyer GSTIN, invoice number and date, total value and main HSN code, so when a bill carries one
-those fields are exact. The signature is not checked here; the values are cross-checked against
+It is a JWT issued by the government's e-invoice system (NIC). Its payload holds the invoice
+number and date, total value and main HSN code, so when a bill carries one those fields are
+exact. The signature is not checked here; the values are cross-checked against
 the printed bill and the person confirms them.
 """
 
 import base64
 import json
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
@@ -17,8 +18,6 @@ from PIL import Image
 
 @dataclass(frozen=True, slots=True)
 class EInvoice:
-    seller_gstin: str | None
-    buyer_gstin: str | None
     invoice_no: str | None
     invoice_date: date | None
     total: Decimal | None
@@ -41,7 +40,8 @@ def decode_einvoice(token: str) -> EInvoice | None:
         data = json.loads(data) if isinstance(data, str) else data
     except (ValueError, TypeError):
         return None
-    if not isinstance(data, dict) or not ({"SellerGstin", "DocNo"} & data.keys()):
+    # Recognised by the e-invoice payload's own field names.
+    if not isinstance(data, dict) or not ({"Irn", "DocNo"} & data.keys()):
         return None
 
     def parse_date(v: object) -> date | None:
@@ -52,8 +52,6 @@ def decode_einvoice(token: str) -> EInvoice | None:
 
     total = data.get("TotInvVal")
     return EInvoice(
-        seller_gstin=str(data["SellerGstin"]).upper() if data.get("SellerGstin") else None,
-        buyer_gstin=str(data["BuyerGstin"]).upper() if data.get("BuyerGstin") else None,
         invoice_no=str(data["DocNo"]) if data.get("DocNo") else None,
         invoice_date=parse_date(data.get("DocDt")),
         total=Decimal(str(total)) if total is not None else None,
@@ -79,7 +77,7 @@ def _decode_frame(detector, frame) -> list[str]:  # noqa: ANN001
     return [v for v in values if v] if ok else []
 
 
-def find_einvoice(images: list[Image.Image]) -> EInvoice | None:
+def find_einvoice(images: Iterable[Image.Image]) -> EInvoice | None:
     import cv2
     import numpy as np
 

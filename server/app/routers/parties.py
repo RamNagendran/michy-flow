@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import require_company_permission
 from app.auth.permissions import CompanyPermission as P
 from app.core.db import get_db
+from app.core.errors import ForbiddenError
 from app.models import Party
 from app.models.enums import PartyKind
 from app.realtime import events
@@ -14,14 +15,32 @@ from app.services.access_service import CompanyContext
 router = APIRouter(prefix="/companies/{company_id}/parties", tags=["parties"])
 
 
+# Operators see only the list their entry form needs: suppliers to record a purchase,
+# buyers to record a sale.
+_KIND_FOR_ENTRY = {PartyKind.SUPPLIER: P.ENTER_PURCHASE, PartyKind.BUYER: P.ENTER_SALES}
+
+
 @router.get("", response_model=list[PartyRead])
 async def list_parties(
     kind: PartyKind | None = None,
-    ctx: CompanyContext = Depends(require_company_permission(P.VIEW)),
+    ctx: CompanyContext = Depends(
+        require_company_permission(
+            P.VIEW_ALL_ENTRIES, P.MANAGE_PARTIES, P.ENTER_PURCHASE, P.ENTER_SALES
+        )
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> list[Party]:
-    """Suppliers and buyers. Everyone in the company needs them to fill in entries."""
-    return await party_service.list_parties(db, ctx.company.id, kind)
+    """Suppliers and buyers."""
+    if ctx.can(P.VIEW_ALL_ENTRIES) or ctx.can(P.MANAGE_PARTIES):
+        return await party_service.list_parties(db, ctx.company.id, kind)
+    allowed = {k for k, perm in _KIND_FOR_ENTRY.items() if ctx.can(perm)}
+    if kind:
+        if kind not in allowed:
+            raise ForbiddenError("Not allowed")
+        return await party_service.list_parties(db, ctx.company.id, kind)
+    if len(allowed) == 1:
+        return await party_service.list_parties(db, ctx.company.id, allowed.pop())
+    return await party_service.list_parties(db, ctx.company.id, None)
 
 
 @router.post("", response_model=PartyRead, status_code=status.HTTP_201_CREATED)

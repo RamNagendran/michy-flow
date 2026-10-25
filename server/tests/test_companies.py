@@ -5,18 +5,17 @@ from tests.conftest import bearer, create_company, create_user, login_new_user, 
 
 async def test_super_admin_creates_and_edits_companies(client: AsyncClient) -> None:
     token = (await signup(client))["access_token"]
-    company = await create_company(client, token, code="mr", gstin="33aaxfm5521r1z3")
+    company = await create_company(client, token, code="mr")
     assert company["code"] == "MR"
-    assert company["gstin"] == "33AAXFM5521R1Z3"
+    assert "gstin" not in company
 
     res = await client.patch(
         f"/companies/{company['id']}",
-        json={"name": "Michy Rubbers", "gstin": ""},
+        json={"name": "Michy Rubbers"},
         headers=bearer(token),
     )
     assert res.status_code == 200
     assert res.json()["name"] == "Michy Rubbers"
-    assert res.json()["gstin"] is None
 
     listed = await client.get("/companies", headers=bearer(token))
     assert [c["code"] for c in listed.json()] == ["MR"]
@@ -41,7 +40,6 @@ async def test_company_input_is_validated(client: AsyncClient) -> None:
     for body in (
         {"code": "M R", "name": "x", "category": "crumb"},
         {"code": "MR", "name": "", "category": "crumb"},
-        {"code": "MR", "name": "x", "gstin": "NOT-A-GSTIN", "category": "crumb"},
         {"code": "MR", "name": "x"},  # no company type
         {"code": "MR", "name": "x", "category": "bakery"},
     ):
@@ -111,6 +109,7 @@ async def test_ceo_sees_every_active_company_read_only(client: AsyncClient) -> N
         "view_all_entries",
         "view_finance",
         "view_oil_kpi",
+        "view_stock",
     ]
     assert (await client.get(f"/companies/{closed['id']}", headers=bearer(ceo))).status_code == 404
 

@@ -11,7 +11,7 @@ The client never decides access on its own: /auth/me sends the resolved permissi
 from collections.abc import Iterable
 from enum import StrEnum
 
-from app.models.enums import CompanyRole, Duty, GlobalRole
+from app.models.enums import CompanyRole, Duty, EntryType, GlobalRole
 
 
 class SystemPermission(StrEnum):
@@ -22,7 +22,8 @@ class SystemPermission(StrEnum):
 
 
 class CompanyPermission(StrEnum):
-    VIEW = "view"
+    VIEW = "view"  # open the company at all; on its own it shows nothing else
+    VIEW_STOCK = "view_stock"  # stock screens; operators get stock only through their entry forms
     VIEW_ALL_ENTRIES = "view_all_entries"  # without it, only the entries you made yourself
     COMMENT_ENTRY = "comment_entry"
     ENTER_PURCHASE = "enter_purchase"
@@ -42,7 +43,7 @@ class CompanyPermission(StrEnum):
 
 _CP = CompanyPermission
 _ENTER_ALL = frozenset({_CP.ENTER_PURCHASE, _CP.ENTER_SALES, _CP.ENTER_PRODUCTION})
-_SEE_AND_DISCUSS = frozenset({_CP.VIEW, _CP.VIEW_ALL_ENTRIES, _CP.COMMENT_ENTRY})
+_SEE_AND_DISCUSS = frozenset({_CP.VIEW, _CP.VIEW_ALL_ENTRIES, _CP.VIEW_STOCK, _CP.COMMENT_ENTRY})
 
 SYSTEM_PERMISSIONS: dict[GlobalRole, frozenset[SystemPermission]] = {
     GlobalRole.SUPER_ADMIN: frozenset(SystemPermission),
@@ -52,7 +53,9 @@ SYSTEM_PERMISSIONS: dict[GlobalRole, frozenset[SystemPermission]] = {
 GLOBAL_COMPANY_PERMISSIONS: dict[GlobalRole, frozenset[CompanyPermission]] = {
     GlobalRole.SUPER_ADMIN: frozenset(CompanyPermission),
     # Read-only across every company.
-    GlobalRole.CEO: frozenset({_CP.VIEW, _CP.VIEW_ALL_ENTRIES, _CP.VIEW_FINANCE, _CP.VIEW_OIL_KPI}),
+    GlobalRole.CEO: frozenset(
+        {_CP.VIEW, _CP.VIEW_ALL_ENTRIES, _CP.VIEW_STOCK, _CP.VIEW_FINANCE, _CP.VIEW_OIL_KPI}
+    ),
 }
 
 COMPANY_ROLE_PERMISSIONS: dict[CompanyRole, frozenset[CompanyPermission]] = {
@@ -76,8 +79,8 @@ COMPANY_ROLE_PERMISSIONS: dict[CompanyRole, frozenset[CompanyPermission]] = {
     },
     # Cross-verifies and approves or holds. Cannot edit raw data.
     CompanyRole.FINANCE: _SEE_AND_DISCUSS | {_CP.VERIFY_ENTRY, _CP.VIEW_FINANCE},
-    # Input only, and sees only their own entries. They can reply when Finance raises a query.
-    # Which inputs they may make depends on the duties ticked for them.
+    # Input only, and sees only their own entries of the kinds they may enter. They can reply
+    # when Finance raises a query. Which inputs they may make depends on the duties ticked.
     CompanyRole.OPERATOR: frozenset({_CP.VIEW, _CP.COMMENT_ENTRY}),
 }
 
@@ -86,6 +89,23 @@ DUTY_PERMISSIONS: dict[Duty, CompanyPermission] = {
     Duty.SALES: _CP.ENTER_SALES,
     Duty.PRODUCTION: _CP.ENTER_PRODUCTION,
 }
+
+
+# Which "enter" permission goes with each kind of entry.
+ENTER_PERMISSION: dict[EntryType, CompanyPermission] = {
+    EntryType.PURCHASE: _CP.ENTER_PURCHASE,
+    EntryType.SALE: _CP.ENTER_SALES,
+    EntryType.PRODUCTION: _CP.ENTER_PRODUCTION,
+}
+
+
+def visible_entry_types(perms: frozenset[CompanyPermission]) -> frozenset[EntryType]:
+    """Kinds of entry someone may read in a company: every kind with VIEW_ALL_ENTRIES,
+    otherwise only the kinds they may enter (an operator ticked for purchases sees only
+    purchases, even ones they made before a duty was taken away)."""
+    if _CP.VIEW_ALL_ENTRIES in perms:
+        return frozenset(EntryType)
+    return frozenset(t for t, p in ENTER_PERMISSION.items() if p in perms)
 
 
 def _global_role(value: str | None) -> GlobalRole | None:

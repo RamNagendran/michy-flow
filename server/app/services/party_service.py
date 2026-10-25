@@ -1,6 +1,5 @@
 from fastapi import Request
 from sqlalchemy import func, select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import AppError, ConflictError, NotFoundError
@@ -9,8 +8,6 @@ from app.models.enums import PartyKind
 from app.schemas.party import PartyInput
 from app.services import audit_service
 from app.services.access_service import CompanyContext
-
-_DUPLICATE = "A {kind} with this GSTIN already exists in this company"
 
 
 async def list_parties(db: AsyncSession, company_id: int, kind: PartyKind | None) -> list[Party]:
@@ -46,6 +43,17 @@ async def save(
     party_id: int | None = None,
     request: Request | None = None,
 ) -> Party:
+    # One supplier / buyer per name in a company; uploaded bills are matched to parties by name.
+    same_name = await db.scalar(
+        select(Party.id).where(
+            Party.company_id == ctx.company.id,
+            Party.kind == data.kind,
+            func.lower(func.trim(Party.name)) == data.name.strip().lower(),
+            Party.id != (party_id or 0),
+        )
+    )
+    if same_name:
+        raise ConflictError(f"A {data.kind} called {data.name} already exists in this company")
     if party_id is None:
         party = Party(company_id=ctx.company.id, **data.model_dump())
         db.add(party)
@@ -57,11 +65,7 @@ async def save(
         changes = {k: v for k, v in data.model_dump().items() if getattr(party, k) != v}
         for key, value in changes.items():
             setattr(party, key, value)
-    try:
-        await db.flush()
-    except IntegrityError as exc:
-        await db.rollback()
-        raise ConflictError(_DUPLICATE.format(kind=data.kind)) from exc
+    await db.flush()
     if changes:
         audit_service.record(
             db,

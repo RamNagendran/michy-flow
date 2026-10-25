@@ -12,7 +12,7 @@ from decimal import Decimal
 from typing import Any
 
 from app.core.clock import today
-from app.parsing.numbers import find_gstins, numbers_in
+from app.parsing.numbers import numbers_in
 from app.parsing.qr import EInvoice
 
 # ---------------------------------------------------------------------------
@@ -29,7 +29,6 @@ class Found:
 
 @dataclass
 class ParsedBill:
-    party_gstin: Found | None = None
     party_name: Found | None = None
     invoice_no: Found | None = None
     invoice_date: Found | None = None
@@ -48,7 +47,6 @@ class ParsedBill:
     tax_amount: Found | None = None
     total: Found | None = None
     einvoice: bool = False
-    addressed_to_us: bool | None = None
     warnings: list[str] = field(default_factory=list)
 
 
@@ -60,6 +58,11 @@ _INVOICE_NO = re.compile(
     r"(?:invoice|inv|bill|voucher)\s*(?:no|number|num|#)\.?\s*[:\-#.]?\s*([A-Z0-9][A-Z0-9/\-_.]{0,39})",
     re.I,
 )
+# "ER/26-27/0365", "SBT/2026-27/1418": financial-year invoice numbers, as most billing
+# software prints them.
+_FY_INVOICE_NO = re.compile(r"\b([A-Z]{1,10}[/\-](?:\d{2}|\d{4})-\d{2}[/\-][A-Z0-9]{1,10})\b", re.I)
+# Numbers that sit next to an invoice-number label but are something else.
+_NOT_INVOICE_NO = re.compile(r"e\s*-?\s*way\s*$|ack\.?\s*$", re.I)
 _MONTHS = {
     m: i
     for i, m in enumerate(
@@ -93,10 +96,6 @@ _TAXABLE = re.compile(
     r"taxable\s*(?:value|amount|amt)|sub\s*-?\s*total|amount\s*before\s*tax", re.I
 )
 # "Bill To:", "Buyer:", "Consignee:" ... in front of a name.
-_PARTY_LABEL = re.compile(
-    r"^\s*(?:bill(?:ed)?\s*to|ship(?:ped)?\s*to|sold\s*to|buyer|consignee|customer|party|supplier|seller|from|to)\b\s*[:\-]?\s*",
-    re.I,
-)
 _NOT_A_NAME = re.compile(
     r"invoice|gst|bill\s*to|ship\s*to|buyer|consignee|date|phone|mobile|email|state|pan|original|copy",
     re.I,
@@ -186,58 +185,97 @@ def find_rate_and_amount(qty: Decimal, values: list[Decimal]) -> tuple[Decimal, 
 # ---------------------------------------------------------------------------
 
 
-def _party(
-    bill: ParsedBill,
-    lines: list[str],
-    conf: list[float],
-    kind: str,
-    own_gstin: str | None,
-    qr: EInvoice | None,
-) -> None:
-    text = "\n".join(lines)
-    gstins = find_gstins(text)
-    found = [g for g, _ in gstins]
-    if own_gstin:
-        bill.addressed_to_us = own_gstin in found or (
-            qr is not None and own_gstin in (qr.seller_gstin, qr.buyer_gstin)
+# Labels that introduce the other party on a bill: the seller on a purchase, the buyer on a sale.
+_SELLER_LABEL = re.compile(r"^\s*(?:supplier|seller|sold\s*by|from)\b\s*[:\-]?\s*", re.I)
+# Not "Buyer's Order No." or "Customer's Seal", which are other fields.
+_BILL_TO = re.compile(
+    r"^\s*(?:bill(?:ed)?\s*to|sold\s*to|buyer|customer)\b(?!'s)\s*[:\-]?\s*", re.I
+)
+_SHIP_TO = re.compile(r"^\s*(?:consignee|ship(?:ped)?\s*to)\b\s*[:\-]?\s*", re.I)
+# Right-hand column labels that a PDF's text runs onto the end of a name, e.g.
+# "Rathi Green Energy Private Limited Terms of Delivery".
+_COLUMN_TAIL = re.compile(
+    r"\s+(?:terms\s+of\s+(?:delivery|payment)|invoice\s*no|e\s*-?\s*way\s+bill|dated\b"
+    r"|delivery\s+note|dispatch(?:ed)?\s+(?:doc|through)|destination|reference\s+no"
+    r"|buyer'?s\s+order|mode\s*/\s*terms|other\s+references|motor\s+vehicle|bill\s+of\s+lading).*$",
+    re.I,
+)
+# "for ESTHELL RUBBERS" beside "Authorised Signatory": the seller, as billing software prints it.
+_FOR_NAME = re.compile(r"\bfor\s+([A-Za-z0-9&.,'()\- ]{4,80}?)\s*$", re.I)
+_SIGNATORY = re.compile(r"authori[sz]ed\s+signator", re.I)
+
+
+def _clean_name(text: str) -> str:
+    # Bills print the tax number after the name on the same line; keep only the name.
+    text = re.split(r"\bgst", text, flags=re.I)[0]
+    return _COLUMN_TAIL.sub("", text).strip(" :-,")
+
+
+def _name_like(text: str) -> bool:
+    chars = sum(not ch.isspace() for ch in text)
+    letters = sum(ch.isalpha() for ch in text)
+    return (
+        len(text) >= 4
+        and ":" not in text
+        and chars > 0
+        and letters / chars >= 0.7  # not an IRN, code or address number
+        and bool(re.search(r"[A-Za-z]{3}", text))
+        and not _NOT_A_NAME.search(text)
+    )
+
+
+def _after_label(
+    lines: list[str], conf: list[float], label: re.Pattern[str], same_line_only: bool = False
+) -> Found | None:
+    """The name after a label on the same line, or on one of the next two lines."""
+    for i, line in enumerate(lines):
+        if not (m := label.match(line)):
+            continue
+        rest = _clean_name(line[m.end() :])
+        if _name_like(rest):
+            return Found(rest, _scale(75, conf[i]), "label")
+        if same_line_only:
+            continue
+        for j in range(i + 1, min(i + 3, len(lines))):
+            candidate = _clean_name(lines[j])
+            if _name_like(candidate):
+                return Found(candidate, _scale(65, conf[j]), "label")
+    return None
+
+
+def _signatory(lines: list[str], conf: list[float]) -> Found | None:
+    for i, line in enumerate(lines):
+        if (m := _FOR_NAME.search(line)) and any(
+            _SIGNATORY.search(near) for near in lines[max(0, i - 2) : i + 3]
+        ):
+            name = _clean_name(m.group(1))
+            if _name_like(name):
+                return Found(name, _scale(80, conf[i]), "pattern")
+    return None
+
+
+def _heading(lines: list[str], conf: list[float]) -> Found | None:
+    """The seller's name is normally the first real line at the top of the bill."""
+    for i, line in enumerate(lines[:8]):
+        candidate = _clean_name(line)
+        if _name_like(candidate):
+            return Found(candidate, _scale(55, conf[i]), "pattern")
+    return None
+
+
+def _party(bill: ParsedBill, lines: list[str], conf: list[float], kind: str) -> None:
+    """The supplier on a purchase bill, or the buyer on a sales invoice."""
+    if kind == "purchase":
+        # "Supplier: X" on one line is explicit. A label with the name on the next line is
+        # tried last: in two-column layouts that line often holds both parties.
+        bill.party_name = (
+            _after_label(lines, conf, _SELLER_LABEL, same_line_only=True)
+            or _signatory(lines, conf)
+            or _heading(lines, conf)
+            or _after_label(lines, conf, _SELLER_LABEL)
         )
-    others = [(g, ok) for g, ok in gstins if g != own_gstin]
-
-    if qr:
-        party = qr.seller_gstin if kind == "purchase" else qr.buyer_gstin
-        if party:
-            bill.party_gstin = Found(party, 99, "qr")
-    elif others:
-        gstin, checksum_ok = others[0]
-        bill.party_gstin = Found(gstin, 92 if checksum_ok else 65, "pattern")
-        if not checksum_ok:
-            bill.warnings.append(f"GSTIN {gstin} fails its check digit — it may be misread")
-
-    # The party's name: text before "GSTIN" on its line, or the nearest name-like line above.
-    if bill.party_gstin:
-        target = bill.party_gstin.value
-        for i, line in enumerate(lines):
-            if target in line.upper().replace(" ", ""):
-                before = re.split(r"gstin|gst\s*no", line, flags=re.I)[0].strip(" :-,")
-                before = _PARTY_LABEL.sub("", before).strip(" :-,")
-                if len(before) >= 4 and not _NOT_A_NAME.search(before):
-                    bill.party_name = Found(before, _scale(70, conf[i]), "pattern")
-                    return
-                for j in range(i - 1, max(i - 4, -1), -1):
-                    # Another GSTIN above means we have walked into the other party's block.
-                    if find_gstins(lines[j]):
-                        break
-                    candidate = _PARTY_LABEL.sub("", lines[j]).strip(" :-,")
-                    if (
-                        len(candidate) >= 4
-                        and re.search(r"[A-Za-z]{3}", candidate)
-                        and not _NOT_A_NAME.search(candidate)
-                    ):
-                        bill.party_name = Found(candidate, _scale(60, conf[j]), "pattern")
-                        return
-    if not bill.party_name and kind == "purchase" and lines and not _NOT_A_NAME.search(lines[0]):
-        # The seller's name is normally the bill's heading.
-        bill.party_name = Found(lines[0].strip(), _scale(50, conf[0]), "pattern")
+    else:
+        bill.party_name = _after_label(lines, conf, _BILL_TO) or _after_label(lines, conf, _SHIP_TO)
 
 
 def _invoice(bill: ParsedBill, lines: list[str], conf: list[float], qr: EInvoice | None) -> None:
@@ -245,10 +283,21 @@ def _invoice(bill: ParsedBill, lines: list[str], conf: list[float], qr: EInvoice
         bill.invoice_no = Found(qr.invoice_no, 99, "qr")
     else:
         for i, line in enumerate(lines):
-            if m := _INVOICE_NO.search(line):
+            for m in _INVOICE_NO.finditer(line):
                 value = m.group(1).rstrip(".-/")
-                if any(ch.isdigit() for ch in value):
-                    bill.invoice_no = Found(value, _scale(88, conf[i]), "label")
+                if _NOT_INVOICE_NO.search(line[: m.start()]) or not any(
+                    ch.isdigit() for ch in value
+                ):
+                    continue
+                bill.invoice_no = Found(value, _scale(88, conf[i]), "label")
+                break
+            if bill.invoice_no:
+                break
+        if not bill.invoice_no:
+            # Labels and values in separate table rows: fall back to the usual number shape.
+            for i, line in enumerate(lines):
+                if m := _FY_INVOICE_NO.search(line):
+                    bill.invoice_no = Found(m.group(1), _scale(80, conf[i]), "pattern")
                     break
     if qr and qr.invoice_date:
         bill.invoice_date = Found(qr.invoice_date, 99, "qr")
@@ -330,8 +379,16 @@ def _goods(
 
     if idx is not None:
         hsn = bill.hsn
-        values = [v for v in numbers_in(_PERCENT.sub(" ", lines[idx])) if str(v) != hsn]
-        if pair := find_rate_and_amount(qty, values):
+        line = _PERCENT.sub(" ", lines[idx])
+
+        def candidates(text: str) -> list[Decimal]:
+            return [v for v in numbers_in(text) if str(v) != hsn]
+
+        # Rate and amount come after the quantity on the line; the serial number before it
+        # ("1 ... 11,060 KGS") would otherwise pass as a rate of 1.
+        on_line = _QTY.search(line)
+        pair = find_rate_and_amount(qty, candidates(line[on_line.end() :])) if on_line else None
+        if pair or (pair := find_rate_and_amount(qty, candidates(line))):
             rate, amount = pair
             bill.rate_on_bill = Found(rate, _scale(92, line_conf), "arithmetic")
             bill.rate = Found(
@@ -349,8 +406,13 @@ def _goods(
 def _money(bill: ParsedBill, lines: list[str], conf: list[float], qr: EInvoice | None) -> None:
     tax = Decimal(0)
     tax_conf = 100
+    seen: set[str] = set()
     for i, line in enumerate(lines):
-        if _TAX.search(line) and (amount := _last_amount(line)) is not None:
+        kinds = {k.lower() for k in _TAX.findall(line)}
+        # One line per tax (CGST, SGST, ...), counted once: summary tables and the e-way bill
+        # repeat the same figures, and a line naming several taxes is one of those summaries.
+        if len(kinds) == 1 and not (kinds & seen) and (amount := _last_amount(line)) is not None:
+            seen |= kinds
             tax += amount
             tax_conf = min(tax_conf, _scale(85, conf[i]))
         elif not bill.taxable_amount and _TAXABLE.search(line) and (amount := _last_amount(line)):
@@ -382,21 +444,15 @@ def _money(bill: ParsedBill, lines: list[str], conf: list[float], qr: EInvoice |
         if _close(expected, bill.total.value, Decimal("0.002")):
             bill.total.confidence = max(bill.total.confidence, 95)
         else:
-            bill.warnings.append("Amount + GST does not add up to the total read from the bill")
+            bill.warnings.append("Amount + tax does not add up to the total read from the bill")
 
 
-def parse_lines(
-    lines: list[str], conf: list[float], kind: str, own_gstin: str | None, qr: EInvoice | None
-) -> ParsedBill:
+def parse_lines(lines: list[str], conf: list[float], kind: str, qr: EInvoice | None) -> ParsedBill:
     bill = ParsedBill(einvoice=qr is not None)
-    _party(bill, lines, conf, kind, own_gstin, qr)
+    _party(bill, lines, conf, kind)
     _invoice(bill, lines, conf, qr)
     _goods(bill, lines, conf, kind, qr)
     _money(bill, lines, conf, qr)
-    if bill.addressed_to_us is False:
-        bill.warnings.append(
-            "Your company's GSTIN is not on this bill — check it is the right bill"
-        )
     if not lines:
         bill.warnings.append("No text could be read from this file")
     return bill

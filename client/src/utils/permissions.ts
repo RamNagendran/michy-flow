@@ -8,8 +8,20 @@ import type { CompanyPermission, CompanyRole, Duty, GlobalRole } from '../types/
  * unlocks which screen. Keep ROLE_MATRIX in step with the server file when roles change.
  */
 
-/** Screens that open for anyone holding at least one of these permissions in some company. */
+/**
+ * Screens that open for anyone holding at least one of these permissions in some company.
+ * The sidebar, route guards and in-page links all read this table, so a screen is either
+ * fully available or not shown at all. The API checks the same permissions on every call.
+ */
 export const SCREEN_ACCESS = {
+  /** Company-wide dashboard. Without it, the home screen is the operator's task list. */
+  dashboard: ['view_all_entries'],
+  purchases: ['view_all_entries', 'enter_purchase'],
+  production: ['view_all_entries', 'enter_production'],
+  sales: ['view_all_entries', 'enter_sales'],
+  review: ['view_all_entries'],
+  parties: ['view_all_entries', 'manage_parties'],
+  stock: ['view_stock'],
   finance: ['view_finance'],
   reports: ['view_all_entries'],
   pricing: ['view_finance'],
@@ -17,6 +29,13 @@ export const SCREEN_ACCESS = {
   records: ['view_finance', 'edit_entry', 'verify_entry'],
   enterAny: ['enter_purchase', 'enter_sales', 'enter_production'],
 } as const satisfies Record<string, readonly CompanyPermission[]>
+
+/**
+ * Who may read a company's stock figures. Sale and production forms need them to check what is
+ * available, so those operators may read them even without the stock screens. Matches the
+ * server's GET /companies/{id}/stock.
+ */
+export const STOCK_READERS = ['view_stock', 'enter_sales', 'enter_production'] as const satisfies readonly CompanyPermission[]
 
 export const DUTY_PERMISSION: Record<Duty, CompanyPermission> = {
   purchase: 'enter_purchase',
@@ -59,9 +78,10 @@ export const MATRIX_COLUMNS: MatrixColumn[] = ['super_admin', 'ceo', 'manager', 
 
 /** `true` = allowed, `'duty'` = only for the duties ticked for that operator. */
 export const ROLE_MATRIX: [string, Partial<Record<MatrixColumn, true | 'duty'>>][] = [
-  ['See company data', { super_admin: true, ceo: true, manager: true, admin: true, finance: true, operator: true }],
+  ['See company data', { super_admin: true, ceo: true, manager: true, admin: true, finance: true, operator: 'duty' }],
+  ['See stock screens', { super_admin: true, ceo: true, manager: true, admin: true, finance: true }],
   ['See every company', { super_admin: true, ceo: true }],
-  ["See everyone's entries (operators see only their own)", { super_admin: true, ceo: true, manager: true, admin: true, finance: true }],
+  ["See everyone's entries (operators see only their own, of their duties)", { super_admin: true, ceo: true, manager: true, admin: true, finance: true }],
   ['Comment on entries and reply to queries', { super_admin: true, manager: true, admin: true, finance: true, operator: true }],
   ['Enter purchases, sales, production', { super_admin: true, manager: true, admin: true, operator: 'duty' }],
   ['Edit an entry', { super_admin: true, manager: true, admin: true }],

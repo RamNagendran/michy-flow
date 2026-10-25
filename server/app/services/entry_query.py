@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
 from app.auth.permissions import CompanyPermission as P
+from app.auth.permissions import visible_entry_types
 from app.core.config import settings
 from app.models import Company, Party, Production, Purchase, Sale, User
 from app.models.catalog import unit_of
@@ -105,16 +106,20 @@ _BUILDERS = {
 }
 
 
-async def _visibility(db: AsyncSession, user: User, wanted: set[int]) -> list[tuple[int, bool]]:
-    """(company_id, own_entries_only) for every company the caller may read entries in:
-    all entries where they hold VIEW_ALL_ENTRIES, only their own elsewhere (operators)."""
+async def _visibility(
+    db: AsyncSession, user: User, wanted: set[int]
+) -> list[tuple[int, bool, frozenset[EntryType]]]:
+    """(company_id, own_entries_only, entry_types) for every company the caller may read
+    entries in: all entries where they hold VIEW_ALL_ENTRIES; elsewhere (operators) only their
+    own, and only of the kinds they may enter."""
     scopes = []
     for company in await accessible_companies(db, user):
         if wanted and company.id not in wanted:
             continue
         perms = permissions_in(user, company)
-        if P.VIEW in perms:
-            scopes.append((company.id, P.VIEW_ALL_ENTRIES not in perms))
+        types = visible_entry_types(perms)
+        if P.VIEW in perms and types:
+            scopes.append((company.id, P.VIEW_ALL_ENTRIES not in perms, types))
     return scopes
 
 
@@ -125,10 +130,14 @@ async def _filtered(db: AsyncSession, user: User, f: EntryFilters):  # noqa: ANN
     rows = union_all(*(_BUILDERS[t]() for t in sorted(types))).subquery("entries")
     scopes = await _visibility(db, user, f.company_ids)
     visible = [
-        and_(rows.c.company_id == cid, rows.c.created_by_id == user.id)
+        and_(
+            rows.c.company_id == cid,
+            rows.c.created_by_id == user.id,
+            rows.c.type.in_([t.value for t in kinds]),
+        )
         if own_only
         else rows.c.company_id == cid
-        for cid, own_only in scopes
+        for cid, own_only, kinds in scopes
     ]
     where = [or_(*visible) if visible else false()]
     if f.statuses:
@@ -293,7 +302,6 @@ async def detail(
         **base,
         party_id=party.id if party else None,
         party_name=party.name if party else None,
-        party_gstin=party.gstin if party else None,
         item=item,
         qty=entry.qty,
         unit=unit_of(item),

@@ -27,11 +27,10 @@ export default function CompanySwitcher() {
       value={active ?? 'all'}
       onChange={setActive}
       options={options}
-      size="large"
       prefix={<ApartmentOutlined className="faint" />}
       popupMatchSelectWidth={false}
       showSearch={{ optionFilterProp: 'search' }}
-      style={{ minWidth: 220 }}
+      style={{ minWidth: 180, maxWidth: 260 }}
       aria-label="Company"
     />
   )

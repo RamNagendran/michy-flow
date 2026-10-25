@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import { useAccess } from '../../hooks/useAccess'
 import { itemName } from '../../data/catalog'
 import type { EntryDetail } from '../../types/entries'
 import { formatDate, formatINR, formatKg, formatQty, formatRateIn } from '../../utils/format'
@@ -11,6 +12,7 @@ const what = { purchase: 'Purchase', sale: 'Sale', production: 'Production' }
 /** The "saved" screen after any new entry, showing where it is in the approval flow. */
 export default function SavedEntry({ entry, again }: { entry: EntryDetail; again: () => void }) {
   const navigate = useNavigate()
+  const access = useAccess()
   const lines: [string, string][] =
     entry.type === 'production'
       ? [
@@ -23,7 +25,7 @@ export default function SavedEntry({ entry, again }: { entry: EntryDetail; again
           [entry.type === 'sale' ? 'Buyer' : 'Supplier', entry.party_name ?? '—'],
           ['Bill', `${entry.invoice_no} · ${formatDate(entry.entry_date)}`],
           ['Quantity × rate', `${formatQty(entry.qty, entry.unit)} × ${formatRateIn(entry.rate ?? 0, entry.unit)}`],
-          ['Value (before GST)', formatINR(entry.amount ?? 0)],
+          ['Value', formatINR(entry.amount ?? 0)],
         ]
   const next =
     entry.status === 'approved'
@@ -46,7 +48,7 @@ export default function SavedEntry({ entry, again }: { entry: EntryDetail; again
       ]}
       actions={[
         { label: `Record another`, onClick: again, primary: true },
-        { label: 'View company', onClick: () => navigate(`/companies/${entry.company_id}`) },
+        ...(access.can('view_stock', entry.company_id) ? [{ label: 'View company', onClick: () => navigate(`/companies/${entry.company_id}`) }] : []),
         { label: `All ${what[entry.type].toLowerCase()}${entry.type === 'production' ? '' : 's'}`, onClick: () => navigate(listPath[entry.type]) },
       ]}
     />

@@ -32,8 +32,8 @@ export const seriesColors = {
   tractor: '#5E8C31',
   scrap_steel: '#6B7280',
   oil: '#C2410C',
-  carbon: '#27272A',
-  waste_water: '#0EA5E9',
+  carbon: '#7A5AF8',
+  waste_water: '#1baf7a',
   waste: '#A1A1AA',
   rubber: '#D82E54',
   steel: '#4A7FC1',
@@ -67,7 +67,7 @@ export const theme: ThemeConfig = {
     boxShadowTertiary: '0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06)',
   },
   components: {
-    Layout: { siderBg: brand.ink, headerBg: '#FFFFFF', bodyBg: brand.bg, headerHeight: 68, headerPadding: '0 28px' },
+    Layout: { siderBg: brand.ink, headerBg: '#FFFFFF', bodyBg: brand.bg, headerHeight: 56, headerPadding: '0 20px' },
     Menu: {
       darkItemBg: brand.ink,
       darkSubMenuItemBg: brand.ink,

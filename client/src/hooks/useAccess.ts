@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useAppDispatch, useAppSelector } from '../statemanager/hooks'
 import { activeCompanySet, type CompanySelection } from '../statemanager/slices/uiSlice'
 import type { AuthUser, Company, CompanyAccess, CompanyPermission, SystemPermission } from '../types/auth'
+import { STOCK_READERS } from '../utils/permissions'
 import { useAuth } from './useAuth'
 
 export interface Access {
@@ -18,6 +19,8 @@ export interface Access {
   /** In any company at all, whatever is selected. Used for menus and route guards. */
   canAnywhere: (...permissions: readonly CompanyPermission[]) => boolean
   canSystem: (permission: SystemPermission) => boolean
+  /** May read this company's stock figures (see STOCK_READERS). */
+  canReadStock: (companyId: number) => boolean
   /** Companies where the person holds `permission`, e.g. the choices on an entry form. */
   companiesWith: (permission: CompanyPermission) => Company[]
   accessFor: (companyId: number) => CompanyAccess | undefined
@@ -53,6 +56,7 @@ export function resolveAccess(user: AuthUser | null, selected: CompanySelection 
         : inScope.some((c) => permsById.get(c.company.id)!.has(permission)),
     canAnywhere: (...permissions) => companies.some((c) => permissions.some((p) => permsById.get(c.company.id)!.has(p))),
     canSystem: (permission) => system.has(permission),
+    canReadStock: (companyId) => STOCK_READERS.some((p) => !!permsById.get(companyId)?.has(p)),
     companiesWith: (permission) => companies.filter((c) => permsById.get(c.company.id)!.has(permission)).map((c) => c.company),
     accessFor: (companyId) => byId.get(companyId),
   }

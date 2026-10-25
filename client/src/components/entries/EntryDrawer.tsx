@@ -36,7 +36,7 @@ const STEPS: Step[] = ['approve', 'verify', 'hold', 'escalate', 'resolve', 'reje
 function Facts({ e }: { e: EntryDetail }) {
   const rows: [string, React.ReactNode][] = [
     ['Date', formatDate(e.entry_date)],
-    ...(e.party_name ? ([[e.type === 'sale' ? 'Buyer' : 'Supplier', `${e.party_name}${e.party_gstin ? ` · ${e.party_gstin}` : ''}`]] as [string, string][]) : []),
+    ...(e.party_name ? ([[e.type === 'sale' ? 'Buyer' : 'Supplier', e.party_name]] as [string, string][]) : []),
     ...(e.invoice_no ? ([['Bill / invoice no.', e.invoice_no]] as [string, string][]) : []),
     ['Grade', <span key="g"><GradeTag grade={e.grade} type={e.type} /> {e.type === 'production' ? 'Production' : gradeInfo(e.grade)[e.type]}</span>],
     [e.type === 'production' ? 'Raw material' : 'Item', itemName(e.item)],

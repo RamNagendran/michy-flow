@@ -12,14 +12,14 @@ import type { TrendPoint } from '../../types/reports'
 import { formatINRShort, formatPercent, formatTonnes } from '../../utils/format'
 import ProductionEfficiency from './ProductionEfficiency'
 
-function Tile({ label, value, sub, tone }: { label: string; value: string; sub: string; tone?: string }) {
+function Tile({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: string }) {
   return (
     <div className="surface stat-tile lift">
       <div className="label">{label}</div>
       <div className="value num" style={{ color: tone }}>
         {value}
       </div>
-      <div className="sub">{sub}</div>
+      {sub && <div className="sub">{sub}</div>}
     </div>
   )
 }
@@ -56,8 +56,8 @@ export default function Reports() {
       <PageHeader title="Reports" subtitle={`${label} · ${subtitle} · ${ids.length > 1 ? `${ids.length} companies added together` : (scope.find((c) => c.id === ids[0])?.name ?? '')}`} />
 
       <div className="grid grid-4 stagger">
-        <Tile label="Sales" value={formatINRShort(t.sales)} sub="before GST" />
-        <Tile label="Purchases" value={formatINRShort(t.purchases)} sub="before GST" />
+        <Tile label="Sales" value={formatINRShort(t.sales)} />
+        <Tile label="Purchases" value={formatINRShort(t.purchases)} />
         <Tile label="Processed" value={formatTonnes(t.processed)} sub={`${formatTonnes(t.output)} came out`} />
         <Tile
           label="Wastage"

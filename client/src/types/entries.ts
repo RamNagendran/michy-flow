@@ -92,7 +92,6 @@ export interface EntryDetail {
   events: EntryEvent[]
   party_id: number | null
   party_name: string | null
-  party_gstin: string | null
   item: string
   qty: number
   unit: Unit
@@ -183,7 +182,6 @@ export interface Party {
   company_id: number
   kind: PartyKind
   name: string
-  gstin: string | null
   city: string
   contact_name: string
   phone: string

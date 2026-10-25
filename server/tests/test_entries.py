@@ -155,7 +155,6 @@ async def test_parties_are_managed_by_manager_and_admin(client: AsyncClient) -> 
     body = {
         "kind": "supplier",
         "name": "Kaveri Scrap",
-        "gstin": "33abdfk7719q1z2",
         "phone": "+91 94433 51902",
     }
     assert (
@@ -166,9 +165,9 @@ async def test_parties_are_managed_by_manager_and_admin(client: AsyncClient) -> 
     ).status_code == 403
     created = await client.post(t.url("/parties"), json=body, headers=bearer(t.admin))
     assert created.status_code == 201
-    assert created.json()["gstin"] == "33ABDFK7719Q1Z2"
+    assert "gstin" not in created.json()
     dup = await client.post(
-        t.url("/parties"), json={**body, "name": "Again"}, headers=bearer(t.manager)
+        t.url("/parties"), json={**body, "name": " kaveri SCRAP "}, headers=bearer(t.manager)
     )
     assert dup.status_code == 409
     listed = await client.get(t.url("/parties?kind=supplier"), headers=bearer(t.operator))

@@ -76,11 +76,11 @@ async def update(
     request: Request | None = None,
 ) -> Company:
     company = await get_in_account(db, actor.account_id, company_id)
-    # Only gstin may be cleared; for the required fields an explicit null means "leave as is".
+    # An explicit null means "leave as is".
     changes = {
         key: value
         for key, value in data.model_dump(exclude_unset=True).items()
-        if (value is not None or key == "gstin") and getattr(company, key) != value
+        if value is not None and getattr(company, key) != value
     }
     if not changes:
         return company

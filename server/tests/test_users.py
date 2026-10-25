@@ -97,6 +97,7 @@ async def test_multi_company_membership_with_different_roles(client: AsyncClient
     assert perms["A"] == {
         "view",
         "view_all_entries",
+        "view_stock",
         "comment_entry",
         "verify_entry",
         "view_finance",

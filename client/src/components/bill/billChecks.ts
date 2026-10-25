@@ -43,8 +43,8 @@ export function billChecks(bill: ParsedBill, v: Values): Check[] {
     checks.push({
       key: 'total',
       ok: close(expected, bill.total.value),
-      title: 'Amount + GST matches the bill total',
-      detail: `${formatINR(bill.taxable_amount.value)} + ${formatINR(bill.tax_amount?.value ?? 0, true)} GST = ${formatINR(expected)} · total on bill ${formatINR(bill.total.value)}`,
+      title: 'Amount + tax matches the bill total',
+      detail: `${formatINR(bill.taxable_amount.value)} + ${formatINR(bill.tax_amount?.value ?? 0, true)} tax = ${formatINR(expected)} · total on bill ${formatINR(bill.total.value)}`,
     })
   }
   if (bill.unit) {
@@ -56,29 +56,22 @@ export function billChecks(bill: ParsedBill, v: Values): Check[] {
       detail: bill.unit === v.unit ? `Bill is in ${bill.unit_on_bill}` : `The bill is in ${bill.unit_on_bill}, but this item is kept in ${v.unit} — check the item`,
     })
   }
-  const billGstin = bill.party_gstin?.value
+  // Names on bills vary ("Sri Balaji Tyres" vs "SRI BALAJI TYRES PVT LTD"), so a different name is
+  // pointed out but does not block saving; only choosing nobody does.
+  const billName = bill.party_name?.value?.trim()
+  const sameName = !!v.party && !!billName && v.party.name.trim().toLowerCase() === billName.toLowerCase()
   checks.push({
     key: 'party',
-    ok: !!v.party && (!billGstin || !v.party.gstin || v.party.gstin === billGstin),
-    title: `${v.isPurchase ? 'Supplier' : 'Buyer'} matches the GST number`,
+    ok: !!v.party,
+    title: `${v.isPurchase ? 'Supplier' : 'Buyer'} chosen`,
     detail: !v.party
-      ? billGstin
-        ? `No ${who} with GSTIN ${billGstin} in this company's list — choose one, or ask a Manager to add it`
+      ? billName
+        ? `The bill says "${billName}" — choose that ${who}, or ask a Manager to add it`
         : `Choose the ${who}`
-      : billGstin && v.party.gstin && v.party.gstin !== billGstin
-        ? `The bill says ${billGstin}, but ${v.party.name} is ${v.party.gstin}`
-        : billGstin
-          ? `${billGstin} → ${v.party.name}`
-          : `${v.party.name} (no GSTIN on the bill to compare)`,
+      : billName && !sameName
+        ? `${v.party.name} · the bill says "${billName}"`
+        : v.party.name,
   })
-  if (bill.addressed_to_us !== null) {
-    checks.push({
-      key: 'ours',
-      ok: bill.addressed_to_us,
-      title: v.isPurchase ? 'Bill is made out to this company' : 'Invoice is from this company',
-      detail: bill.addressed_to_us ? "This company's GSTIN is on the bill" : "This company's GSTIN is not on the bill — is it the right bill?",
-    })
-  }
   const daysOld = dayjs().diff(dayjs(v.date), 'day')
   checks.push({
     key: 'date',
@@ -90,7 +83,7 @@ export function billChecks(bill: ParsedBill, v: Values): Check[] {
     checks.push({ key: 'stock', ok: v.qty <= v.available, title: 'Enough stock to sell', detail: `${formatQty(v.available, v.unit)} available` })
   }
   if (bill.einvoice) {
-    checks.push({ key: 'qr', ok: true, title: 'e-Invoice QR code read', detail: 'GSTIN, invoice number, date and total taken from the signed QR code' })
+    checks.push({ key: 'qr', ok: true, title: 'e-Invoice QR code read', detail: 'Invoice number, date and total taken from the signed QR code' })
   }
   return checks
 }

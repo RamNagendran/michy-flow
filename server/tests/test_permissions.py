@@ -8,6 +8,7 @@ from app.auth.permissions import (
     global_company_permissions,
     membership_permissions,
     system_permissions,
+    visible_entry_types,
 )
 
 
@@ -19,7 +20,7 @@ def test_super_admin_has_everything() -> None:
 def test_ceo_is_read_only_everywhere() -> None:
     assert system_permissions("ceo") == frozenset()
     perms = global_company_permissions("ceo")
-    assert {P.VIEW, P.VIEW_ALL_ENTRIES, P.VIEW_FINANCE, P.VIEW_OIL_KPI} == perms
+    assert {P.VIEW, P.VIEW_ALL_ENTRIES, P.VIEW_STOCK, P.VIEW_FINANCE, P.VIEW_OIL_KPI} == perms
     assert P.COMMENT_ENTRY not in perms
 
 
@@ -44,7 +45,8 @@ def test_admin_approves_and_manages_wastage_and_grades() -> None:
 
 def test_finance_verifies_but_cannot_enter_or_edit() -> None:
     perms = membership_permissions("finance", [])
-    assert {P.VIEW, P.VIEW_ALL_ENTRIES, P.COMMENT_ENTRY, P.VERIFY_ENTRY, P.VIEW_FINANCE} == perms
+    expected = {P.VIEW, P.VIEW_ALL_ENTRIES, P.VIEW_STOCK, P.COMMENT_ENTRY, P.VERIFY_ENTRY}
+    assert expected | {P.VIEW_FINANCE} == perms
 
 
 def test_operator_gets_only_the_duties_ticked() -> None:
@@ -53,8 +55,9 @@ def test_operator_gets_only_the_duties_ticked() -> None:
     assert membership_permissions("operator", ["purchase"]) == base | {P.ENTER_PURCHASE}
     perms = membership_permissions("operator", ["sales", "production", "bogus"])
     assert perms == base | {P.ENTER_SALES, P.ENTER_PRODUCTION}
-    # Operators see only their own entries.
+    # Operators see only their own entries, and no stock screens.
     assert P.VIEW_ALL_ENTRIES not in perms
+    assert P.VIEW_STOCK not in perms
     assert P.EDIT_ENTRY not in perms and P.DELETE_ENTRY not in perms
 
 
@@ -64,3 +67,13 @@ def test_duties_do_not_widen_other_roles() -> None:
 
 def test_unknown_role_grants_nothing() -> None:
     assert membership_permissions("owner", ["purchase"]) == frozenset()
+
+
+def test_operators_see_only_the_entry_kinds_they_enter() -> None:
+    assert visible_entry_types(membership_permissions("operator", ["purchase"])) == {"purchase"}
+    assert visible_entry_types(membership_permissions("operator", [])) == frozenset()
+    assert visible_entry_types(membership_permissions("finance", [])) == {
+        "purchase",
+        "sale",
+        "production",
+    }

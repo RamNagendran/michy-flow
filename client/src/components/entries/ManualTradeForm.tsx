@@ -39,7 +39,9 @@ export default function ManualTradeForm({ kind, saving, onSaved, back }: { kind:
   const grade: Grade = Form.useWatch('grade', form) ?? 'A'
   const company = companies.find((c) => c.id === companyId)
   const parties = useParties(companyId, isPurchase ? 'supplier' : 'buyer')
-  const stocks = useStocks(company ? [company] : [])
+  // A purchase-only operator has no access to stock figures; the form then skips the stock preview.
+  const showStock = !!company && access.canReadStock(company.id)
+  const stocks = useStocks(showStock ? [company] : [])
   const line = company && item ? stocks.byCompany.get(company.id)?.[stockSection(kind, grade)].find((l) => l.item === item) : undefined
   const available = line?.provisional.balance ?? null
   const unit = item ? unitOf(item) : 'kg'
@@ -126,7 +128,7 @@ export default function ManualTradeForm({ kind, saving, onSaved, back }: { kind:
             >
               <InputNumber<number> style={{ width: '100%' }} placeholder="e.g. 8,460" {...qtyInputProps(unit)} />
             </Form.Item>
-            <Form.Item label={`Rate per ${unit === 'L' ? 'litre' : 'kg'}`} name="rate" rules={[{ required: true, type: 'number', min: 0, message: 'Enter the rate' }]} extra="Price before GST">
+            <Form.Item label={`Rate per ${unit === 'L' ? 'litre' : 'kg'}`} name="rate" rules={[{ required: true, type: 'number', min: 0, message: 'Enter the rate' }]}>
               <InputNumber style={{ width: '100%' }} min={0} step={0.1} precision={2} prefix="₹" suffix={`/${unit}`} placeholder="e.g. 14.20" />
             </Form.Item>
           </div>
@@ -161,28 +163,30 @@ export default function ManualTradeForm({ kind, saving, onSaved, back }: { kind:
           <span className="strong">{isPurchase ? 'Purchase cost' : 'Sale value'}</span>
           <b className="num strong">{formatINR(qty * rate)}</b>
         </div>
-        <div style={{ background: '#f7f8fa', borderRadius: 12, padding: 14, marginTop: 14 }}>
-          <div className="faint" style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-            Stock after saving
-          </div>
-          {available !== null && item ? (
-            <div style={{ marginTop: 6 }}>
-              <div className="num strong" style={{ fontSize: 20, color: over ? '#D4380D' : undefined }}>
-                {formatQty(available + (isPurchase ? qty : -qty), unit)}
-              </div>
-              <div className="muted" style={{ fontSize: 13 }}>
-                {itemName(item)} · {gradeInfo(grade).name} at {company!.name} · now {formatQty(available, unit)}
-              </div>
+        {(showStock || !company) && (
+          <div style={{ background: '#f7f8fa', borderRadius: 12, padding: 14, marginTop: 14 }}>
+            <div className="faint" style={{ fontSize: 12, fontWeight: 800, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+              Stock after saving
             </div>
-          ) : (
-            <div className="muted" style={{ fontSize: 13, marginTop: 6 }}>
-              Choose the company and {isPurchase ? 'material' : 'product'} to see the stock.
+            {available !== null && item ? (
+              <div style={{ marginTop: 6 }}>
+                <div className="num strong" style={{ fontSize: 20, color: over ? '#D4380D' : undefined }}>
+                  {formatQty(available + (isPurchase ? qty : -qty), unit)}
+                </div>
+                <div className="muted" style={{ fontSize: 13 }}>
+                  {itemName(item)} · {gradeInfo(grade).name} at {company!.name} · now {formatQty(available, unit)}
+                </div>
+              </div>
+            ) : (
+              <div className="muted" style={{ fontSize: 13, marginTop: 6 }}>
+                Choose the company and {isPurchase ? 'material' : 'product'} to see the stock.
+              </div>
+            )}
+            <div className="faint" style={{ fontSize: 12, marginTop: 10 }}>
+              {grade === 'C' ? 'No goods move: this counts only in the separate Grade C book stock. ' : ''}Counts straight away; final once the Admin approves and Finance verifies it.
             </div>
-          )}
-          <div className="faint" style={{ fontSize: 12, marginTop: 10 }}>
-            {grade === 'C' ? 'No goods move: this counts only in the separate Grade C book stock. ' : ''}Counts straight away; final once the Admin approves and Finance verifies it.
           </div>
-        </div>
+        )}
       </div>
     </div>
   )

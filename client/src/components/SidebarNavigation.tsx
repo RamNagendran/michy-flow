@@ -21,17 +21,30 @@ import { useAccess } from '../hooks/useAccess'
 import { useQueueCounts } from '../hooks/useQueueCounts'
 import { useAppDispatch, useAppSelector } from '../statemanager/hooks'
 import { sidebarToggled } from '../statemanager/slices/uiSlice'
-import { isOperatorOnly } from '../utils/navigation'
 import { SCREEN_ACCESS } from '../utils/permissions'
 import { MichyMark } from './ui'
 
+type Item = NonNullable<MenuProps['items']>[number]
+
+/** A menu group with only the entries this person may open; nothing at all when none are left. */
+const group = (label: string | null, children: (Item | false)[]): Item[] => {
+  const kept = children.filter((c): c is Item => !!c)
+  return kept.length ? [{ type: 'group', label, children: kept }] : []
+}
+
+const withBadge = (label: string, count: number) =>
+  count ? (
+    <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      {label} <Badge count={count} size="small" />
+    </span>
+  ) : (
+    label
+  )
+
+/** Shows only the screens the person's permissions open (see SCREEN_ACCESS). */
 export default function SidebarNavigation() {
   const access = useAccess()
-  const showFinance = access.canAnywhere(...SCREEN_ACCESS.finance)
-  const showRecords = access.canAnywhere(...SCREEN_ACCESS.records)
-  const showReports = access.canAnywhere(...SCREEN_ACCESS.reports)
-  const showPricing = access.canAnywhere(...SCREEN_ACCESS.pricing)
-  const showWastage = access.canAnywhere(...SCREEN_ACCESS.wastage)
+  const sees = (screen: keyof typeof SCREEN_ACCESS) => access.canAnywhere(...SCREEN_ACCESS[screen])
   const queue = useQueueCounts()
   const showSettings = access.canSystem('manage_users') || access.canSystem('manage_companies')
   const collapsed = useAppSelector((s) => s.ui.sidebarCollapsed)
@@ -46,48 +59,22 @@ export default function SidebarNavigation() {
   }, [pathname])
 
   const items: MenuProps['items'] = [
-    { key: '/', icon: <AppstoreOutlined />, label: isOperatorOnly(access.companies) ? 'Home' : 'Dashboard' },
-    {
-      type: 'group',
-      label: collapsed ? null : 'Daily work',
-      children: [
-        { key: '/purchases', icon: <ShoppingCartOutlined />, label: 'Purchases' },
-        { key: '/production', icon: <ExperimentOutlined />, label: 'Production' },
-        { key: '/sales', icon: <ShopOutlined />, label: 'Sales' },
-        {
-          key: '/review',
-          icon: <AuditOutlined />,
-          label: (
-            <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              Approvals <Badge count={queue.total} size="small" />
-            </span>
-          ),
-        },
-        { key: '/parties', icon: <TeamOutlined />, label: 'Suppliers & buyers' },
-      ],
-    },
-    {
-      type: 'group',
-      label: collapsed ? null : 'Stock',
-      children: [{ key: '/stock', icon: <InboxOutlined />, label: 'Stock by company' }],
-    },
-    ...(showFinance || showRecords || showReports
-      ? [
-          {
-            type: 'group' as const,
-            label: collapsed ? null : 'Reports',
-            children: [
-              ...(showReports ? [{ key: '/reports', icon: <BarChartOutlined />, label: 'Reports' }] : []),
-              ...(showWastage
-                ? [{ key: '/wastage', icon: <AlertOutlined />, label: queue.wastage ? <span style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>Wastage control <Badge count={queue.wastage} size="small" /></span> : 'Wastage control' }]
-                : []),
-              ...(showPricing ? [{ key: '/pricing', icon: <DollarOutlined />, label: 'Purchase prices' }] : []),
-              ...(showFinance ? [{ key: '/finance', icon: <LineChartOutlined />, label: 'Finance' }] : []),
-              ...(showRecords ? [{ key: '/records', icon: <DatabaseOutlined />, label: 'All records' }] : []),
-            ],
-          },
-        ]
-      : []),
+    { key: '/', icon: <AppstoreOutlined />, label: sees('dashboard') ? 'Dashboard' : 'Home' },
+    ...group(collapsed ? null : 'Daily work', [
+      sees('purchases') && { key: '/purchases', icon: <ShoppingCartOutlined />, label: 'Purchases' },
+      sees('production') && { key: '/production', icon: <ExperimentOutlined />, label: 'Production' },
+      sees('sales') && { key: '/sales', icon: <ShopOutlined />, label: 'Sales' },
+      sees('review') && { key: '/review', icon: <AuditOutlined />, label: withBadge('Approvals', queue.total) },
+      sees('parties') && { key: '/parties', icon: <TeamOutlined />, label: 'Suppliers & buyers' },
+    ]),
+    ...group(collapsed ? null : 'Stock', [sees('stock') && { key: '/stock', icon: <InboxOutlined />, label: 'Stock by company' }]),
+    ...group(collapsed ? null : 'Reports', [
+      sees('reports') && { key: '/reports', icon: <BarChartOutlined />, label: 'Reports' },
+      sees('wastage') && { key: '/wastage', icon: <AlertOutlined />, label: withBadge('Wastage control', queue.wastage) },
+      sees('pricing') && { key: '/pricing', icon: <DollarOutlined />, label: 'Purchase prices' },
+      sees('finance') && { key: '/finance', icon: <LineChartOutlined />, label: 'Finance' },
+      sees('records') && { key: '/records', icon: <DatabaseOutlined />, label: 'All records' },
+    ]),
     ...(showSettings ? [{ key: '/settings', icon: <SettingOutlined />, label: 'Settings' }] : []),
   ]
 

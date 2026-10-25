@@ -6,8 +6,7 @@ import hashlib
 import logging
 
 from fastapi import Request, UploadFile
-from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.permissions import CompanyPermission as P
@@ -61,10 +60,10 @@ def _serialise(parsed: ParsedBill) -> dict:
     return out
 
 
-async def _read(content: bytes, kind, entry_kind: str, own_gstin: str | None) -> BillReading | None:  # noqa: ANN001
+async def _read(content: bytes, kind, entry_kind: str) -> BillReading | None:  # noqa: ANN001
     try:
         return await asyncio.wait_for(
-            asyncio.to_thread(read_bill, content, kind, entry_kind, own_gstin),
+            asyncio.to_thread(read_bill, content, kind, entry_kind),
             _PARSE_TIMEOUT_SECONDS,
         )
     except UnsupportedFileError:
@@ -75,25 +74,38 @@ async def _read(content: bytes, kind, entry_kind: str, own_gstin: str | None) ->
 
 
 async def _live_entry_ref(db: AsyncSession, doc: Document) -> str | None:
-    if not doc.entry_id:
-        return None
-    entry = await db.get(_MODEL[doc.kind], doc.entry_id)
-    if entry and entry.deleted_at is None and entry.status != EntryStatus.REJECTED:
-        return entry.ref_no
+    """The entry already made from this bill: from this upload or an earlier upload of the very
+    same file (same fingerprint). Rejected and deleted entries free the bill again."""
+    linked = await db.scalars(
+        select(Document.entry_id).where(
+            Document.company_id == doc.company_id,
+            Document.kind == doc.kind,
+            Document.sha256 == doc.sha256,
+            Document.entry_id.is_not(None),
+        )
+    )
+    for entry_id in linked:
+        entry = await db.get(_MODEL[doc.kind], entry_id)
+        if entry and entry.deleted_at is None and entry.status != EntryStatus.REJECTED:
+            return entry.ref_no
     return None
 
 
 async def to_read(db: AsyncSession, doc: Document) -> DocumentRead:
     parsed = ParsedBillRead.model_validate(doc.parsed.get("fields", {}))
     party_id = None
-    if parsed.party_gstin:
+    # Pre-select the supplier / buyer whose name matches the one read from the bill.
+    name = str(parsed.party_name.value).strip().lower() if parsed.party_name else ""
+    if name:
         party_id = await db.scalar(
-            select(Party.id).where(
+            select(Party.id)
+            .where(
                 Party.company_id == doc.company_id,
                 Party.kind == (PartyKind.SUPPLIER if doc.kind == "purchase" else PartyKind.BUYER),
-                Party.gstin == str(parsed.party_gstin.value),
+                func.lower(func.trim(Party.name)) == name,
                 Party.is_active,
             )
+            .limit(1)
         )
     return DocumentRead(
         id=doc.id,
@@ -112,6 +124,22 @@ async def to_read(db: AsyncSession, doc: Document) -> DocumentRead:
     )
 
 
+def _stored_reading(reading: BillReading | None) -> tuple[str, int, dict]:
+    """(method, pages, parsed JSON) as kept on the document."""
+    parsed = (
+        reading.parsed
+        if reading
+        else ParsedBill(
+            warnings=["This bill could not be read automatically; please type the details"]
+        )
+    )
+    stored = {
+        "fields": _serialise(parsed),
+        "lines": (reading.lines if reading else [])[:_MAX_STORED_LINES],
+    }
+    return (reading.method if reading else "none"), (reading.pages if reading else 1), stored
+
+
 async def upload(
     db: AsyncSession,
     ctx: CompanyContext,
@@ -122,27 +150,14 @@ async def upload(
     if not ctx.can(_ENTER[kind]):
         raise ForbiddenError("Not allowed")
     # Plain values: a rollback below expires ORM objects, and re-loading them is not allowed here.
-    company_id, own_gstin = ctx.company.id, ctx.company.gstin
+    company_id = ctx.company.id
     content = await _read_limited(file)
     file_kind = sniff(content[:16])
     digest = hashlib.sha256(content).hexdigest()
 
-    existing = await db.scalar(
-        select(Document).where(Document.company_id == company_id, Document.sha256 == digest)
-    )
-    if existing:
-        if existing.kind != kind:
-            raise ConflictError(f"This file was already uploaded as a {existing.kind} bill")
-        return existing
-
-    reading = await _read(content, file_kind, kind, own_gstin)
-    parsed = (
-        reading.parsed
-        if reading
-        else ParsedBill(
-            warnings=["This bill could not be read automatically; please type the details"]
-        )
-    )
+    # Always read the bill now; nothing from an earlier upload is reused.
+    reading = await _read(content, file_kind, kind)
+    method, pages, stored = _stored_reading(reading)
     doc = Document(
         company_id=company_id,
         kind=kind,
@@ -151,23 +166,13 @@ async def upload(
         size_bytes=len(content),
         sha256=digest,
         content=content,
-        method=reading.method if reading else "none",
-        pages=reading.pages if reading else 1,
-        parsed={
-            "fields": _serialise(parsed),
-            "lines": (reading.lines if reading else [])[:_MAX_STORED_LINES],
-        },
+        method=method,
+        pages=pages,
+        parsed=stored,
         uploaded_by_id=ctx.user.id,
     )
     db.add(doc)
-    try:
-        await db.flush()
-    except IntegrityError:
-        # Someone uploaded the very same file a moment ago.
-        await db.rollback()
-        return await db.scalar(
-            select(Document).where(Document.company_id == company_id, Document.sha256 == digest)
-        )
+    await db.flush()
     audit_service.record(
         db,
         account_id=ctx.user.account_id,

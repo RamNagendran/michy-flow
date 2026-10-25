@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, LargeBinary, String, UniqueConstraint, func
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, LargeBinary, String, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, deferred, mapped_column
 
@@ -15,8 +15,9 @@ class Document(Base):
     """
 
     __tablename__ = "documents"
-    # The same file uploaded twice in one company is the same document.
-    __table_args__ = (UniqueConstraint("company_id", "sha256", name="uq_documents_company_sha256"),)
+    # Every upload is read afresh and kept as its own document. The fingerprint only finds
+    # earlier uploads of the very same file, so one bill cannot become two entries.
+    __table_args__ = (Index("ix_documents_company_sha256", "company_id", "sha256"),)
 
     id: Mapped[int] = mapped_column(primary_key=True)
     company_id: Mapped[int] = mapped_column(

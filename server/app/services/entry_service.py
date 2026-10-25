@@ -13,6 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.permissions import CompanyPermission as P
+from app.auth.permissions import visible_entry_types
 from app.core.clock import now
 from app.core.errors import ConflictError, ForbiddenError, InvalidError, NotFoundError
 from app.models import Production, ProductionOutput, Purchase, Sale, grades
@@ -75,13 +76,15 @@ async def next_ref(db: AsyncSession, ctx: CompanyContext, prefix: str) -> str:
 async def get_entry(
     db: AsyncSession, ctx: CompanyContext, entry_type: EntryType, entry_id: int
 ) -> Entry:
-    """An entry the caller may see. Operators only see their own; anything else is 'not found'."""
+    """An entry the caller may see. Operators only see their own, of the kinds they may enter;
+    anything else is 'not found'."""
     entry = await db.get(KINDS[entry_type].model, entry_id)
     if (
         not entry
         or entry.company_id != ctx.company.id
         or entry.deleted_at is not None
         or (not ctx.can(P.VIEW_ALL_ENTRIES) and entry.created_by_id != ctx.user.id)
+        or entry_type not in visible_entry_types(ctx.permissions)
     ):
         raise NotFoundError("Entry not found")
     return entry

@@ -55,6 +55,6 @@ async def download_bill(
         media_type=doc.content_type,
         headers={
             "Content-Disposition": f'inline; filename="{doc.filename}"',
-            "Cache-Control": "private, max-age=3600",
+            "Cache-Control": "no-store",
         },
     )

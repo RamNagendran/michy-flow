@@ -10,6 +10,7 @@ export type SystemPermission = 'manage_companies' | 'manage_users' | 'manage_con
 
 export type CompanyPermission =
   | 'view'
+  | 'view_stock'
   | 'view_all_entries'
   | 'comment_entry'
   | 'enter_purchase'
@@ -39,7 +40,6 @@ export interface CompanyBrief {
 
 export interface Company extends CompanyBrief {
   city: string
-  gstin: string | null
   /** What the plant does: decides its raw material and products (data/catalog.ts). */
   category: CompanyCategory
   /** Inventory configuration: what this company processes and makes (set by the Super Admin). */
@@ -129,7 +129,6 @@ export interface CompanyInput {
   code: string
   name: string
   city: string
-  gstin: string | null
   is_active?: boolean
 }
 

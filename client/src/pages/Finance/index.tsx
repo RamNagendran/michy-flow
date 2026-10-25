@@ -55,7 +55,7 @@ export default function Finance() {
       <div className="info-banner" style={{ marginBottom: 20 }}>
         <InfoCircleFilled style={{ marginTop: 3 }} />
         <div>
-          <b>A basic difference only:</b> sales received minus purchases spent, before GST. Labour, electricity, transport and other overheads are not included. "Verified" counts
+          <b>A basic difference only:</b> sales received minus purchases spent. Labour, electricity, transport and other overheads are not included. "Verified" counts
           only entries Finance has approved.
         </div>
       </div>

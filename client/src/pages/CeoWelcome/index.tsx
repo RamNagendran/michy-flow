@@ -39,7 +39,7 @@ export default function CeoWelcome() {
   const { user, logout } = useAuth()
   const access = useAccess()
   const navigate = useNavigate()
-  const stocks = useStocks(access.companies.map((c) => c.company))
+  const stocks = useStocks(access.companies.filter((c) => c.permissions.includes('view_stock')).map((c) => c.company))
   if (access.companies.length < 2) return <Navigate to="/" replace />
 
   const open = (c: CompanySelection) => {

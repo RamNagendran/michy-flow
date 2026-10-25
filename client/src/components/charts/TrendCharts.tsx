@@ -16,12 +16,12 @@ interface Props {
 
 const hasAny = (series: TrendPoint[], keys: (keyof TrendPoint)[]) => series.some((p) => keys.some((k) => Number(p[k]) > 0))
 
-/** Money in and out over time: sales and purchases, before GST. */
+/** Money in and out over time: sales and purchases. */
 export function MoneyTrend({ series, bucket, loading, refreshing }: Props) {
   return (
     <ChartCard
       title="Sales and purchases"
-      sub="Value before GST, including entries still in approval"
+      sub="Including entries still in approval"
       legend={[
         { label: 'Sales', color: c.sales },
         { label: 'Purchases', color: c.purchase },

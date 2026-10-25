@@ -31,10 +31,11 @@ interface Props {
 export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props) {
   const p = doc.parsed
   const isPurchase = doc.kind === 'purchase'
-  const company = useAccess().accessFor(doc.company_id)?.company
+  const access = useAccess()
+  const company = access.accessFor(doc.company_id)?.company
   const partyList = useParties(doc.company_id, isPurchase ? 'supplier' : 'buyer')
   const parties = useMemo(() => (partyList.data ?? []).filter((x) => x.is_active), [partyList.data])
-  const stocks = useStocks(company ? [company] : [])
+  const stocks = useStocks(company && access.canReadStock(company.id) ? [company] : [])
 
   const [partyId, setPartyId] = useState<number | undefined>(doc.party_id ?? undefined)
   const [invoiceNo, setInvoiceNo] = useState(p.invoice_no?.value ?? '')
@@ -138,8 +139,8 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
           <div style={{ display: 'grid', gap: 12 }}>
             <XField
               label={isPurchase ? 'Supplier' : 'Buyer'}
-              read={p.party_gstin}
-              note={p.party_name || p.party_gstin ? `On the bill: ${p.party_name?.value ?? '—'}${p.party_gstin ? ` · GSTIN ${p.party_gstin.value}` : ''}` : 'Not found on the bill'}
+              read={p.party_name}
+              note={p.party_name ? `On the bill: ${p.party_name.value}` : 'Not found on the bill'}
               verify={tick('party')}
             >
               <Select value={partyId} onChange={setPartyId} style={{ width: '100%' }} loading={partyList.isLoading} options={parties.map((x) => ({ value: x.id, label: x.name }))} placeholder="Choose" showSearch={{ optionFilterProp: 'label' }} />
@@ -182,7 +183,7 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
               </XField>
             </div>
             <div className="summary-line" style={{ background: '#f7f8fa', borderRadius: 10, padding: '10px 14px' }}>
-              <span className="muted">Amount before GST{item ? ` · ${itemName(item)}` : ''}</span>
+              <span className="muted">Amount{item ? ` · ${itemName(item)}` : ''}</span>
               <b className="num">{formatINR(qty * rate, true)}</b>
             </div>
           </div>

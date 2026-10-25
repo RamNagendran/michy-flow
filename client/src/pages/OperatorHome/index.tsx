@@ -10,23 +10,26 @@ import { PageHeader, SectionTitle } from '../../components/ui'
 import { CompanyCard } from '../../components/CompanyCards'
 import EntryTable from '../../components/entries/EntryTable'
 import type { CompanyPermission } from '../../types/auth'
+import type { EntryType } from '../../types/entries'
 import { firstName } from '../../utils/user'
+import OperatorCharts from './OperatorCharts'
 
-const ALL = ['purchase', 'production', 'sale'] as const
-
-const tiles: { to: string; perm: CompanyPermission; title: string; text: string; icon: React.ReactNode; bg: string }[] = [
-  { to: '/purchases/new', perm: 'enter_purchase', title: 'Record a purchase', text: 'Upload the bill or type it in', icon: <ShoppingCartOutlined />, bg: 'linear-gradient(135deg, #D82E54 0%, #B8213F 100%)' },
-  { to: '/production/new', perm: 'enter_production', title: 'Record production', text: 'What went in, what came out', icon: <ExperimentOutlined />, bg: 'linear-gradient(135deg, #2a2a31 0%, #191919 100%)' },
-  { to: '/sales/new', perm: 'enter_sales', title: 'Record a sale', text: 'Rubber, steel or other output', icon: <ShopOutlined />, bg: 'linear-gradient(135deg, #2F6FEB 0%, #1f55c4 100%)' },
+const tiles: { to: string; type: EntryType; perm: CompanyPermission; title: string; text: string; icon: React.ReactNode; bg: string }[] = [
+  { to: '/purchases/new', type: 'purchase', perm: 'enter_purchase', title: 'Record a purchase', text: 'Upload the bill or type it in', icon: <ShoppingCartOutlined />, bg: 'linear-gradient(135deg, #D82E54 0%, #B8213F 100%)' },
+  { to: '/production/new', type: 'production', perm: 'enter_production', title: 'Record production', text: 'What went in, what came out', icon: <ExperimentOutlined />, bg: 'linear-gradient(135deg, #2a2a31 0%, #191919 100%)' },
+  { to: '/sales/new', type: 'sale', perm: 'enter_sales', title: 'Record a sale', text: 'Rubber, steel or other output', icon: <ShopOutlined />, bg: 'linear-gradient(135deg, #2F6FEB 0%, #1f55c4 100%)' },
 ]
 
-/** Home for operators: only the tasks ticked for them, their own entries, and their companies. */
+/** Home for operators: only the tasks ticked for them and their own entries of those kinds. */
 export default function OperatorHome() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const access = useAccess()
-  const stocks = useStocks(access.scope)
   const myTiles = tiles.filter((t) => access.canAnywhere(t.perm))
+  // The server only returns entry kinds the person may enter; asking for just those keeps it obvious.
+  const myTypes = myTiles.map((t) => t.type)
+  const stockCompanies = access.scope.filter((c) => access.can('view_stock', c.id))
+  const stocks = useStocks(stockCompanies)
   const ids = access.scope.map((c) => c.id)
   // The server only returns this operator's own entries.
   const held = useEntries({ status: ['on_hold'], company_id: ids, page_size: 1 })
@@ -61,30 +64,36 @@ export default function OperatorHome() {
         </div>
       )}
 
+      {myTypes.length > 0 && <OperatorCharts types={myTypes} companyIds={ids} />}
+
       {(held.data?.total ?? 0) > 0 && (
         <>
           <SectionTitle title="Finance has questions" hint="Open an entry to read the comment and reply" />
           <div className="surface table-card" style={{ borderColor: '#f5c8d3' }}>
-            <EntryTable types={[...ALL]} companies={access.scope} statuses={['on_hold']} compact />
+            <EntryTable types={myTypes} companies={access.scope} statuses={['on_hold']} compact />
           </div>
         </>
       )}
 
-      <div className="grid" style={{ gridTemplateColumns: '1.4fr 1fr', marginTop: 8 }}>
-        <div>
-          <SectionTitle title="My entries" hint="newest first" />
-          <div className="surface table-card">
-            <EntryTable types={[...ALL]} companies={access.scope} pageSize={8} compact />
+      <div className="grid" style={{ gridTemplateColumns: stockCompanies.length ? '1.4fr 1fr' : '1fr', marginTop: 8 }}>
+        {myTypes.length > 0 && (
+          <div>
+            <SectionTitle title="My entries" hint="newest first" />
+            <div className="surface table-card">
+              <EntryTable types={myTypes} companies={access.scope} pageSize={8} compact />
+            </div>
           </div>
-        </div>
-        <div>
-          <SectionTitle title="My companies" hint="stock right now" />
-          <div style={{ display: 'grid', gap: 16 }}>
-            {access.scope.map((c) => (
-              <CompanyCard key={c.id} company={c} raw={stocks.byCompany.get(c.id)?.raw} output={stocks.byCompany.get(c.id)?.output} />
-            ))}
+        )}
+        {stockCompanies.length > 0 && (
+          <div>
+            <SectionTitle title="My companies" hint="stock right now" />
+            <div style={{ display: 'grid', gap: 16 }}>
+              {stockCompanies.map((c) => (
+                <CompanyCard key={c.id} company={c} raw={stocks.byCompany.get(c.id)?.raw} output={stocks.byCompany.get(c.id)?.output} />
+              ))}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )

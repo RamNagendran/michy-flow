@@ -10,7 +10,6 @@ import { useAccess } from '../../hooks/useAccess'
 import InventoryModal from './InventoryModal'
 
 /** Same rule as the server (server/app/schemas/company.py). */
-const GSTIN = /^[0-3][0-9][A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/
 
 /** Mounted only while open, so each opening starts from a clean form. */
 function CompanyModal({ company, onClose }: { company?: Company; onClose: () => void }) {
@@ -25,7 +24,6 @@ function CompanyModal({ company, onClose }: { company?: Company; onClose: () => 
           code: v.code.trim().toUpperCase(),
           name: v.name.trim(),
           city: (v.city ?? '').trim(),
-          gstin: v.gstin?.trim().toUpperCase() || null,
           // Sent only when it changes: the server refuses a change once the company has entries.
           ...(company?.category === v.category ? {} : { category: v.category }),
         },
@@ -74,14 +72,6 @@ function CompanyModal({ company, onClose }: { company?: Company; onClose: () => 
         <div className="grid grid-2" style={{ columnGap: 16, rowGap: 0 }}>
           <Form.Item label="City" name="city" rules={[{ max: 100 }]}>
             <Input placeholder="Gummidipoondi" />
-          </Form.Item>
-          <Form.Item
-            label="GSTIN (optional)"
-            name="gstin"
-            normalize={(v: string) => v.toUpperCase()}
-            rules={[{ validator: async (_, v) => (!v || GSTIN.test(v.trim()) ? undefined : Promise.reject(new Error('Not a valid GSTIN'))) }]}
-          >
-            <Input placeholder="33AAXFM5521R1Z3" maxLength={15} />
           </Form.Item>
         </div>
       </Form>
@@ -138,7 +128,6 @@ export default function CompaniesTab() {
               </span>
             ),
           },
-          { title: 'GSTIN', dataIndex: 'gstin', render: (v) => (v ? <span className="num">{v}</span> : <span className="faint">—</span>) },
           { title: 'Status', render: (_, c) => (c.is_active ? <Tag color="success">Active</Tag> : <Tag>Inactive</Tag>) },
           { title: 'Active', render: (_, c) => <Switch size="small" checked={c.is_active} onChange={() => toggle(c)} aria-label={`Active: ${c.name}`} /> },
           {

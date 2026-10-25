@@ -3,15 +3,14 @@
 from httpx import AsyncClient
 
 from tests import bill_samples
-from tests.bill_samples import OUR_GSTIN, SELLER_GSTIN
 from tests.conftest import bearer
 from tests.entry_helpers import Team, party, team
 
 
-async def _with_gstins(client: AsyncClient) -> Team:
+async def _with_bill_supplier(client: AsyncClient) -> Team:
+    """A team whose supplier list has the party named on the sample bill."""
     t = await team(client)
-    await client.patch(t.url(), json={"gstin": OUR_GSTIN}, headers=bearer(t.super_admin))
-    t.supplier = await party(client, t, "supplier", "Sri Balaji Tyre Traders", gstin=SELLER_GSTIN)
+    t.supplier = await party(client, t, "supplier", "Sri Balaji Tyre Traders")
     return t
 
 
@@ -44,7 +43,7 @@ def _purchase_body(t: Team, doc: dict) -> dict:
 
 
 async def test_upload_reads_the_bill_and_matches_the_supplier(client: AsyncClient) -> None:
-    t = await _with_gstins(client)
+    t = await _with_bill_supplier(client)
     res = await _upload(
         client, t, t.operator, bill_samples.pdf(with_qr=True), name="../SBT invoice.pdf"
     )
@@ -54,14 +53,13 @@ async def test_upload_reads_the_bill_and_matches_the_supplier(client: AsyncClien
     assert doc["method"] == "pdf_text"
     assert doc["party_id"] == t.supplier
     assert doc["parsed"]["einvoice"] is True
-    assert doc["parsed"]["addressed_to_us"] is True
     assert doc["parsed"]["qty"]["value"] == 8460.0
     assert doc["duplicate_of"] is None
     assert doc["lines"][0] == "Sri Balaji Tyre Traders"
 
 
 async def test_confirmed_bill_becomes_a_pending_entry(client: AsyncClient) -> None:
-    t = await _with_gstins(client)
+    t = await _with_bill_supplier(client)
     # One set of bytes: the generator stamps each PDF with the time it was made.
     pdf = bill_samples.pdf()
     doc = (await _upload(client, t, t.operator, pdf)).json()
@@ -75,17 +73,18 @@ async def test_confirmed_bill_becomes_a_pending_entry(client: AsyncClient) -> No
     assert entry["document_id"] == doc["id"]
     assert entry["amount"] == 120132.0
 
-    # The same file again is recognised, and cannot become a second entry.
+    # The same file again is read afresh as a new upload, flagged, and cannot become a second entry.
     again = (await _upload(client, t, t.operator, pdf)).json()
-    assert again["id"] == doc["id"]
+    assert again["id"] != doc["id"]
     assert again["duplicate_of"] == entry["ref_no"]
-    body = {**_purchase_body(t, doc), "invoice_no": "OTHER-1"}
-    dup = await client.post(t.url("/purchases"), json=body, headers=bearer(t.operator))
-    assert dup.status_code == 409
+    for d in (doc, again):
+        body = {**_purchase_body(t, d), "invoice_no": "OTHER-1"}
+        dup = await client.post(t.url("/purchases"), json=body, headers=bearer(t.operator))
+        assert dup.status_code == 409
 
 
 async def test_a_rejected_entry_frees_its_bill(client: AsyncClient) -> None:
-    t = await _with_gstins(client)
+    t = await _with_bill_supplier(client)
     doc = (await _upload(client, t, t.operator, bill_samples.pdf())).json()
     entry = (
         await client.post(
@@ -138,7 +137,7 @@ async def test_upload_needs_the_matching_duty(client: AsyncClient) -> None:
 
 
 async def test_only_permitted_people_can_open_a_bill(client: AsyncClient) -> None:
-    t = await _with_gstins(client)
+    t = await _with_bill_supplier(client)
     doc = (await _upload(client, t, t.operator, bill_samples.png(), name="photo.png")).json()
     assert doc["method"] == "ocr"
     url = t.url(f"/documents/{doc['id']}/file")
@@ -149,3 +148,28 @@ async def test_only_permitted_people_can_open_a_bill(client: AsyncClient) -> Non
     # Another operator cannot see it; the Admin and Finance can.
     assert (await client.get(url, headers=bearer(t.operator2))).status_code == 404
     assert (await client.get(url, headers=bearer(t.finance))).status_code == 200
+
+
+async def test_every_upload_is_read_afresh(client: AsyncClient) -> None:
+    """Nothing from an earlier upload is reused, even for the very same file."""
+    from sqlalchemy import update
+
+    from app.core.db import SessionLocal
+    from app.models import Document
+
+    t = await _with_bill_supplier(client)
+    pdf = bill_samples.pdf(with_qr=False)
+    first = (await _upload(client, t, t.operator, pdf)).json()
+    # Even if what was stored for the first upload were wrong, a new upload reads the file again.
+    stale = {
+        "fields": {"rate": {"value": "1", "confidence": 92, "source": "arithmetic"}},
+        "lines": [],
+    }
+    async with SessionLocal() as db:
+        await db.execute(update(Document).where(Document.id == first["id"]).values(parsed=stale))
+        await db.commit()
+
+    again = (await _upload(client, t, t.operator, pdf)).json()
+    assert again["id"] != first["id"]
+    assert again["parsed"]["rate"]["value"] == first["parsed"]["rate"]["value"] != 1
+    assert again["duplicate_of"] is None  # not entered yet

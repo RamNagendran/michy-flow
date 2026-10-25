@@ -267,7 +267,6 @@ class EntryDetail(BaseModel):
     # Purchase / sale
     party_id: int | None = None
     party_name: str | None = None
-    party_gstin: str | None = None
     item: str
     qty: float  # in `unit`; the input weight for production
     unit: str

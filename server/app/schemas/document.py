@@ -12,7 +12,6 @@ class ParsedValue(BaseModel):
 
 
 class ParsedBillRead(BaseModel):
-    party_gstin: ParsedValue | None = None
     party_name: ParsedValue | None = None
     invoice_no: ParsedValue | None = None
     invoice_date: ParsedValue | None = None
@@ -30,7 +29,6 @@ class ParsedBillRead(BaseModel):
     tax_amount: ParsedValue | None = None
     total: ParsedValue | None = None
     einvoice: bool = False
-    addressed_to_us: bool | None = None
     warnings: list[str] = []
 
 
@@ -46,7 +44,7 @@ class DocumentRead(BaseModel):
     created_at: datetime
     parsed: ParsedBillRead
     lines: list[str]
-    # The supplier / buyer in this company whose GSTIN matches the bill.
+    # The supplier / buyer in this company whose name matches the one read from the bill.
     party_id: int | None
     # Set when this exact file is already the bill of a live entry.
     duplicate_of: str | None

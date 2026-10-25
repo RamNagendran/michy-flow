@@ -19,10 +19,13 @@ _MAX_RANGE_DAYS = 400
 
 @router.get("/stock", response_model=CompanyStock)
 async def stock(
-    ctx: CompanyContext = Depends(require_company_permission(P.VIEW)),
+    ctx: CompanyContext = Depends(
+        require_company_permission(P.VIEW_STOCK, P.ENTER_SALES, P.ENTER_PRODUCTION)
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> CompanyStock:
-    """Stock right now, per tyre type and per output product."""
+    """Stock right now, per tyre type and per output product. Sale and production forms
+    need it to check what is available, so those operators may read it too."""
     return await stock_service.company_stock(db, ctx.company.id)
 
 

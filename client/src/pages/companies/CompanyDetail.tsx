@@ -94,7 +94,7 @@ export default function CompanyDetail() {
             )}
           </span>
         }
-        subtitle={[processOf(company.category).summary, company.city, company.gstin && `GSTIN ${company.gstin}`].filter(Boolean).join(' · ')}
+        subtitle={[processOf(company.category).summary, company.city].filter(Boolean).join(' · ')}
         extra={
           <>
             {can('enter_purchase') && (

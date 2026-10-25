@@ -8,14 +8,13 @@ import { errorMessage } from '../../services/apiError'
 import type { Party, PartyInput, PartyKind } from '../../types/entries'
 
 /** Same rule as the server (server/app/schemas/company.py). */
-const GSTIN = /^[0-3][0-9][A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/
 
 function PartyModal({ companyId, kind, party, onClose }: { companyId: number; kind: PartyKind; party?: Party; onClose: () => void }) {
   const [form] = Form.useForm<PartyInput>()
   const save = useSaveParty(companyId)
   const label = kind === 'supplier' ? 'supplier' : 'buyer'
   const onFinish = (v: PartyInput) =>
-    save.mutate({ id: party?.id, body: { ...v, kind, gstin: v.gstin?.trim().toUpperCase() || null, is_active: v.is_active ?? true } }, { onSuccess: onClose })
+    save.mutate({ id: party?.id, body: { ...v, kind, is_active: v.is_active ?? true } }, { onSuccess: onClose })
 
   return (
     <Modal open title={party ? `Edit ${party.name}` : `Add a ${label}`} okText="Save" onOk={() => form.submit()} onCancel={onClose} confirmLoading={save.isPending}>
@@ -25,15 +24,6 @@ function PartyModal({ companyId, kind, party, onClose }: { companyId: number; ki
           <Input placeholder="e.g. Sri Balaji Tyre Traders" />
         </Form.Item>
         <div className="grid grid-2" style={{ columnGap: 16, rowGap: 0 }}>
-          <Form.Item
-            label="GSTIN"
-            name="gstin"
-            normalize={(v: string) => v.toUpperCase()}
-            extra="Used to match uploaded bills to this party"
-            rules={[{ validator: async (_, v) => (!v || GSTIN.test(v.trim()) ? undefined : Promise.reject(new Error('Not a valid GSTIN'))) }]}
-          >
-            <Input placeholder="33AAKFS4821M1Z6" maxLength={15} />
-          </Form.Item>
           <Form.Item label="City" name="city" rules={[{ max: 100 }]}>
             <Input />
           </Form.Item>
@@ -65,7 +55,7 @@ export default function Parties() {
   const canManage = !!current && can('manage_parties', current.id)
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase()
-    return (parties.data ?? []).filter((p) => !needle || `${p.name} ${p.gstin ?? ''} ${p.city}`.toLowerCase().includes(needle))
+    return (parties.data ?? []).filter((p) => !needle || `${p.name} ${p.city}`.toLowerCase().includes(needle))
   }, [parties.data, q])
 
   return (
@@ -85,7 +75,7 @@ export default function Parties() {
         <div style={{ display: 'flex', gap: 10, padding: 16, flexWrap: 'wrap', alignItems: 'center' }}>
           {scope.length > 1 && <Select style={{ width: 220 }} value={current?.id} onChange={setCompanyId} options={scope.map((c) => ({ value: c.id, label: c.name }))} />}
           <Segmented<PartyKind> value={kind} onChange={setKind} options={[{ value: 'supplier', label: 'Suppliers' }, { value: 'buyer', label: 'Buyers' }]} />
-          <Input prefix={<SearchOutlined className="faint" />} placeholder="Search name, GSTIN or city" allowClear value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
+          <Input prefix={<SearchOutlined className="faint" />} placeholder="Search name or city" allowClear value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
         </div>
         <Table<Party>
           scroll={{ x: 'max-content' }}
@@ -95,7 +85,6 @@ export default function Parties() {
           dataSource={rows}
           columns={[
             { title: 'Name', dataIndex: 'name', render: (v, p) => <span style={{ fontWeight: 700, opacity: p.is_active ? 1 : 0.5 }}>{v}</span> },
-            { title: 'GSTIN', dataIndex: 'gstin', render: (v) => (v ? <span className="num">{v}</span> : <span className="faint">—</span>) },
             { title: 'City', dataIndex: 'city' },
             { title: 'Contact', dataIndex: 'contact_name' },
             { title: 'Phone', dataIndex: 'phone', render: (v) => <span className="num muted">{v}</span> },

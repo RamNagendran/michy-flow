@@ -8,7 +8,6 @@ import PublicRoute from './components/PublicRoute'
 import SessionManager from './components/SessionManager'
 import { useAccess } from './hooks/useAccess'
 import { useAuth } from './hooks/useAuth'
-import { isOperatorOnly } from './utils/navigation'
 import { SCREEN_ACCESS } from './utils/permissions'
 
 const Login = lazy(() => import('./pages/Login'))
@@ -35,9 +34,15 @@ const Reports = lazy(() => import('./pages/Reports'))
 const Pricing = lazy(() => import('./pages/Pricing'))
 const Wastage = lazy(() => import('./pages/Wastage'))
 
+/** Company dashboard for people who see all entries; otherwise the task list for their duties. */
 function Home() {
-  const { companies } = useAccess()
-  return isOperatorOnly(companies) ? <OperatorHome /> : <Dashboard />
+  const { canAnywhere } = useAccess()
+  return canAnywhere(...SCREEN_ACCESS.dashboard) ? <Dashboard /> : <OperatorHome />
+}
+
+/** Route guard for one screen in SCREEN_ACCESS. */
+function Screen({ name, children }: { name: keyof typeof SCREEN_ACCESS; children: ReactNode }) {
+  return <ProtectedRoute anyOf={SCREEN_ACCESS[name]}>{children}</ProtectedRoute>
 }
 
 /** Signed in, but a temporary password is allowed (the change-password screen itself). */
@@ -67,21 +72,21 @@ export default function App() {
                 {/* Inner Suspense keeps the sidebar and header on screen while a page loads. */}
                 <Route element={<Suspense fallback={<PageLoader />}><Outlet /></Suspense>}>
                   <Route index element={<Home />} />
-                  <Route path="purchases" element={<PurchasesList />} />
+                  <Route path="purchases" element={<Screen name="purchases"><PurchasesList /></Screen>} />
                   <Route path="purchases/new" element={<ProtectedRoute anyOf={['enter_purchase']}><NewPurchase /></ProtectedRoute>} />
-                  <Route path="production" element={<ProductionList />} />
+                  <Route path="production" element={<Screen name="production"><ProductionList /></Screen>} />
                   <Route path="production/new" element={<ProtectedRoute anyOf={['enter_production']}><NewProduction /></ProtectedRoute>} />
-                  <Route path="stock" element={<StockOverview />} />
-                  <Route path="companies/:id" element={<CompanyDetail />} />
-                  <Route path="sales" element={<SalesList />} />
+                  <Route path="stock" element={<Screen name="stock"><StockOverview /></Screen>} />
+                  <Route path="companies/:id" element={<Screen name="stock"><CompanyDetail /></Screen>} />
+                  <Route path="sales" element={<Screen name="sales"><SalesList /></Screen>} />
                   <Route path="sales/new" element={<ProtectedRoute anyOf={['enter_sales']}><NewSale /></ProtectedRoute>} />
-                  <Route path="finance" element={<ProtectedRoute anyOf={SCREEN_ACCESS.finance}><Finance /></ProtectedRoute>} />
-                  <Route path="reports" element={<ProtectedRoute anyOf={SCREEN_ACCESS.reports}><Reports /></ProtectedRoute>} />
-                  <Route path="pricing" element={<ProtectedRoute anyOf={SCREEN_ACCESS.pricing}><Pricing /></ProtectedRoute>} />
-                  <Route path="wastage" element={<ProtectedRoute anyOf={SCREEN_ACCESS.wastage}><Wastage /></ProtectedRoute>} />
-                  <Route path="review" element={<Review />} />
-                  <Route path="parties" element={<Parties />} />
-                  <Route path="records" element={<ProtectedRoute anyOf={SCREEN_ACCESS.records}><Records /></ProtectedRoute>} />
+                  <Route path="finance" element={<Screen name="finance"><Finance /></Screen>} />
+                  <Route path="reports" element={<Screen name="reports"><Reports /></Screen>} />
+                  <Route path="pricing" element={<Screen name="pricing"><Pricing /></Screen>} />
+                  <Route path="wastage" element={<Screen name="wastage"><Wastage /></Screen>} />
+                  <Route path="review" element={<Screen name="review"><Review /></Screen>} />
+                  <Route path="parties" element={<Screen name="parties"><Parties /></Screen>} />
+                  <Route path="records" element={<Screen name="records"><Records /></Screen>} />
                   <Route path="settings" element={<ProtectedRoute system="manage_users"><Settings /></ProtectedRoute>} />
                   <Route path="*" element={<NotFound />} />
                 </Route>

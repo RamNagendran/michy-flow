@@ -1,5 +1,5 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Avatar, Badge, Button, Dropdown, Layout, Popover, Tooltip, type MenuProps } from 'antd'
+import { Avatar, Badge, Button, ConfigProvider, Dropdown, Layout, Popover, Tooltip, type MenuProps, type ThemeConfig } from 'antd'
 import {
   BankOutlined,
   BellOutlined,
@@ -17,7 +17,6 @@ import { useAccess } from '../hooks/useAccess'
 import { useQueueCounts } from '../hooks/useQueueCounts'
 import { useRealtimeStatus } from '../hooks/useRealtime'
 import { roleColor, SCREEN_ACCESS } from '../utils/permissions'
-import { isOperatorOnly } from '../utils/navigation'
 import { accessRoleLabel, initials } from '../utils/user'
 import CompanySwitcher from './CompanySwitcher'
 import NoCompanies from './NoCompanies'
@@ -45,6 +44,9 @@ const titles: [string, string][] = [
   ['/parties', 'Suppliers & buyers'],
 ]
 
+/** Smaller controls just for the header bar, so it stays on one calm line. */
+const HEADER_THEME: ThemeConfig = { token: { controlHeight: 32, fontSize: 13 }, components: { Segmented: { trackPadding: 2 } } }
+
 const URGENT = new Set(['hold', 'escalated', 'wastage'])
 
 const PERIOD_PAGES = ['/finance', '/stock', '/companies', '/reports', '/pricing', '/wastage', '/purchases', '/sales', '/production']
@@ -54,13 +56,16 @@ export default function MainLayout() {
   const access = useAccess()
   const navigate = useNavigate()
   const { pathname } = useLocation()
-  const operatorOnly = isOperatorOnly(access.companies)
+  const sees = (screen: keyof typeof SCREEN_ACCESS) => access.canAnywhere(...SCREEN_ACCESS[screen])
+  const seesDashboard = sees('dashboard')
+  // Search opens the widest list this person may see.
+  const searchScreen = (['records', 'purchases', 'sales', 'production'] as const).find((s) => sees(s))
   const queue = useQueueCounts()
   const live = useRealtimeStatus()
   const role = user?.global_role ?? access.activeAccess?.role ?? access.companies[0]?.role ?? null
 
-  const title = titles.find(([p]) => pathname.startsWith(p))?.[1] ?? (operatorOnly ? 'Home' : 'Dashboard')
-  const showPeriod = !operatorOnly && !pathname.endsWith('/new') && (pathname === '/' || PERIOD_PAGES.some((p) => pathname.startsWith(p)))
+  const title = titles.find(([p]) => pathname.startsWith(p))?.[1] ?? (seesDashboard ? 'Dashboard' : 'Home')
+  const showPeriod = seesDashboard && !pathname.endsWith('/new') && (pathname === '/' || PERIOD_PAGES.some((p) => pathname.startsWith(p)))
 
   const items = [
     { key: 'admin', n: queue.admin, text: 'waiting for your approval', tab: 'admin' },
@@ -74,7 +79,7 @@ export default function MainLayout() {
       <div style={{ fontWeight: 800, fontSize: 15, padding: '4px 4px 10px' }}>Notifications</div>
       {items.length ? (
         items.map((i) => (
-          <div key={i.key} className="qa-row" onClick={() => navigate(i.key === 'wastage' ? '/wastage' : `/review?tab=${i.tab}`)}>
+          <div key={i.key} className="qa-row" onClick={() => navigate(i.key === 'wastage' ? '/wastage' : sees('review') ? `/review?tab=${i.tab}` : '/')}>
             <span className="kpi-icon" style={{ background: URGENT.has(i.key) ? '#fdeef2' : '#f4efff', color: URGENT.has(i.key) ? '#D4380D' : '#6941c6' }}>
               <FileTextFilled />
             </span>
@@ -129,47 +134,51 @@ export default function MainLayout() {
       <SidebarNavigation />
 
       <Layout>
-        <Header className="topbar">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-            <div className="topbar-title">{title}</div>
-            <CompanySwitcher />
-            {showPeriod && <PeriodPicker />}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            {access.canAnywhere(...SCREEN_ACCESS.enterAny) && (
-              <Dropdown menu={newEntry} placement="bottomRight">
-                <Button type="primary" icon={<PlusOutlined />} size="large">
-                  New entry
-                </Button>
-              </Dropdown>
-            )}
-            <Tooltip title={live === 'live' ? 'Live: changes by others appear straight away' : 'Reconnecting… screens refresh when the connection is back'}>
-              <span className="pill" style={{ background: live === 'live' ? '#e8f6ef' : '#fff6e6', color: live === 'live' ? '#1f9d6b' : '#b26b00' }}>
-                <span className="legend-dot" style={{ background: live === 'live' ? '#1f9d6b' : '#d98a0b' }} />
-                {live === 'live' ? 'Live' : 'Reconnecting'}
-              </span>
-            </Tooltip>
-            <Tooltip title="Search records">
-              <Button shape="circle" size="large" icon={<FileSearchOutlined />} onClick={() => navigate(access.canAnywhere(...SCREEN_ACCESS.records) ? '/records' : '/purchases')} />
-            </Tooltip>
-            <Popover content={notifications} trigger="click" placement="bottomRight">
-              <Badge count={queue.total} size="small" offset={[-4, 4]}>
-                <Button shape="circle" size="large" icon={<BellOutlined />} />
-              </Badge>
-            </Popover>
-            <Dropdown menu={userMenu} placement="bottomRight" trigger={['click']}>
-              <div className="user-chip">
-                <Avatar style={{ background: role ? roleColor[role] : undefined, fontWeight: 700 }}>{initials(user)}</Avatar>
-                <div style={{ lineHeight: 1.25 }}>
-                  <div style={{ fontWeight: 800, fontSize: 13.5 }}>{user?.full_name}</div>
-                  <div className="faint" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
-                    <BankOutlined /> {accessRoleLabel(user, access.activeAccess ?? access.companies[0])} · {access.activeAccess?.company.name ?? user?.account.name}
+        <ConfigProvider theme={HEADER_THEME}>
+          <Header className="topbar">
+            <div className="topbar-group">
+              <div className="topbar-title">{title}</div>
+              <CompanySwitcher />
+              {showPeriod && <PeriodPicker />}
+            </div>
+            <div className="topbar-group">
+              {access.canAnywhere(...SCREEN_ACCESS.enterAny) && (
+                <Dropdown menu={newEntry} placement="bottomRight">
+                  <Button type="primary" icon={<PlusOutlined />}>
+                    New entry
+                  </Button>
+                </Dropdown>
+              )}
+              <Tooltip title={live === 'live' ? 'Live: changes by others appear straight away' : 'Reconnecting… screens refresh when the connection is back'}>
+                <span className="live-pill" style={{ background: live === 'live' ? '#e8f6ef' : '#fff6e6', color: live === 'live' ? '#1f9d6b' : '#b26b00' }}>
+                  <span className="live-dot" style={{ background: live === 'live' ? '#1f9d6b' : '#d98a0b' }} />
+                  {live === 'live' ? 'Live' : 'Reconnecting'}
+                </span>
+              </Tooltip>
+              {searchScreen && (
+                <Tooltip title="Search records">
+                  <Button shape="circle" icon={<FileSearchOutlined />} onClick={() => navigate(`/${searchScreen}`)} />
+                </Tooltip>
+              )}
+              <Popover content={notifications} trigger="click" placement="bottomRight">
+                <Badge count={queue.total} size="small" offset={[-2, 2]}>
+                  <Button shape="circle" icon={<BellOutlined />} />
+                </Badge>
+              </Popover>
+              <Dropdown menu={userMenu} placement="bottomRight" trigger={['click']}>
+                <div className="user-chip">
+                  <Avatar size={30} style={{ background: role ? roleColor[role] : undefined, fontWeight: 700, fontSize: 13 }}>{initials(user)}</Avatar>
+                  <div className="user-chip-text">
+                    <div className="user-chip-name">{user?.full_name}</div>
+                    <div className="faint user-chip-sub">
+                      <BankOutlined /> {accessRoleLabel(user, access.activeAccess ?? access.companies[0])} · {access.activeAccess?.company.name ?? user?.account.name}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Dropdown>
-          </div>
-        </Header>
+              </Dropdown>
+            </div>
+          </Header>
+        </ConfigProvider>
         <Content>
           {/* Keyed on the path so each page eases in; opacity and transform only, so it stays cheap. */}
           <div key={pathname} className="page-enter">
