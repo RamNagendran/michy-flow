@@ -3,9 +3,11 @@ import { DatePicker, Popover, Segmented, Tooltip } from 'antd'
 import { CalendarOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { usePeriod } from '../hooks/usePeriod'
-import { periodLabels, rangeSubtitle, type Period } from '../utils/period'
+import { rangeSubtitle, type Period } from '../utils/period'
 
 const PRESETS: Period[] = ['month', 'quarter', 'fy']
+// Short labels keep the header on one line; the tooltip gives the exact dates.
+const SHORT: Record<Exclude<Period, 'custom'>, string> = { month: 'Month', quarter: 'Quarter', fy: 'Year' }
 // The longest custom range the reports accept (server/app/routers/_range.py, monthly points).
 const MAX_DAYS = 1100
 
@@ -13,15 +15,15 @@ const MAX_DAYS = 1100
 export default function PeriodPicker() {
   const { period, range, setPeriod, setCustom, custom } = usePeriod()
   const [open, setOpen] = useState(false)
-  const label = period === 'custom' ? rangeSubtitle(range) : 'Custom'
+  const label = period === 'custom' ? `${dayjs(range[0]).format('D MMM')} – ${dayjs(range[1]).format('D MMM')}` : 'Custom'
   return (
-    <Tooltip title={period === 'custom' ? '' : rangeSubtitle(range)} placement="bottom">
+    <Tooltip title={rangeSubtitle(range)} placement="bottom">
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
         <Segmented<Period>
           value={period}
           onChange={(p) => (p === 'custom' ? setOpen(true) : setPeriod(p))}
           options={[
-            ...PRESETS.map((p) => ({ value: p, label: periodLabels[p] })),
+            ...PRESETS.map((p) => ({ value: p, label: SHORT[p as Exclude<Period, 'custom'>] })),
             {
               value: 'custom' as const,
               label: (

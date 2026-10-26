@@ -30,7 +30,7 @@ export default function CompanySwitcher() {
       prefix={<ApartmentOutlined className="faint" />}
       popupMatchSelectWidth={false}
       showSearch={{ optionFilterProp: 'search' }}
-      style={{ minWidth: 180, maxWidth: 260 }}
+      style={{ minWidth: 150, maxWidth: 210 }}
       aria-label="Company"
     />
   )

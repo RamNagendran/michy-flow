@@ -96,6 +96,8 @@ export default function MainLayout() {
     </div>
   )
 
+  const roleText = `${accessRoleLabel(user, access.activeAccess ?? access.companies[0])} · ${access.activeAccess?.company.name ?? user?.account.name ?? ''}`
+
   const userMenu: MenuProps = {
     items: [
       {
@@ -106,6 +108,9 @@ export default function MainLayout() {
             <div style={{ fontWeight: 700, color: 'var(--ink)' }}>{user?.full_name}</div>
             <div className="faint" style={{ fontSize: 12 }}>
               {user?.email}
+            </div>
+            <div className="faint" style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 4, marginTop: 2 }}>
+              <BankOutlined /> {roleText}
             </div>
           </div>
         ),
@@ -136,12 +141,12 @@ export default function MainLayout() {
       <Layout>
         <ConfigProvider theme={HEADER_THEME}>
           <Header className="topbar">
-            <div className="topbar-group">
+            <div className="topbar-group topbar-left">
               <div className="topbar-title">{title}</div>
               <CompanySwitcher />
               {showPeriod && <PeriodPicker />}
             </div>
-            <div className="topbar-group">
+            <div className="topbar-group topbar-right">
               {access.canAnywhere(...SCREEN_ACCESS.enterAny) && (
                 <Dropdown menu={newEntry} placement="bottomRight">
                   <Button type="primary" icon={<PlusOutlined />}>
@@ -165,16 +170,13 @@ export default function MainLayout() {
                   <Button shape="circle" icon={<BellOutlined />} />
                 </Badge>
               </Popover>
+              {/* Just the avatar; name, role and company show on hover and in the menu. */}
               <Dropdown menu={userMenu} placement="bottomRight" trigger={['click']}>
-                <div className="user-chip">
-                  <Avatar size={30} style={{ background: role ? roleColor[role] : undefined, fontWeight: 700, fontSize: 13 }}>{initials(user)}</Avatar>
-                  <div className="user-chip-text">
-                    <div className="user-chip-name">{user?.full_name}</div>
-                    <div className="faint user-chip-sub">
-                      <BankOutlined /> {accessRoleLabel(user, access.activeAccess ?? access.companies[0])} · {access.activeAccess?.company.name ?? user?.account.name}
-                    </div>
-                  </div>
-                </div>
+                <button type="button" className="user-avatar" aria-label="Account menu">
+                  <Avatar size={32} style={{ background: role ? roleColor[role] : undefined, fontWeight: 700, fontSize: 13 }}>
+                    {initials(user)}
+                  </Avatar>
+                </button>
               </Dropdown>
             </div>
           </Header>
