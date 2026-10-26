@@ -4,6 +4,7 @@ import { useCreateUser, useSetUserAccess } from '../../hooks/queries/users'
 import { errorMessage } from '../../services/apiError'
 import type { Company, CompanyRole, Duty, GlobalRole, ManagedUser, MembershipInput, UserWithPassword } from '../../types/auth'
 import { companyRoleLabel, dutyLabel, globalRoleLabel, roleDescription } from '../../utils/permissions'
+import { requiredMark } from '../../utils/formMarks'
 
 type Level = 'company' | 'global'
 
@@ -68,8 +69,8 @@ export default function UserFormModal({ user, companies, onClose, onCreated }: P
       width={680}
     >
       {mutation.isError && <Alert type="error" showIcon title={errorMessage(mutation.error)} style={{ marginBottom: 16 }} />}
-      {editing && <Alert type="info" showIcon title="Saving signs this person out everywhere, so the new access applies at once." style={{ marginBottom: 16 }} />}
-      <Form<FormValues> form={form} layout="vertical" requiredMark={false} initialValues={initialValues} onFinish={onFinish} style={{ marginTop: 8 }}>
+      {editing && <Alert type="info" showIcon title="When you save, this person is logged out. They get the new access when they log in again." style={{ marginBottom: 16 }} />}
+      <Form<FormValues> form={form} layout="vertical" requiredMark={requiredMark} initialValues={initialValues} onFinish={onFinish} style={{ marginTop: 8 }}>
         {!editing && (
           <div className="grid grid-2" style={{ columnGap: 16, rowGap: 0 }}>
             <Form.Item label="Full name" name="full_name" rules={[{ required: true, whitespace: true, max: 200, message: 'Enter their name' }]}>
@@ -81,7 +82,7 @@ export default function UserFormModal({ user, companies, onClose, onCreated }: P
           </div>
         )}
 
-        <Form.Item name="level" label="Access level">
+        <Form.Item name="level" label="Access level" rules={[{ required: true }]}>
           <Segmented<Level>
             block
             options={[

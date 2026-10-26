@@ -17,6 +17,8 @@ logger = logging.getLogger(__name__)
 CHANNEL = "michy_realtime"
 # Postgres caps a NOTIFY payload at 8000 bytes.
 _MAX_PAYLOAD = 7900
+# Events waiting to be sent; past this the bridge is stuck and events go to local clients only.
+_QUEUE_SIZE = 1000
 
 
 def _plain_url(url: str) -> str:
@@ -31,17 +33,21 @@ class PostgresBridge:
         self._listener: Any = None
         self._sender: Any = None
         self._task: asyncio.Task | None = None
+        self._send_task: asyncio.Task | None = None
+        self._queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue(_QUEUE_SIZE)
         self._stopping = False
 
     async def start(self) -> None:
         hub.publisher = self.notify
         self._task = asyncio.create_task(self._listen_forever())
+        self._send_task = asyncio.create_task(self._send_forever())
 
     async def stop(self) -> None:
         self._stopping = True
         hub.publisher = None
-        if self._task:
-            self._task.cancel()
+        for task in (self._task, self._send_task):
+            if task:
+                task.cancel()
         for conn in (self._listener, self._sender):
             if conn is not None and not conn.is_closed():
                 await conn.close()
@@ -73,6 +79,25 @@ class PostgresBridge:
             delay = min(delay * 2, 60)
 
     async def notify(self, event: dict[str, Any]) -> None:
+        """Queue the event and return at once: a save must not wait on the NOTIFY round trip
+        (or on opening the sender connection). One sender keeps events in order."""
+        try:
+            self._queue.put_nowait(event)
+        except asyncio.QueueFull:
+            logger.warning("Realtime queue full; delivering locally")
+            hub.deliver(event)
+
+    async def _send_forever(self) -> None:
+        while True:
+            event = await self._queue.get()
+            try:
+                await self._send(event)
+            except asyncio.CancelledError:
+                raise
+            except Exception:  # noqa: BLE001 - one bad event must not stop the sender
+                logger.exception("Realtime send failed")
+
+    async def _send(self, event: dict[str, Any]) -> None:
         import asyncpg
 
         payload = json.dumps(event)

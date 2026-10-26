@@ -7,7 +7,7 @@ export default function SalesList() {
     <EntryListPage
       type="sale"
       title="Sales"
-      subtitle="Grade A sales of what the plant makes, Grade B re-sold raw material, and Grade C invoice-only sales. Oil is sold by the litre. Finalised once Finance verifies them."
+      subtitle="All sales. Grade A: products made in the plant. Grade B: tyres sold again. Grade C: bill only, no goods. Oil is sold in litres. Sales become final after Finance checks them."
       newPath="/sales/new"
       newLabel="Record a sale"
       enter="enter_sales"

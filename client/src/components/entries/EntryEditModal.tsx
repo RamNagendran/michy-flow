@@ -9,6 +9,7 @@ import type { EntryDetail, Grade } from '../../types/entries'
 import { kgInputProps, qtyInputProps } from '../../utils/format'
 import { useAccess } from '../../hooks/useAccess'
 import GradePicker from './GradePicker'
+import { requiredMark } from '../../utils/formMarks'
 
 interface Values {
   entry_date: Dayjs
@@ -72,11 +73,11 @@ export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail;
   return (
     <Modal open title={`Edit ${entry.ref_no}`} okText="Save changes" onOk={() => form.submit()} onCancel={onClose} confirmLoading={mutation.isPending} width={720}>
       {mutation.isError && <Alert type="error" showIcon title={errorMessage(mutation.error)} style={{ marginBottom: 12 }} />}
-      <Alert type="info" showIcon style={{ marginBottom: 16 }} title="After saving, the entry goes back for review. The old values stay in its history." />
+      <Alert type="info" showIcon style={{ marginBottom: 16 }} title="After you save, this entry will be checked again. The old values are kept in its history." />
       <Form<Values>
         form={form}
         layout="vertical"
-        requiredMark={false}
+        requiredMark={requiredMark}
         initialValues={initialValues}
         onFinish={onFinish}
         onValuesChange={(changed) => {
@@ -84,7 +85,7 @@ export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail;
         }}
       >
         {entry.type !== 'production' && (
-          <Form.Item label="Grade" name="grade" rules={[{ required: true }]} extra="Changing the grade moves the entry to that grade's stock.">
+          <Form.Item label="Grade" name="grade" rules={[{ required: true }]} extra="If you change the grade, the stock also moves to that grade.">
             <GradePicker kind={entry.type} />
           </Form.Item>
         )}

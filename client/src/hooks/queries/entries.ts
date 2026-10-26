@@ -39,7 +39,8 @@ export function useEscalation() {
       (await api.post<EntryDetail>(API_ROUTES.entries[step](entry.company_id, entry.type, entry.id), { comment })).data,
     onSuccess: (e, { step }) => {
       notify.success(step === 'escalate' ? 'Escalated to the operations team' : 'Escalation resolved', e.ref_no)
-      return invalidate()
+      // Refresh lists in the background: the save is done, so the form can close now.
+      void invalidate()
     },
     onError: (err) => notify.error(err, 'Could not update the entry'),
   })
@@ -79,7 +80,8 @@ export function useUpdateEntry<T extends EntryType>(type: T) {
       (await api.put<EntryDetail>(API_ROUTES.entries.update(companyId, type, id), body)).data,
     onSuccess: (e) => {
       notify.success('Entry updated', `${e.ref_no} is back in review`)
-      return invalidate()
+      // Refresh lists in the background: the save is done, so the form can close now.
+      void invalidate()
     },
   })
 }
@@ -99,7 +101,8 @@ export function useEntryAction() {
       (await api.post<EntryDetail>(API_ROUTES.entries.action(entry.company_id, entry.type, entry.id, action), { comment })).data,
     onSuccess: (e, { action }) => {
       notify.success(actionDone[action], e.ref_no)
-      return invalidate()
+      // Refresh lists in the background: the save is done, so the form can close now.
+      void invalidate()
     },
     onError: (err) => notify.error(err, 'Could not update the entry'),
   })
@@ -125,7 +128,8 @@ export function useDeleteEntry() {
     },
     onSuccess: (_, { entry }) => {
       notify.success('Entry deleted', entry.ref_no)
-      return invalidate()
+      // Refresh lists in the background: the save is done, so the form can close now.
+      void invalidate()
     },
     onError: (err) => notify.error(err, 'Could not delete the entry'),
   })

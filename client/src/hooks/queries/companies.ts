@@ -33,7 +33,8 @@ export function useSaveCompany() {
       (id ? await api.patch<Company>(API_ROUTES.companies.one(id), body) : await api.post<Company>(API_ROUTES.companies.list, body)).data,
     onSuccess: (company, { id }) => {
       notify.success(id ? 'Company updated' : 'Company added', company.name)
-      return invalidate()
+      // Refresh lists in the background: the save is done, so the form can close now.
+      void invalidate()
     },
   })
 }
@@ -46,8 +47,11 @@ export function useConfigureCompany() {
   return useMutation({
     mutationFn: async ({ id, body }: { id: number; body: CompanyConfig }) => (await api.put<Company>(API_ROUTES.companies.config(id), body)).data,
     onSuccess: (company) => {
-      notify.success('Inventory configuration saved', company.name)
-      return Promise.all([invalidate(), qc.invalidateQueries({ queryKey: ['stock', company.id] })])
+      notify.success('Stock settings saved', company.name)
+      // Show the saved company at once; refresh everything that depends on it in the background.
+      qc.setQueryData<Company[]>(companyKeys.list(), (list) => list?.map((c) => (c.id === company.id ? company : c)))
+      void invalidate()
+      void qc.invalidateQueries({ queryKey: ['stock', company.id] })
     },
   })
 }

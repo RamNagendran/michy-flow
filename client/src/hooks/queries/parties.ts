@@ -21,7 +21,8 @@ export function useSaveParty(companyId: number) {
       (id ? await api.put<Party>(API_ROUTES.parties.one(companyId, id), body) : await api.post<Party>(API_ROUTES.parties.list(companyId), body)).data,
     onSuccess: (p, { id }) => {
       notify.success(id ? 'Saved' : `${p.kind === 'supplier' ? 'Supplier' : 'Buyer'} added`, p.name)
-      return qc.invalidateQueries({ queryKey: ['parties', companyId] })
+      // Refresh the list in the background: the save is done, so the form can close now.
+      void qc.invalidateQueries({ queryKey: ['parties', companyId] })
     },
   })
 }

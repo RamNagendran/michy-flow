@@ -14,7 +14,7 @@ export default function WastageChart({ months, loading, refreshing }: { months: 
   return (
     <ChartCard
       title="Monthly wastage"
-      sub="Green within the allowance · amber over it · red over the 2% limit"
+      sub="Green: within allowed wastage · Amber: above it · Red: above 2%"
       legend={[
         { label: 'Wastage %', color: c.output },
         { label: 'Allowance', color: c.average },

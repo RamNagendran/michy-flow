@@ -87,7 +87,7 @@ export default function Finance() {
         <ByItemChart title="Purchases by raw material" totals={t?.purchases} items={itemsOfCompanies(companies, 'inputs')} />
       </div>
 
-      <SectionTitle title="By grade" hint="A: through the plant · B: re-sold as bought · C: invoice only" />
+      <SectionTitle title="By grade" hint="A: plant · B: sold again as bought · C: bill only" />
       <div className="surface table-card">
         <Table
           scroll={{ x: 'max-content' }}

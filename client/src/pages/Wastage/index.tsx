@@ -122,14 +122,14 @@ export default function Wastage() {
         </div>
       </div>
 
-      <SectionTitle title="Runs that need a debit note" hint={`missing weight over ${WASTAGE_ALERT_PCT}% · cannot be approved until noted`} />
+      <SectionTitle title="Runs that need a debit note" hint={`wastage above ${WASTAGE_ALERT_PCT}% · needs a debit note before approval`} />
       <div className="surface table-card">
         <Table<PendingDebitNote>
           rowKey="production_id"
           loading={pending.isLoading}
           pagination={{ pageSize: 8, hideOnSinglePage: true }}
           dataSource={due}
-          locale={{ emptyText: 'Nothing waiting — every run over the limit has a debit note' }}
+          locale={{ emptyText: 'Nothing pending. All high-wastage entries have a debit note.' }}
           onRow={(r) => ({ onClick: () => cid && setOpen({ companyId: cid, type: 'production', id: r.production_id }), className: 'clickable' })}
           columns={[
             { title: 'Run', render: (_, r) => <span className="id-link">{r.ref_no}</span> },
@@ -158,7 +158,7 @@ export default function Wastage() {
         />
       </div>
 
-      <SectionTitle title="Stock checks" hint="physical counts by the Admin; each difference corrects the book stock" />
+      <SectionTitle title="Stock checks" hint="stock counted by the Admin · any difference corrects the stock" />
       <div className="surface table-card">
         <Table<StockCheck>
           rowKey="id"

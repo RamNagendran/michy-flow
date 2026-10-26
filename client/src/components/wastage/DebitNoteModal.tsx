@@ -4,6 +4,7 @@ import { useAddDebitNote } from '../../hooks/queries/wastage'
 import { errorMessage } from '../../services/apiError'
 import type { DebitNoteInput } from '../../types/reports'
 import { formatKg, formatPercent, kgInputProps } from '../../utils/format'
+import { requiredMark } from '../../utils/formMarks'
 
 export interface NoteTarget {
   companyId: number
@@ -27,16 +28,16 @@ export default function DebitNoteModal({ target, onClose }: { target: NoteTarget
           showIcon
           style={{ marginBottom: 16 }}
           title={`${formatKg(target.wastageKg)} missing (${formatPercent(target.wastagePct, 2)}) — over the 2% limit`}
-          description="Once the note is recorded, the run can be approved and verified."
+          description="After you save this note, the production entry can be approved."
         />
       )}
       {save.isError && <Alert type="error" showIcon title={errorMessage(save.error)} style={{ marginBottom: 12 }} />}
-      <Form<DebitNoteInput> form={form} layout="vertical" requiredMark={false} onFinish={submit} initialValues={{ qty_kg: target?.wastageKg, amount: 0 }} preserve={false}>
+      <Form<DebitNoteInput> form={form} layout="vertical" requiredMark={requiredMark} onFinish={submit} initialValues={{ qty_kg: target?.wastageKg, amount: 0 }} preserve={false}>
         <div className="grid grid-2" style={{ columnGap: 16, rowGap: 0 }}>
           <Form.Item label="Debit note number" name="note_no" rules={[{ required: true, whitespace: true, max: 50 }]}>
             <Input placeholder="e.g. DN/26-27/014" />
           </Form.Item>
-          <Form.Item label="Supplier (optional)" name="supplier_id">
+          <Form.Item label="Supplier" name="supplier_id">
             <Select allowClear showSearch={{ optionFilterProp: 'label' }} loading={suppliers.isLoading} options={suppliers.data?.map((p) => ({ value: p.id, label: p.name }))} placeholder="Who it is raised against" />
           </Form.Item>
           <Form.Item label="Quantity" name="qty_kg" rules={[{ required: true, type: 'number', min: 0.001 }]}>

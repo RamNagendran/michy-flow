@@ -23,7 +23,7 @@ export default function Signup() {
           label="Organisation name"
           name="account_name"
           rules={[{ required: true, whitespace: true, message: 'Enter your organisation name' }]}
-          extra="The group that owns your companies. You add the companies themselves after signing in."
+          extra="Your group or business name. You can add your companies after you log in."
         >
           <Input prefix={<BankOutlined className="faint" />} placeholder="Michy Group" autoFocus />
         </Form.Item>

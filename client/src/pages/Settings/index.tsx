@@ -23,7 +23,7 @@ export default function Settings() {
 
   return (
     <div className="page">
-      <PageHeader title="Settings" subtitle="Companies, people and what they can access. Suppliers and buyers are under Daily work." />
+      <PageHeader title="Settings" subtitle="Add companies and people, and choose what each person can do. Suppliers and buyers are in Daily work." />
       <div className="surface" style={{ padding: '4px 24px 24px' }}>
         <Tabs activeKey={active} onChange={(tab) => setParams({ tab }, { replace: true })} items={items} destroyOnHidden />
       </div>

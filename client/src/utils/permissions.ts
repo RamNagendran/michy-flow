@@ -64,12 +64,12 @@ export const roleColor: Record<GlobalRole | CompanyRole, string> = {
 }
 
 export const roleDescription: Record<GlobalRole | CompanyRole, string> = {
-  super_admin: 'Runs the whole system: companies, users, product lists and conversion factors.',
-  ceo: 'Sees every company, read-only. Picks the company on the home screen.',
-  manager: 'Runs one company: enters and edits data, manages suppliers and buyers.',
-  admin: 'Checks and approves entries, manages wastage and grade A/B/C stock.',
-  finance: 'Cross-verifies entries, comments on mismatches, approves or puts on hold.',
-  operator: 'Enters purchase, sales or production data only, as ticked for them.',
+  super_admin: 'Manages everything: companies, users, item lists and oil factor.',
+  ceo: 'Can see all companies. Cannot change anything.',
+  manager: 'Runs one company. Enters and edits entries, and manages suppliers and buyers.',
+  admin: 'Checks and approves entries. Handles wastage and grade A/B/C stock.',
+  finance: 'Checks entries again, asks about mismatches, approves or puts on hold.',
+  operator: 'Only enters purchases, sales or production, as ticked for them.',
 }
 
 export type MatrixColumn = GlobalRole | CompanyRole
@@ -81,18 +81,18 @@ export const ROLE_MATRIX: [string, Partial<Record<MatrixColumn, true | 'duty'>>]
   ['See company data', { super_admin: true, ceo: true, manager: true, admin: true, finance: true, operator: 'duty' }],
   ['See stock screens', { super_admin: true, ceo: true, manager: true, admin: true, finance: true }],
   ['See every company', { super_admin: true, ceo: true }],
-  ["See everyone's entries (operators see only their own, of their duties)", { super_admin: true, ceo: true, manager: true, admin: true, finance: true }],
-  ['Comment on entries and reply to queries', { super_admin: true, manager: true, admin: true, finance: true, operator: true }],
+  ['See all entries (operators see only their own)', { super_admin: true, ceo: true, manager: true, admin: true, finance: true }],
+  ['Comment on entries and reply to questions', { super_admin: true, manager: true, admin: true, finance: true, operator: true }],
   ['Enter purchases, sales, production', { super_admin: true, manager: true, admin: true, operator: 'duty' }],
   ['Edit an entry', { super_admin: true, manager: true, admin: true }],
   ['Delete an entry', { super_admin: true, admin: true }],
   ['Approve operator entries', { super_admin: true, admin: true }],
-  ['Verify, comment, approve or hold (finance)', { super_admin: true, finance: true }],
+  ['Finance check: approve or put on hold', { super_admin: true, finance: true }],
   ['Add and edit suppliers and buyers', { super_admin: true, manager: true, admin: true }],
-  ['Adjust monthly wastage (max 1–2%)', { super_admin: true, admin: true }],
+  ['Set monthly wastage limit (1–2%)', { super_admin: true, admin: true }],
   ['Manage grade A / B / C stock', { super_admin: true, admin: true }],
   ['See finance and reports', { super_admin: true, ceo: true, manager: true, admin: true, finance: true }],
   ['See oil production KPI', { super_admin: true, ceo: true, manager: true }],
   ['See the audit log', { super_admin: true, admin: true }],
-  ['Manage companies, users and product lists', { super_admin: true }],
+  ['Manage companies, users and item lists', { super_admin: true }],
 ]

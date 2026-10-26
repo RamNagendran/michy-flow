@@ -10,7 +10,7 @@ export default function PurchasesList() {
     <EntryListPage
       type="purchase"
       title="Purchases"
-      subtitle="Every purchase bill: Grade A raw material for production, Grade B raw material to re-sell, and Grade C invoice-only records. New bills count in stock straight away and are finalised once Finance verifies them."
+      subtitle="All purchase bills. Grade A: tyres for the plant. Grade B: tyres to sell again. Grade C: bill only, no goods. New bills are added to stock at once and become final after Finance checks them."
       newPath="/purchases/new"
       newLabel="Record a purchase"
       enter="enter_purchase"

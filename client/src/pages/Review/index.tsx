@@ -39,10 +39,10 @@ export default function Review() {
     const approver = scope.filter((c) => can('approve_entry', c.id))
     const verifier = scope.filter((c) => can('verify_entry', c.id))
     const list: Queue[] = []
-    if (approver.length) list.push({ key: 'admin', label: 'Waiting for Admin', hint: 'New entries to check and approve, or reject', statuses: ['pending'], companies: approver })
-    if (verifier.length) list.push({ key: 'finance', label: 'Waiting for Finance', hint: 'Approved by the Admin; verify or put on hold', statuses: ['approved'], companies: verifier })
-    list.push({ key: 'escalated', label: 'Escalated to operations', hint: 'Finance found a data mismatch; fix the entry or resolve it with a note', statuses: ['pending', 'approved', 'on_hold'], escalated: true, companies: scope })
-    list.push({ key: 'hold', label: 'On hold', hint: 'Finance found a problem; see the comments', statuses: ['on_hold'], companies: scope })
+    if (approver.length) list.push({ key: 'admin', label: 'Waiting for Admin', hint: 'New entries. Check and approve, or reject.', statuses: ['pending'], companies: approver })
+    if (verifier.length) list.push({ key: 'finance', label: 'Waiting for Finance', hint: 'Approved by the Admin. Check and approve, or put on hold.', statuses: ['approved'], companies: verifier })
+    list.push({ key: 'escalated', label: 'Escalated to operations', hint: 'Finance found a mismatch. Correct the entry, or close it with a note.', statuses: ['pending', 'approved', 'on_hold'], escalated: true, companies: scope })
+    list.push({ key: 'hold', label: 'On hold', hint: 'Finance found a problem. Please read the comments.', statuses: ['on_hold'], companies: scope })
     list.push({ key: 'open', label: 'Everything in review', hint: 'Not final yet', statuses: ['pending', 'approved', 'on_hold'], companies: scope })
     return list
   }, [scope, can])

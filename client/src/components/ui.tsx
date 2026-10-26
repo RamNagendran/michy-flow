@@ -173,7 +173,7 @@ export function StatusTag({ status }: { status: EntryStatus }) {
 
 export function SourceTag({ source }: { source: EntrySource }) {
   return source === 'ai' ? (
-    <Tooltip title="Details read from the uploaded bill, then checked and confirmed by a person">
+    <Tooltip title="Details taken from the uploaded bill and checked by a person">
       <span className="pill" style={{ background: '#f4efff', color: '#6941c6' }}>
         <ThunderboltFilled /> From bill
       </span>

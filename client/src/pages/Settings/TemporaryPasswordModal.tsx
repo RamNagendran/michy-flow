@@ -19,7 +19,7 @@ export default function TemporaryPasswordModal({ result, onClose }: { result: Us
               {result.temporary_password}
             </Typography.Text>
           </div>
-          <Alert type="warning" showIcon title="This is the only time it is shown. Do not send it by email or chat." />
+          <Alert type="warning" showIcon title="You can see this password only now. Give it to the person directly. Do not send it on email or WhatsApp." />
         </>
       )}
     </Modal>

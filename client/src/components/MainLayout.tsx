@@ -15,7 +15,6 @@ import {
 import { useAuth } from '../hooks/useAuth'
 import { useAccess } from '../hooks/useAccess'
 import { useQueueCounts } from '../hooks/useQueueCounts'
-import { useRealtimeStatus } from '../hooks/useRealtime'
 import { roleColor, SCREEN_ACCESS } from '../utils/permissions'
 import { accessRoleLabel, initials } from '../utils/user'
 import CompanySwitcher from './CompanySwitcher'
@@ -61,7 +60,6 @@ export default function MainLayout() {
   // Search opens the widest list this person may see.
   const searchScreen = (['records', 'purchases', 'sales', 'production'] as const).find((s) => sees(s))
   const queue = useQueueCounts()
-  const live = useRealtimeStatus()
   const role = user?.global_role ?? access.activeAccess?.role ?? access.companies[0]?.role ?? null
 
   const title = titles.find(([p]) => pathname.startsWith(p))?.[1] ?? (seesDashboard ? 'Dashboard' : 'Home')
@@ -72,7 +70,7 @@ export default function MainLayout() {
     { key: 'finance', n: queue.finance, text: 'waiting for your verification', tab: 'finance' },
     { key: 'hold', n: queue.hold, text: 'on hold with questions from Finance', tab: 'hold' },
     { key: 'escalated', n: queue.escalated, text: 'escalated by Finance to operations', tab: 'escalated' },
-    { key: 'wastage', n: queue.wastage, text: 'over the 2% wastage limit, waiting for a debit note', tab: 'wastage' },
+    { key: 'wastage', n: queue.wastage, text: 'have wastage above 2% and need a debit note', tab: 'wastage' },
   ].filter((i) => i.n > 0)
   const notifications = (
     <div style={{ width: 340 }}>
@@ -154,12 +152,6 @@ export default function MainLayout() {
                   </Button>
                 </Dropdown>
               )}
-              <Tooltip title={live === 'live' ? 'Live: changes by others appear straight away' : 'Reconnecting… screens refresh when the connection is back'}>
-                <span className="live-pill" style={{ background: live === 'live' ? '#e8f6ef' : '#fff6e6', color: live === 'live' ? '#1f9d6b' : '#b26b00' }}>
-                  <span className="live-dot" style={{ background: live === 'live' ? '#1f9d6b' : '#d98a0b' }} />
-                  {live === 'live' ? 'Live' : 'Reconnecting'}
-                </span>
-              </Tooltip>
               {searchScreen && (
                 <Tooltip title="Search records">
                   <Button shape="circle" icon={<FileSearchOutlined />} onClick={() => navigate(`/${searchScreen}`)} />

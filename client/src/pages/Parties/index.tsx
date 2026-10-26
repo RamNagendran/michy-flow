@@ -6,6 +6,7 @@ import { useParties, useSaveParty } from '../../hooks/queries/parties'
 import { useAccess } from '../../hooks/useAccess'
 import { errorMessage } from '../../services/apiError'
 import type { Party, PartyInput, PartyKind } from '../../types/entries'
+import { requiredMark } from '../../utils/formMarks'
 
 /** Same rule as the server (server/app/schemas/company.py). */
 
@@ -19,7 +20,7 @@ function PartyModal({ companyId, kind, party, onClose }: { companyId: number; ki
   return (
     <Modal open title={party ? `Edit ${party.name}` : `Add a ${label}`} okText="Save" onOk={() => form.submit()} onCancel={onClose} confirmLoading={save.isPending}>
       {save.isError && <Alert type="error" showIcon title={errorMessage(save.error)} style={{ marginBottom: 12 }} />}
-      <Form<PartyInput> form={form} layout="vertical" requiredMark={false} initialValues={party ?? { is_active: true, city: '', contact_name: '', phone: '' }} onFinish={onFinish} style={{ marginTop: 8 }}>
+      <Form<PartyInput> form={form} layout="vertical" requiredMark={requiredMark} initialValues={party ?? { is_active: true, city: '', contact_name: '', phone: '' }} onFinish={onFinish} style={{ marginTop: 8 }}>
         <Form.Item label="Name" name="name" rules={[{ required: true, whitespace: true, max: 200, message: 'Enter the name' }]}>
           <Input placeholder="e.g. Sri Balaji Tyre Traders" />
         </Form.Item>
@@ -35,8 +36,8 @@ function PartyModal({ companyId, kind, party, onClose }: { companyId: number; ki
           </Form.Item>
         </div>
         {party && (
-          <Form.Item label="Active" name="is_active" valuePropName="checked" extra="Inactive parties cannot be picked on new entries; old entries keep them.">
-            <Switch />
+          <Form.Item name="is_active" valuePropName="checked" extra="Inactive suppliers or buyers cannot be picked in new entries. Old entries will not change.">
+            <Switch checkedChildren="Active" unCheckedChildren="Inactive" />
           </Form.Item>
         )}
       </Form>
@@ -62,7 +63,7 @@ export default function Parties() {
     <div className="page">
       <PageHeader
         title="Suppliers & buyers"
-        subtitle="Each company keeps its own list. Managers and Admins can add and edit; everyone can pick from it when entering bills."
+        subtitle="Each company has its own list. Managers and Admins can add or edit. Everyone can pick from it when entering bills."
         extra={
           canManage && (
             <Button type="primary" size="large" icon={<PlusOutlined />} onClick={() => setEditing('new')}>

@@ -108,7 +108,7 @@ export default function UsersTab() {
               !u.is_active ? (
                 <Tag>Deactivated</Tag>
               ) : u.must_change_password ? (
-                <Tooltip title="Has not yet replaced the temporary password">
+                <Tooltip title="Has not changed the temporary password yet">
                   <Tag color="warning">Awaiting first sign-in</Tag>
                 </Tooltip>
               ) : (

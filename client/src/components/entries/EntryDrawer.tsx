@@ -82,7 +82,7 @@ function DebitNoteBlock({ e, onRecord }: { e: EntryDetail; onRecord?: () => void
     <div className="alert-strip danger" style={{ marginTop: 12 }}>
       <WarningFilled />
       <div style={{ flex: 1 }}>
-        <b>Debit note needed.</b> Missing weight is over 2%, so this run cannot be approved or verified until one is recorded.
+        <b>Debit note needed.</b> More than 2% weight is missing. This entry cannot be approved until a debit note is added.
       </div>
       {onRecord && (
         <Button size="small" type="primary" danger onClick={onRecord}>

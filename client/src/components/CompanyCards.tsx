@@ -18,7 +18,7 @@ export function StockFigure({ line }: { line: Pick<StockLine, 'provisional' | 'c
     <span className="num" style={{ textAlign: 'right', display: 'inline-block' }}>
       <b>{formatQty(line.provisional.balance, line.unit)}</b>
       {pending && (
-        <Tooltip title="Only entries Finance has verified">
+        <Tooltip title="Only entries checked by Finance">
           <div className="faint" style={{ fontSize: 11.5 }}>
             {formatQty(line.confirmed.balance, line.unit)} finalised
           </div>

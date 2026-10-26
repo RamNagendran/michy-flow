@@ -57,7 +57,8 @@ export function useDeclareAllowance() {
     },
     onSuccess: () => {
       notify.success('Wastage allowance saved')
-      return invalidate()
+      // Refresh lists in the background: the save is done, so the form can close now.
+      void invalidate()
     },
   })
 }
@@ -70,7 +71,8 @@ export function useAddDebitNote() {
       (await api.post<EntryDetail>(API_ROUTES.wastage.debitNote(companyId, productionId), body)).data,
     onSuccess: (e) => {
       notify.success('Debit note recorded', `${e.ref_no} can now be approved`)
-      return invalidate()
+      // Refresh lists in the background: the save is done, so the form can close now.
+      void invalidate()
     },
   })
 }
@@ -84,7 +86,8 @@ export function useRecordStockCheck() {
     },
     onSuccess: () => {
       notify.success('Stock check saved', 'The book stock now matches your count')
-      return invalidate()
+      // Refresh lists in the background: the save is done, so the form can close now.
+      void invalidate()
     },
   })
 }

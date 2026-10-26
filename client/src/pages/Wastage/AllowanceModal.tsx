@@ -3,6 +3,7 @@ import dayjs, { type Dayjs } from 'dayjs'
 import { WASTAGE_ALERT_PCT } from '../../data/catalog'
 import { useDeclareAllowance } from '../../hooks/queries/wastage'
 import { errorMessage } from '../../services/apiError'
+import { requiredMark } from '../../utils/formMarks'
 
 interface Values {
   month: Dayjs
@@ -21,11 +22,11 @@ export default function AllowanceModal({ companyId, open, current, onClose }: { 
         type="info"
         showIcon
         style={{ marginBottom: 16 }}
-        title={`Between 0.1% and ${WASTAGE_ALERT_PCT}% of the processed weight`}
-        description={`Runs over the allowance are flagged for review. Over ${WASTAGE_ALERT_PCT}% always raises a high alert and needs a debit note.`}
+        title={`Enter between 0.1% and ${WASTAGE_ALERT_PCT}% of the weight processed`}
+        description={`Entries above this are marked for checking. Above ${WASTAGE_ALERT_PCT}% always needs a debit note.`}
       />
       {save.isError && <Alert type="error" showIcon title={errorMessage(save.error)} style={{ marginBottom: 12 }} />}
-      <Form<Values> form={form} layout="vertical" requiredMark={false} onFinish={submit} initialValues={{ month: dayjs(), pct: current ?? 1.5, note: '' }} preserve={false}>
+      <Form<Values> form={form} layout="vertical" requiredMark={requiredMark} onFinish={submit} initialValues={{ month: dayjs(), pct: current ?? 1.5, note: '' }} preserve={false}>
         <div className="grid grid-2" style={{ columnGap: 16, rowGap: 0 }}>
           <Form.Item label="Month" name="month" rules={[{ required: true }]}>
             <DatePicker picker="month" format="MMMM YYYY" style={{ width: '100%' }} allowClear={false} disabledDate={(d) => d.isAfter(dayjs().add(1, 'month'), 'month')} />
@@ -34,7 +35,7 @@ export default function AllowanceModal({ companyId, open, current, onClose }: { 
             <InputNumber<number> style={{ width: '100%' }} min={0.1} max={WASTAGE_ALERT_PCT} step={0.1} precision={2} suffix="%" />
           </Form.Item>
         </div>
-        <Form.Item label="Note (optional)" name="note" rules={[{ max: 2000 }]}>
+        <Form.Item label="Note" name="note" rules={[{ max: 2000 }]}>
           <Input.TextArea rows={2} maxLength={2000} placeholder="e.g. Monsoon: wetter tyres expected" />
         </Form.Item>
       </Form>

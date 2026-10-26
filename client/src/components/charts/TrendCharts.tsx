@@ -55,7 +55,7 @@ export function ProductionTrend({ series, bucket, loading, refreshing }: Props) 
   return (
     <ChartCard
       title="Production and wastage"
-      sub={`Missing weight as a share of what was processed · ${WASTAGE_ALERT_PCT}% is the limit`}
+      sub={`Missing weight as % of weight processed · Limit is ${WASTAGE_ALERT_PCT}%`}
       legend={[
         { label: 'Processed', color: c.processed },
         { label: 'Output', color: c.output },

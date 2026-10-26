@@ -150,6 +150,16 @@ async def test_super_admin_configures_items_and_density(client: AsyncClient) -> 
     stock = (await client.get(t.url("/stock"), headers=bearer(t.admin))).json()
     assert stock["check_every_months"] == 3
 
+    # Without oil the form has no density to send: the saved factor is kept.
+    no_oil = {"input_items": ["truck"], "output_items": ["steel"], "stock_check_months": 1}
+    res = await client.put(url, json=no_oil, headers=bearer(t.super_admin))
+    assert res.status_code == 200, res.text
+    assert res.json()["oil_density"] == 1.05
+    only_waste = {**no_oil, "output_items": ["waste"]}
+    assert (
+        await client.put(url, json=only_waste, headers=bearer(t.super_admin))
+    ).status_code == 422
+
 
 async def test_production_in_charge_picks_the_crew(client: AsyncClient) -> None:
     t = await team(client)

@@ -7,7 +7,7 @@ const cell = (v: true | 'duty' | undefined) =>
   v === true ? (
     <CheckOutlined style={{ color: '#1f9d6b', fontSize: 16 }} />
   ) : v === 'duty' ? (
-    <Tooltip title="Only for the duties ticked for that operator (purchase, sales or production)">
+    <Tooltip title="Only for the work ticked for that operator (purchase, sales or production)">
       <Tag color="blue" style={{ marginInlineEnd: 0 }}>
         If ticked
       </Tag>

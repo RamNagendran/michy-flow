@@ -46,7 +46,7 @@ export default function StockCheckModal({ companyId, stock, open, onClose }: { c
 
   return (
     <Modal open={open} width={760} title="Count the stock" okText={`Save ${lines.length || ''} counted line${lines.length === 1 ? '' : 's'}`} okButtonProps={{ disabled: !lines.length }} onOk={submit} onCancel={onClose} confirmLoading={save.isPending}>
-      <Alert type="info" showIcon style={{ marginBottom: 14 }} title="Enter what is physically there. The difference from the book stock is recorded and the book stock is corrected." />
+      <Alert type="info" showIcon style={{ marginBottom: 14 }} title="Enter the stock you counted. The app saves the difference and corrects the stock." />
       {save.isError && <Alert type="error" showIcon title={errorMessage(save.error)} style={{ marginBottom: 12 }} />}
       <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
         <DatePicker value={day} onChange={(d) => d && setDay(d)} format="DD MMM YYYY" allowClear={false} disabledDate={(d) => d.isAfter(dayjs(), 'day')} />

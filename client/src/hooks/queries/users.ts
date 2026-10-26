@@ -38,7 +38,8 @@ export function useUpdateUser() {
     mutationFn: async ({ id, body }: { id: number; body: UserUpdateRequest }) => (await api.patch<ManagedUser>(API_ROUTES.users.one(id), body)).data,
     onSuccess: (u) => {
       notify.success(u.is_active ? 'User updated' : 'User deactivated and signed out', u.full_name)
-      return invalidate()
+      // Refresh lists in the background: the save is done, so the form can close now.
+      void invalidate()
     },
     onError: (err) => notify.error(err, 'Could not update the user'),
   })

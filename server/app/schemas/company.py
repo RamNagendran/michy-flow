@@ -47,7 +47,10 @@ class CompanyConfig(BaseModel):
 
     input_items: list[str] = Field(min_length=1, max_length=len(INPUT_CHOICES))
     output_items: list[str] = Field(min_length=1, max_length=len(OUTPUT_CHOICES))
-    oil_density: Decimal = Field(ge=OIL_DENSITY_MIN, le=OIL_DENSITY_MAX, decimal_places=3)
+    # Left out (e.g. the company makes no oil): the current factor is kept.
+    oil_density: Decimal | None = Field(
+        default=None, ge=OIL_DENSITY_MIN, le=OIL_DENSITY_MAX, decimal_places=3
+    )
     stock_check_months: Literal[1, 3] = 1
 
     @model_validator(mode="after")

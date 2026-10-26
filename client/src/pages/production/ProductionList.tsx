@@ -7,7 +7,7 @@ export default function ProductionList() {
     <EntryListPage
       type="production"
       title="Production"
-      subtitle="What each company processed and what came out. Stock goes down by the processed weight; missing weight over 2% is flagged as waste for the Admin."
+      subtitle="What each company processed and what came out. Stock reduces by the weight processed. If more than 2% is missing, the Admin is alerted."
       newPath="/production/new"
       newLabel="Record production"
       enter="enter_production"

@@ -39,7 +39,7 @@ export default function Pricing() {
     <div className="page">
       <PageHeader
         title="Purchase prices"
-        subtitle={`What each supplier charged against the average · ${label} (${subtitle}) · Grade C paper entries left out`}
+        subtitle={`Each supplier's rate compared to the average · ${label} (${subtitle}) · Grade C bills not included`}
         extra={<CompanyPicker companies={companies} value={company?.id} onChange={setCompany} />}
       />
 
@@ -102,7 +102,7 @@ export default function Pricing() {
             },
             { title: 'Range', align: 'right', render: (_, s) => <span className="num faint">{`${formatRateIn(s.min_rate, unit)} – ${formatRateIn(s.max_rate, unit)}`}</span> },
             {
-              title: <Tooltip title="(average − their price) × quantity. Positive: they cost less than the average.">Saving · ROI</Tooltip>,
+              title: <Tooltip title="(average rate − their rate) × quantity. A plus figure means they are cheaper than average.">Saving · ROI</Tooltip>,
               align: 'right',
               render: (_, s) => (
                 <span className="num" style={{ color: s.saving >= 0 ? '#1F9D6B' : '#D4380D', fontWeight: 800 }}>

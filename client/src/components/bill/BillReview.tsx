@@ -88,7 +88,7 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
             </div>
             <Progress type="circle" percent={progress} size={48} strokeColor={ready ? '#1f9d6b' : '#D82E54'} format={() => <span style={{ fontSize: 12, fontWeight: 800 }}>{progress}%</span>} />
           </div>
-          {doc.duplicate_of && <Alert type="error" showIcon style={{ marginTop: 14 }} title={`This bill is already entered as ${doc.duplicate_of}`} description="Open that entry instead of entering it again." />}
+          {doc.duplicate_of && <Alert type="error" showIcon style={{ marginTop: 14 }} title={`This bill is already entered as ${doc.duplicate_of}`} description="Please open that entry. Do not enter it again." />}
           {p.warnings.map((w) => (
             <Alert key={w} type="warning" showIcon style={{ marginTop: 10 }} title={w} />
           ))}
@@ -98,7 +98,7 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
             showIcon
             icon={<LockFilled />}
             title={<span style={{ fontWeight: 700 }}>Nothing is saved until you confirm.</span>}
-            description="Once saved it counts in stock straight away, and becomes final after the Admin approves it and Finance verifies it."
+            description="After saving, stock is updated at once. It becomes final after the Admin and Finance check it."
           />
         </div>
 

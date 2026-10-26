@@ -8,6 +8,7 @@ import { errorMessage } from '../../services/apiError'
 import type { Company, CompanyInput } from '../../types/auth'
 import { useAccess } from '../../hooks/useAccess'
 import InventoryModal from './InventoryModal'
+import { requiredMark } from '../../utils/formMarks'
 
 /** Same rule as the server (server/app/schemas/company.py). */
 
@@ -34,7 +35,7 @@ function CompanyModal({ company, onClose }: { company?: Company; onClose: () => 
   return (
     <Modal open width={680} title={company ? `Edit ${company.name}` : 'Add a company'} okText={company ? 'Save' : 'Add company'} onOk={() => form.submit()} onCancel={onClose} confirmLoading={save.isPending}>
       {save.isError && <Alert type="error" showIcon title={errorMessage(save.error)} style={{ marginBottom: 16 }} />}
-      <Form<CompanyInput> form={form} layout="vertical" requiredMark={false} initialValues={company ?? { city: '' }} onFinish={onFinish} style={{ marginTop: 8 }}>
+      <Form<CompanyInput> form={form} layout="vertical" requiredMark={requiredMark} initialValues={company ?? { city: '' }} onFinish={onFinish} style={{ marginTop: 8 }}>
         <div className="grid" style={{ gridTemplateColumns: '140px 1fr', columnGap: 16, rowGap: 0 }}>
           <Form.Item
             label="Code"
@@ -137,7 +138,7 @@ export default function CompaniesTab() {
               <span style={{ whiteSpace: 'nowrap' }}>
                 {canConfigure && (
                   <Button type="link" onClick={() => setConfiguring(c)}>
-                    Inventory
+                    Stock settings
                   </Button>
                 )}
                 <Button type="link" onClick={() => setEditing(c)}>

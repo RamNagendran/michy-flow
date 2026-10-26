@@ -19,7 +19,7 @@ export default function ProductionEfficiency({ companyId, range }: { companyId: 
     <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 16 }}>
       <ChartCard
         title="Efficiency by shift"
-        sub={`Running hours ÷ planned ${data?.shift_hours ?? 8} h per run · green at 85%+`}
+        sub={`Machine running hours ÷ planned ${data?.shift_hours ?? 8} hours per run · green: 85% or more`}
         loading={report.isLoading}
         refreshing={report.isPlaceholderData}
         empty={!shifts.some((s) => s.efficiency_pct !== null)}

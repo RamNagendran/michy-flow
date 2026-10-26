@@ -126,7 +126,7 @@ export default function NewProduction() {
       <PageHeader
         eyebrow="Production"
         title="Record production"
-        subtitle="Enter what was taken from stock and what came out. The processed weight, stock deduction and missing weight are worked out for you."
+        subtitle="Enter what was taken from stock and what came out. The app works out the weight processed, the stock to reduce and the missing weight."
         extra={
           <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/production')}>
             Back to production
@@ -195,7 +195,7 @@ export default function NewProduction() {
             <p className="muted" style={{ marginTop: 0 }}>
               {process.name}: {process.inputs.map((i) => i.name.toLowerCase()).join(', ')}. Taken from {company.name}'s Grade A stock (production is always Grade A).
             </p>
-            {stock && !rawLines.length && <Alert type="warning" showIcon title="There is no Grade A raw material in stock here yet. Record the purchase as Grade A (for production) first." />}
+            {stock && !rawLines.length && <Alert type="warning" showIcon title="No Grade A raw material in stock here yet. First enter the purchase as Grade A (for production)." />}
             <div className="grid grid-3" style={{ marginTop: 18 }}>
               {rawLines.map((l) => (
                 <Choice key={l.item} selected={material === l.item} onClick={() => setMaterial(l.item)}>
@@ -228,7 +228,7 @@ export default function NewProduction() {
               </div>
             )}
             {overStock && (
-              <Alert type="error" showIcon style={{ marginTop: 16 }} title={`Only ${formatKg(available)} of Grade A ${itemName(material!).toLowerCase()} is in stock.`} description="Only Grade A raw material goes into production. Check the weight, record the missing purchase, or ask the Admin to move a Grade B purchase to Grade A." />
+              <Alert type="error" showIcon style={{ marginTop: 16 }} title={`Only ${formatKg(available)} of Grade A ${itemName(material!).toLowerCase()} is in stock.`} description="Only Grade A raw material can be used in production. Check the weight, enter the missing purchase, or ask the Admin to change a Grade B purchase to Grade A." />
             )}
             {allReturned && <Alert type="error" showIcon style={{ marginTop: 16 }} title="Everything was returned to stock, so nothing was processed." />}
           </>
@@ -259,7 +259,7 @@ export default function NewProduction() {
             </div>
             {overProcessed && <Alert type="error" showIcon style={{ marginTop: 14 }} title="The outputs weigh more than what was processed." description={`${formatKg(outputKg)} came out but only ${formatKg(b.processedKg)} was processed. Check the weights (oil counts ${formatKg(toKg('oil', 1000, density))} per 1,000 L).`} />}
             {!overProcessed && anyOutput && b.flagged && (
-              <Alert type="warning" showIcon icon={<WarningFilled />} style={{ marginTop: 14 }} title={`Missing ${formatPercent(b.missingPct)} — above ${WASTAGE_ALERT_PCT}%, flagged as waste`} description="You can still save; the Admin is alerted and a debit note will be needed." />
+              <Alert type="warning" showIcon icon={<WarningFilled />} style={{ marginTop: 14 }} title={`Missing ${formatPercent(b.missingPct)} — above ${WASTAGE_ALERT_PCT}%, flagged as waste`} description="You can still save. The Admin will be alerted and a debit note will be needed." />
             )}
           </>
         )}
@@ -291,7 +291,7 @@ export default function NewProduction() {
                 ))}
               </div>
               <div>
-                <Alert type="info" showIcon title="Counts in stock as soon as you save" description="It becomes final once the Admin approves it and Finance verifies it." />
+                <Alert type="info" showIcon title="Counts in stock as soon as you save" description="It becomes final after the Admin and Finance check it." />
                 <div style={{ marginTop: 12 }}>
                   <div style={{ fontWeight: 700, marginBottom: 6 }}>Notes (optional)</div>
                   <Input.TextArea rows={3} value={notes} maxLength={2000} onChange={(e) => setNotes(e.target.value)} placeholder="e.g. Reactor 2 down for an hour" />

@@ -12,8 +12,23 @@ export class ApiError extends Error {
   }
 }
 
+interface ValidationIssue {
+  msg: string
+  type?: string
+  loc?: (string | number)[]
+}
+
+/** "Oil density: Field required" — our own rule messages already read as sentences. */
+function describeIssue({ msg, type, loc }: ValidationIssue) {
+  if (type === 'value_error') return msg.replace(/^Value error, /, '')
+  const field = [...(loc ?? [])].reverse().find((part): part is string => typeof part === 'string' && part !== 'body')
+  if (!field) return msg
+  const name = field.replace(/_/g, ' ')
+  return `${name.charAt(0).toUpperCase()}${name.slice(1)}: ${msg}`
+}
+
 interface ErrorBody {
-  detail?: string | { msg: string }[]
+  detail?: string | ValidationIssue[]
   code?: string
   error?: string
 }
@@ -29,7 +44,7 @@ export function toApiError(error: unknown): ApiError {
       typeof detail === 'string'
         ? detail
         : Array.isArray(detail)
-          ? detail.map((d) => d.msg.replace(/^Value error, /, '')).join('. ')
+          ? detail.map(describeIssue).join('. ')
           : status === 429
             ? 'Too many attempts. Please wait a minute and try again.'
             : (data?.error ?? `Request failed (${status})`)

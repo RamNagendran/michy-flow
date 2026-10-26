@@ -12,6 +12,7 @@ import { formatINR, formatQty, formatRateIn, qtyInputProps } from '../../utils/f
 import type { EntryDraft } from '../../types/documents'
 import type { Grade } from '../../types/entries'
 import GradePicker from './GradePicker'
+import { requiredMark } from '../../utils/formMarks'
 
 interface Values {
   companyId: number
@@ -56,7 +57,7 @@ export default function ManualTradeForm({ kind, saving, onSaved, back }: { kind:
         form={form}
         layout="vertical"
         size="large"
-        requiredMark="optional"
+        requiredMark={requiredMark}
         initialValues={{ date: dayjs(), companyId: initialCompany, grade: 'A' }}
         onValuesChange={(changed) => {
           if ('companyId' in changed) form.setFieldValue('partyId', undefined)

@@ -83,7 +83,7 @@ export function billChecks(bill: ParsedBill, v: Values): Check[] {
     checks.push({ key: 'stock', ok: v.qty <= v.available, title: 'Enough stock to sell', detail: `${formatQty(v.available, v.unit)} available` })
   }
   if (bill.einvoice) {
-    checks.push({ key: 'qr', ok: true, title: 'e-Invoice QR code read', detail: 'Invoice number, date and total taken from the signed QR code' })
+    checks.push({ key: 'qr', ok: true, title: 'e-Invoice QR code read', detail: 'Bill number, date and total are taken from the QR code on the bill' })
   }
   return checks
 }

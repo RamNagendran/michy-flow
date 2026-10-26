@@ -51,7 +51,7 @@ export default function StockOverview() {
     <div className="page">
       <PageHeader
         title="Stock by company"
-        subtitle="Kept separately per grade: Grade A raw material for the plant and what it made, Grade B raw material to re-sell, and the Grade C book stock. Oil is in litres. The big number includes entries still in approval; the small one is what Finance has verified."
+        subtitle="Stock is kept separately for each grade. Grade A: tyres for the plant and what it made. Grade B: tyres to sell again. Grade C: bill-only stock. Oil is in litres. The big number includes entries not yet checked. The small number is what Finance has checked."
       />
 
       <div className="grid grid-4">
@@ -70,7 +70,7 @@ export default function StockOverview() {
       <SectionTitle title="Grade B · Raw material to re-sell" hint="Bought and sold on without processing" />
       {resaleItems.length ? matrix('resale', resaleItems, resale) : <div className="surface muted" style={{ padding: 18 }}>No Grade B stock yet. Record a purchase as Grade B to buy raw material for re-selling.</div>}
 
-      <SectionTitle title="Grade C · Book stock" hint="Invoices only: no goods move, kept apart from Grade A and B" />
+      <SectionTitle title="Grade C · Book stock" hint="Bills only. No goods move. Kept separate from Grade A and B." />
       {bookItems.length ? matrix('books', bookItems, books) : <div className="surface muted" style={{ padding: 18 }}>No Grade C entries yet.</div>}
 
       <SectionTitle title="How output stock is worked out" hint={several ? 'All companies in view' : scope[0]?.name} />

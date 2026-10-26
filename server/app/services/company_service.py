@@ -125,7 +125,7 @@ async def configure(
     """Set what the company processes and makes, the oil density and the stock-check cycle.
     Entries already saved keep their items and weights; only new entries follow the change."""
     company = await get_in_account(db, actor.account_id, company_id)
-    values = data.model_dump()
+    values = data.model_dump(exclude_none=True)
     changes = {k: v for k, v in values.items() if getattr(company, k) != v}
     if not changes:
         return company

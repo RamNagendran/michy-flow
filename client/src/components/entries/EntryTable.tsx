@@ -208,7 +208,7 @@ export default function EntryTable({ types, companies, statuses, pageSize = 15, 
         dataSource={entries.data?.items}
         pagination={{ current: page, pageSize, total: entries.data?.total, onChange: setPage, showSizeChanger: false, hideOnSinglePage: compact }}
         onRow={(r) => ({ onClick: () => setOpen({ companyId: r.company_id, type: r.type, id: r.id }), style: { cursor: 'pointer' } })}
-        locale={{ emptyText: <Tooltip title="Entries appear here as soon as they are saved">Nothing here yet</Tooltip> }}
+        locale={{ emptyText: <Tooltip title="Saved entries will show here">Nothing here yet</Tooltip> }}
       />
       <EntryDrawer entryRef={open} onClose={() => setOpen(null)} />
     </>

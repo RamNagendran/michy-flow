@@ -113,23 +113,23 @@ export default function Dashboard() {
       )}
 
       <div className="grid grid-4">
-        <KpiCard label="Spent on purchases" value={formatINRShort(t?.purchases.amount ?? 0)} sub={`${formatINRShort(t?.purchases.verified_amount ?? 0)} verified by Finance`} icon={<ShoppingCartOutlined />} tone={{ bg: '#eef4fb', fg: seriesColors.purchase }} onClick={() => navigate('/purchases')} />
-        <KpiCard label="Received from sales" value={formatINRShort(t?.sales.amount ?? 0)} sub={`${formatINRShort(t?.sales.verified_amount ?? 0)} verified by Finance`} icon={<ShopOutlined />} tone={{ bg: brand.primarySoft, fg: brand.primary }} onClick={() => navigate('/sales')} />
+        <KpiCard label="Spent on purchases" value={formatINRShort(t?.purchases.amount ?? 0)} sub={`${formatINRShort(t?.purchases.verified_amount ?? 0)} checked by Finance`} icon={<ShoppingCartOutlined />} tone={{ bg: '#eef4fb', fg: seriesColors.purchase }} onClick={() => navigate('/purchases')} />
+        <KpiCard label="Received from sales" value={formatINRShort(t?.sales.amount ?? 0)} sub={`${formatINRShort(t?.sales.verified_amount ?? 0)} checked by Finance`} icon={<ShopOutlined />} tone={{ bg: brand.primarySoft, fg: brand.primary }} onClick={() => navigate('/sales')} />
         <KpiCard
           label="Basic difference"
           value={formatINRShort(margin)}
           sub={`${formatPercent(marginPct)} of sales value`}
           icon={<RiseOutlined />}
           tone={{ bg: '#e6f5f3', fg: seriesColors.margin }}
-          help="Sales received minus purchases spent. Labour, electricity and transport costs are not included."
+          help="Sales money minus purchase money. Labour, power and transport costs are not included."
           onClick={() => navigate('/finance')}
         />
-        <KpiCard label="Raw material in stock" value={formatTonnes(rawKg)} sub={`${formatTonnes(rawFinal)} finalised by Finance`} icon={<InboxOutlined />} tone={{ bg: '#f1f2f5', fg: '#3a3f47' }} help="Stock right now, whatever period is selected." onClick={() => navigate('/stock')} />
+        <KpiCard label="Raw material in stock" value={formatTonnes(rawKg)} sub={`${formatTonnes(rawFinal)} checked by Finance`} icon={<InboxOutlined />} tone={{ bg: '#f1f2f5', fg: '#3a3f47' }} help="Stock as of now. The period you pick does not change this." onClick={() => navigate('/stock')} />
       </div>
 
       {oilIds.length > 0 && (
         <>
-          <SectionTitle title="Oil KPI" hint="oil out ÷ weight processed · green at 40%+, red under 39%" />
+          <SectionTitle title="Oil KPI" hint="oil made ÷ weight processed · green: 40% or more · red: below 39%" />
           <OilKpiPanel kpi={oil.kpi} bucket={bucketFor(range)} loading={oil.isLoading} refreshing={oil.isRefreshing} />
         </>
       )}

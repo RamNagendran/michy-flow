@@ -9,7 +9,7 @@ import type { EntryDetail, EntryEvent } from '../../types/entries'
 const eventMeta: Record<string, { label: string; color: string }> = {
   created: { label: 'entered it', color: '#2F6FEB' },
   approved: { label: 'approved it (Admin)', color: '#1f9d6b' },
-  verified: { label: 'verified it (Finance)', color: '#137a52' },
+  verified: { label: 'checked it (Finance)', color: '#137a52' },
   held: { label: 'put it on hold', color: '#D4380D' },
   rejected: { label: 'rejected it', color: '#8a919e' },
   edited: { label: 'edited it', color: '#7A5AF8' },

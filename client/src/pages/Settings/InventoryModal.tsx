@@ -4,11 +4,14 @@ import { useConfigureCompany } from '../../hooks/queries/companies'
 import { errorMessage } from '../../services/apiError'
 import type { Company, CompanyConfig } from '../../types/auth'
 import { formatKg } from '../../utils/format'
+import { requiredMark } from '../../utils/formMarks'
 
 const option = (i: { id: string; name: string; unit: string; stocked: boolean }) => ({
   value: i.id,
   label: `${i.name}${i.unit === 'L' ? ' (litres)' : ''}${i.stocked ? '' : ' — not stocked'}`,
 })
+
+const stockedOutput = new Set<string>(outputChoices.filter((o) => o.stocked).map((o) => o.id))
 
 /** Super Admin: what this company processes and makes, the oil density, and the stock-check cycle. */
 export default function InventoryModal({ company, onClose }: { company: Company; onClose: () => void }) {
@@ -24,14 +27,31 @@ export default function InventoryModal({ company, onClose }: { company: Company;
     stock_check_months: company.stock_check_months,
   }
   return (
-    <Modal open width={640} title={`Inventory · ${company.name}`} okText="Save configuration" onOk={() => form.submit()} onCancel={onClose} confirmLoading={save.isPending}>
-      <Alert type="info" showIcon style={{ marginBottom: 16 }} title="Entries already saved keep their items and weights. Only new entries follow these lists." />
+    <Modal open width={640} title={`Stock settings · ${company.name}`} okText="Save" onOk={() => form.submit()} onCancel={onClose} confirmLoading={save.isPending}>
+      <Alert type="info" showIcon style={{ marginBottom: 16 }} title="If you change this, only new entries will use it. Old entries will not change." />
       {save.isError && <Alert type="error" showIcon title={errorMessage(save.error)} style={{ marginBottom: 12 }} />}
-      <Form<CompanyConfig> form={form} layout="vertical" requiredMark={false} initialValues={initial} onFinish={(v) => save.mutate({ id: company.id, body: v }, { onSuccess: onClose })}>
-        <Form.Item label="Input products (what it processes)" name="input_items" rules={[{ required: true, type: 'array', min: 1, message: 'Choose at least one input' }]}>
+      <Form<CompanyConfig> form={form} layout="vertical" requiredMark={requiredMark} initialValues={initial} onFinish={(v) => save.mutate({ id: company.id, body: { ...v, oil_density: v.oil_density ?? company.oil_density } }, { onSuccess: onClose })}>
+        <Form.Item
+          label="Input products (what it processes)"
+          name="input_items"
+          rules={[{ required: true, type: 'array', min: 1, message: 'Choose at least one input' }]}
+          extra="At least one."
+        >
           <Select mode="multiple" options={inputChoices.map(option)} placeholder="e.g. Truck tyres, Scrap steel, Rubber crumbs" />
         </Form.Item>
-        <Form.Item label="Output materials (what it makes)" name="output_items" rules={[{ required: true, type: 'array', min: 1, message: 'Choose at least one output' }]}>
+        <Form.Item
+          label="Output materials (what it makes)"
+          name="output_items"
+          rules={[
+            { required: true, type: 'array', min: 1, message: 'Choose at least one output' },
+            // Same rule as the server: a company must make something that goes into stock.
+            {
+              validator: async (_, v: string[] | undefined) =>
+                !v?.length || v.some((id) => stockedOutput.has(id)) ? undefined : Promise.reject(new Error('Pick at least one item that is kept in stock. Waste alone is not enough.')),
+            },
+          ]}
+          extra="Pick at least one item that is kept in stock. Items marked “not stocked” are not counted."
+        >
           <Select mode="multiple" options={outputChoices.map(option)} placeholder="e.g. Oil, Steel, Carbon powder" />
         </Form.Item>
         {outputsPicked.includes('oil') && (
@@ -39,12 +59,12 @@ export default function InventoryModal({ company, onClose }: { company: Company;
             label="Oil conversion factor (kg per litre)"
             name="oil_density"
             rules={[{ required: true, type: 'number', min: OIL_DENSITY.min, max: OIL_DENSITY.max, message: `Between ${OIL_DENSITY.min} and ${OIL_DENSITY.max}` }]}
-            extra={`Oil is entered in litres and shown in kg automatically: 1,000 L = ${formatKg(1000 * (density || 0))}.`}
+            extra={`Oil is entered in litres. The app changes it to kg: 1,000 L = ${formatKg(1000 * (density || 0))}.`}
           >
             <InputNumber<number> min={OIL_DENSITY.min} max={OIL_DENSITY.max} step={0.001} precision={3} suffix="kg / L" style={{ width: 220 }} />
           </Form.Item>
         )}
-        <Form.Item label="Admin's physical stock check" name="stock_check_months" extra="How often the Admin must count the stock and verify the deduction.">
+        <Form.Item label="Admin's physical stock check" name="stock_check_months" rules={[{ required: true }]} extra="How often the Admin should count the stock and check it.">
           <Segmented
             options={[
               { value: 1, label: 'Every month' },

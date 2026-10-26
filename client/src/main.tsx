@@ -20,7 +20,8 @@ dayjs.locale('en-gb')
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <ConfigProvider theme={theme} locale={enGB}>
+    {/* Every modal opens in the middle of the screen and never runs off it: long ones scroll inside. */}
+    <ConfigProvider theme={theme} locale={enGB} modal={{ centered: true, styles: { body: { maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' } } }}>
       <AntApp>
         <ErrorBoundary>
           <Provider store={store}>

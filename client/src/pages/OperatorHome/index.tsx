@@ -60,7 +60,7 @@ export default function OperatorHome() {
         </div>
       ) : (
         <div className="surface" style={{ padding: 24 }}>
-          <Empty description="No entry tasks are ticked for you. Ask your Super Admin if that is wrong." />
+          <Empty description="No work is given to you yet. Please ask your Super Admin." />
         </div>
       )}
 

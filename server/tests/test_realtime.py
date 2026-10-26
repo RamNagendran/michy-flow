@@ -157,3 +157,33 @@ async def test_writer_sends_pings_when_idle(monkeypatch: pytest.MonkeyPatch) -> 
     conn.queue.put_nowait("")
     await asyncio.wait_for(task, 1)
     assert '{"type":"ping"}' in sent and '{"type":"entry"}' in sent
+
+
+async def test_bridge_queues_events_without_holding_the_request(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import asyncio
+
+    from app.realtime.bridge import PostgresBridge
+
+    bridge = PostgresBridge("postgresql+asyncpg://localhost/unused")
+    sent: list[dict] = []
+    network = asyncio.Event()
+
+    async def slow_send(event: dict) -> None:
+        await network.wait()  # a slow NOTIFY round trip
+        sent.append(event)
+
+    monkeypatch.setattr(bridge, "_send", slow_send)
+    sender = asyncio.create_task(bridge._send_forever())
+    try:
+        # Returns at once even though sending is stuck.
+        await asyncio.wait_for(bridge.notify({"n": 1}), timeout=0.05)
+        await bridge.notify({"n": 2})
+        assert sent == []
+        network.set()
+        for _ in range(10):
+            await asyncio.sleep(0)
+        assert sent == [{"n": 1}, {"n": 2}]  # in order
+    finally:
+        sender.cancel()

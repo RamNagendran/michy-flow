@@ -165,7 +165,7 @@ export default function DashboardCharts() {
       <div className="viz-grid cols-2">
         <ChartFrame
           title="Grade A / B / C share"
-          sub={`${periodText} · A through the plant · B re-sold · C invoice only`}
+          sub={`${periodText} · A: plant · B: sold again · C: bill only`}
           loading={isLoading}
           empty={noGrades}
           height={150}
@@ -222,7 +222,7 @@ export default function DashboardCharts() {
         {several ? (
           <ChartFrame
             title="Raw material in stock"
-            sub="Right now, by company · darker = more · click a cell to open the company"
+            sub="Stock now · darker colour = more stock · click a box to open the company"
             loading={isLoading}
             height={Math.min(scope.length * 34 + 64, 300)}
             empty={rawCells.every((c) => !c.value)}

@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { useEffect, useRef } from 'react'
 import { useQueryClient, type QueryKey } from '@tanstack/react-query'
-import { getRealtime, type RealtimeClient, type RealtimeEvent, type RealtimeStatus } from '../services/realtime'
+import { getRealtime, type RealtimeClient, type RealtimeEvent } from '../services/realtime'
 import { endSession } from '../services/session'
 import { useAppSelector } from '../statemanager/hooks'
 import { resolveAccess } from './useAccess'
@@ -13,6 +13,8 @@ const COMPANY_KEYS = ['stock', 'summary', 'trends', 'oil-kpi', 'prices', 'produc
 
 /** Waits this long and refetches once, however many events arrive (e.g. a bulk approval). */
 const BATCH_MS = 300
+/** While the live connection is down, open screens refetch this often so nothing goes stale. */
+const FALLBACK_REFRESH_MS = 30_000
 
 /**
  * Keeps every open screen current without refreshing: on each event, the affected lists,
@@ -52,7 +54,7 @@ export function useRealtime(enabled: boolean) {
         return
       }
       if (e.type === 'access') {
-        notify.info('Your access was changed', 'Please sign in again.')
+        notify.info('Your access was changed', 'Please log in again.')
         endSession()
         return
       }
@@ -68,20 +70,25 @@ export function useRealtime(enabled: boolean) {
       const what = `${kindLabel[e.entry_type!]} ${e.ref_no}`
       const mine = e.created_by_id === me.id
       if (e.alert === 'wastage_high' && (can('adjust_wastage', e.company_id) || can('view_oil_kpi', e.company_id))) {
-        notify.alert(`High wastage on ${what}`, `Over the 2% limit (entered by ${e.actor_name}). A debit note is needed before it can be approved.`)
+        notify.alert(`High wastage on ${what}`, `More than 2% (entered by ${e.actor_name}). Make a debit note first, then it can be approved.`)
       } else if (e.alert === 'escalated' && (mine || can('approve_entry', e.company_id) || can('edit_entry', e.company_id))) {
-        notify.warning(`${what} escalated to operations`, `${e.actor_name} (Finance) found a mismatch — open it to see the comment`)
+        notify.warning(`${what} has a problem`, `${e.actor_name} (Finance) found a mismatch. Open it to see the comment.`)
       } else if (e.action === 'created' && e.status === 'pending' && can('approve_entry', e.company_id)) {
-        notify.info(`New ${what}`, `From ${e.actor_name} — waiting for your approval`)
+        notify.info(`New ${what}`, `From ${e.actor_name}. Please approve it.`)
       } else if (e.action === 'created' && e.status === 'approved' && can('verify_entry', e.company_id)) {
-        notify.info(`New ${what}`, `From ${e.actor_name} — waiting for your verification`)
+        notify.info(`New ${what}`, `From ${e.actor_name}. Please check it.`)
       } else if (e.action === 'approved' && can('verify_entry', e.company_id)) {
-        notify.info(`${what} approved`, `By ${e.actor_name} — waiting for your verification`)
+        notify.info(`${what} approved`, `By ${e.actor_name}. Please check it.`)
       } else if (mine && ['held', 'rejected', 'verified', 'approved', 'commented', 'edited'].includes(e.action ?? '')) {
-        const verb = { held: 'was put on hold', rejected: 'was rejected', verified: 'was verified', approved: 'was approved', commented: 'has a new comment', edited: 'was edited' }[e.action!]
+        const verb = { held: 'was put on hold', rejected: 'was rejected', verified: 'was checked by Finance', approved: 'was approved', commented: 'has a new comment', edited: 'was edited' }[e.action!]
         notify.info(`Your ${what} ${verb}`, `By ${e.actor_name}`)
       }
     }
+
+    // The socket can be blocked by a proxy or network; then fall back to refetching.
+    const fallback = setInterval(() => {
+      if (client?.getStatus() !== 'live' && document.visibilityState === 'visible') qc.invalidateQueries()
+    }, FALLBACK_REFRESH_MS)
 
     getRealtime().then((c) => {
       if (cancelled) return
@@ -92,20 +99,9 @@ export function useRealtime(enabled: boolean) {
     return () => {
       cancelled = true
       clearTimeout(timer)
+      clearInterval(fallback)
       unsubscribe()
       client?.stop()
     }
   }, [enabled, qc, notify])
-}
-
-/** "live" / "connecting" / "offline", for the header indicator. */
-export function useRealtimeStatus(): RealtimeStatus {
-  const [client, setClient] = useState<RealtimeClient | null>(null)
-  useEffect(() => {
-    getRealtime().then(setClient)
-  }, [])
-  return useSyncExternalStore(
-    (cb) => client?.subscribeStatus(cb) ?? (() => {}),
-    () => client?.getStatus() ?? 'offline',
-  )
 }
