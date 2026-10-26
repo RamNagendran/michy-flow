@@ -13,6 +13,7 @@ import type { CompanyPermission } from '../../types/auth'
 import type { EntryType } from '../../types/entries'
 import { firstName } from '../../utils/user'
 import OperatorCharts from './OperatorCharts'
+import SaleableStock from '../../components/SaleableStock'
 
 const tiles: { to: string; type: EntryType; perm: CompanyPermission; title: string; text: string; icon: React.ReactNode; bg: string }[] = [
   { to: '/purchases/new', type: 'purchase', perm: 'enter_purchase', title: 'Record a purchase', text: 'Upload the bill or type it in', icon: <ShoppingCartOutlined />, bg: 'linear-gradient(135deg, #D82E54 0%, #B8213F 100%)' },
@@ -30,6 +31,9 @@ export default function OperatorHome() {
   const myTypes = myTiles.map((t) => t.type)
   const stockCompanies = access.scope.filter((c) => access.can('view_stock', c.id))
   const stocks = useStocks(stockCompanies)
+  // Sales operators need to know what is there to sell before they record a sale.
+  const saleCompanies = access.scope.filter((c) => access.can('enter_sales', c.id) && access.canReadStock(c.id))
+  const saleStocks = useStocks(saleCompanies)
   const ids = access.scope.map((c) => c.id)
   // The server only returns this operator's own entries.
   const held = useEntries({ status: ['on_hold'], company_id: ids, page_size: 1 })
@@ -62,6 +66,19 @@ export default function OperatorHome() {
         <div className="surface" style={{ padding: 24 }}>
           <Empty description="No work is given to you yet. Please ask your Super Admin." />
         </div>
+      )}
+
+      {saleCompanies.length > 0 && (
+        <>
+          <SectionTitle title="Stock you can sell" hint="right now" />
+          <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+            {saleCompanies.map((c) => (
+              <div key={c.id} className="surface" style={{ padding: 18 }}>
+                <SaleableStock company={c} stock={saleStocks.byCompany.get(c.id)} />
+              </div>
+            ))}
+          </div>
+        </>
       )}
 
       {myTypes.length > 0 && <OperatorCharts types={myTypes} companyIds={ids} />}

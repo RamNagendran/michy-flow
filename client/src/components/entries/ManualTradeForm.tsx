@@ -13,6 +13,7 @@ import type { EntryDraft } from '../../types/documents'
 import type { Grade } from '../../types/entries'
 import GradePicker from './GradePicker'
 import { requiredMark } from '../../utils/formMarks'
+import SaleableStock from '../SaleableStock'
 
 interface Values {
   companyId: number
@@ -184,8 +185,19 @@ export default function ManualTradeForm({ kind, saving, onSaved, back }: { kind:
               </div>
             )}
             <div className="faint" style={{ fontSize: 12, marginTop: 10 }}>
-              {grade === 'C' ? 'No goods move: this counts only in the separate Grade C book stock. ' : ''}Counts straight away; final once the Admin approves and Finance verifies it.
+              {grade === 'C' ? 'No goods move. This counts only in the Grade C bill-only stock. ' : ''}Stock changes at once. It becomes final after the Admin and Finance check it.
             </div>
+          </div>
+        )}
+        {!isPurchase && showStock && (
+          <div style={{ marginTop: 18 }}>
+            <div className="strong" style={{ fontSize: 15 }}>
+              Stock you can sell
+            </div>
+            <div className="faint" style={{ fontSize: 12.5 }}>
+              {company!.name} · right now
+            </div>
+            <SaleableStock bare company={company!} stock={stocks.byCompany.get(company!.id)} selected={{ grade, item }} />
           </div>
         )}
       </div>
