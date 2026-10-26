@@ -81,7 +81,7 @@ async def list_crew(
     ctx: CompanyContext = Depends(require_company_permission(CompanyPermission.ENTER_PRODUCTION)),
     db: AsyncSession = Depends(get_db),
 ) -> list[CrewMember]:
-    """Operators the production in-charge can put on a shift (names only)."""
+    """Shift workers the production in-charge can put on a shift (names only)."""
     people = await crew_service.operators(db, ctx.company.id)
     return [CrewMember(id=i, name=n) for i, n in people.items()]
 

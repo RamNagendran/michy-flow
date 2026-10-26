@@ -125,8 +125,9 @@ export default function UserFormModal({ user, companies, onClose, onCreated }: P
                       {row?.role === 'operator' ? (
                         <Form.Item
                           name={[field.name, 'duties']}
-                          label="Can enter"
+                          label="Work"
                           rules={[{ validator: async (_, v) => (v?.length ? undefined : Promise.reject(new Error('Tick at least one'))) }]}
+                          extra="Shift worker: works in the plant on shifts. Only shift workers can be chosen when production is entered."
                         >
                           <Checkbox.Group options={DUTIES.map((d) => ({ value: d, label: dutyLabel[d] }))} />
                         </Form.Item>

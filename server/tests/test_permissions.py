@@ -29,9 +29,11 @@ def test_company_people_have_no_system_permissions() -> None:
     assert system_permissions("not-a-role") == frozenset()
 
 
-def test_manager_edits_but_cannot_delete_or_verify() -> None:
+def test_manager_only_views_entries() -> None:
     perms = membership_permissions("manager", [])
-    assert {P.MANAGE_PARTIES, P.EDIT_ENTRY, P.VIEW_OIL_KPI} <= perms
+    assert {P.VIEW_ALL_ENTRIES, P.MANAGE_PARTIES, P.VIEW_OIL_KPI} <= perms
+    assert not {P.ENTER_PURCHASE, P.ENTER_SALES, P.ENTER_PRODUCTION} & perms
+    assert P.EDIT_ENTRY not in perms
     assert P.DELETE_ENTRY not in perms
     assert P.APPROVE_ENTRY not in perms
     assert P.VERIFY_ENTRY not in perms
@@ -59,6 +61,8 @@ def test_operator_gets_only_the_duties_ticked() -> None:
     assert P.VIEW_ALL_ENTRIES not in perms
     assert P.VIEW_STOCK not in perms
     assert P.EDIT_ENTRY not in perms and P.DELETE_ENTRY not in perms
+    # A shift worker enters nothing; the duty only puts them in the shift crew list.
+    assert membership_permissions("operator", ["shift"]) == base
 
 
 def test_duties_do_not_widen_other_roles() -> None:

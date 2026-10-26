@@ -163,8 +163,9 @@ async def test_super_admin_configures_items_and_density(client: AsyncClient) -> 
 
 async def test_production_in_charge_picks_the_crew(client: AsyncClient) -> None:
     t = await team(client)
-    crew = (await client.get(t.url("/crew"), headers=bearer(t.manager))).json()
-    ops = {await _me(client, t.operator), await _me(client, t.operator2)}
+    crew = (await client.get(t.url("/crew"), headers=bearer(t.admin))).json()
+    # Only operators ticked as shift workers; a production operator without it is left out.
+    ops = {await _me(client, t.operator2)}
     assert {c["id"] for c in crew} == ops
     assert (await client.get(t.url("/crew"), headers=bearer(t.finance))).status_code == 403
 
@@ -178,15 +179,16 @@ async def test_production_in_charge_picks_the_crew(client: AsyncClient) -> None:
         "running_hours": "6",
         "outputs": [{"product": "rubber", "qty": "700"}, {"product": "steel", "qty": "250"}],
     }
-    res = await client.post(t.url("/production"), json=body, headers=bearer(t.manager))
+    res = await client.post(t.url("/production"), json=body, headers=bearer(t.admin))
     assert res.status_code == 201, res.text
     run = res.json()
     assert run["efficiency_pct"] == 75.0 and run["kg_per_hour"] == 160.0
     assert {c["id"] for c in run["crew"]} == ops
 
-    stranger = {**body, "crew_ids": [await _me(client, t.admin)]}
-    bad = await client.post(t.url("/production"), json=stranger, headers=bearer(t.manager))
-    assert bad.status_code == 422 and bad.json()["code"] == "unknown_operator"
+    for outsider in (t.admin, t.operator):
+        stranger = {**body, "crew_ids": [await _me(client, outsider)]}
+        bad = await client.post(t.url("/production"), json=stranger, headers=bearer(t.admin))
+        assert bad.status_code == 422 and bad.json()["code"] == "unknown_operator"
 
     report = (
         await client.get(

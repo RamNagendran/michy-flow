@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Badge, Layout, Menu, type MenuProps } from 'antd'
 import {
@@ -11,7 +11,8 @@ import {
   ExperimentOutlined,
   InboxOutlined,
   LineChartOutlined,
-  QuestionCircleOutlined,
+  PushpinFilled,
+  PushpinOutlined,
   SettingOutlined,
   TeamOutlined,
   ShoppingCartOutlined,
@@ -20,11 +21,16 @@ import {
 import { useAccess } from '../hooks/useAccess'
 import { useQueueCounts } from '../hooks/useQueueCounts'
 import { useAppDispatch, useAppSelector } from '../statemanager/hooks'
-import { sidebarToggled } from '../statemanager/slices/uiSlice'
+import { sidebarPinToggled } from '../statemanager/slices/uiSlice'
 import { SCREEN_ACCESS } from '../utils/permissions'
 import { MichyMark } from './ui'
 
 type Item = NonNullable<MenuProps['items']>[number]
+
+const FULL = 256
+const RAIL = 80
+/** Wait a moment before opening, so passing the mouse over the edge does not flash the menu. */
+const OPEN_DELAY_MS = 150
 
 /** A menu group with only the entries this person may open; nothing at all when none are left. */
 const group = (label: string | null, children: (Item | false)[]): Item[] => {
@@ -41,16 +47,38 @@ const withBadge = (label: string, count: number) =>
     label
   )
 
-/** Shows only the screens the person's permissions open (see SCREEN_ACCESS). */
+/**
+ * Shows only the screens the person's permissions open (see SCREEN_ACCESS).
+ * Icons only by default; hovering opens the full menu over the page, so the page does not move.
+ * Pinned, it stays open and takes its own space.
+ */
 export default function SidebarNavigation() {
   const access = useAccess()
   const sees = (screen: keyof typeof SCREEN_ACCESS) => access.canAnywhere(...SCREEN_ACCESS[screen])
   const queue = useQueueCounts()
   const showSettings = access.canSystem('manage_users') || access.canSystem('manage_companies')
-  const collapsed = useAppSelector((s) => s.ui.sidebarCollapsed)
+  const pinned = useAppSelector((s) => s.ui.sidebarPinned)
+  const [hovered, setHovered] = useState(false)
+  const openTimer = useRef<number>(undefined)
+  const collapsed = !pinned && !hovered
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const { pathname } = useLocation()
+
+  useEffect(() => () => window.clearTimeout(openTimer.current), [])
+  const open = () => {
+    window.clearTimeout(openTimer.current)
+    openTimer.current = window.setTimeout(() => setHovered(true), OPEN_DELAY_MS)
+  }
+  const close = () => {
+    window.clearTimeout(openTimer.current)
+    setHovered(false)
+  }
+  const togglePin = () => {
+    dispatch(sidebarPinToggled())
+    setHovered(false)
+  }
+  const pinLabel = pinned ? 'Close menu when not in use' : 'Keep menu open'
 
   const selectedKey = useMemo(() => {
     if (pathname === '/') return '/'
@@ -79,49 +107,57 @@ export default function SidebarNavigation() {
   ]
 
   return (
-    <Layout.Sider
-      width={256}
-      collapsedWidth={80}
-      collapsible
-      collapsed={collapsed}
-      trigger={null}
-      style={{ position: 'sticky', top: 0, height: '100vh', overflow: 'hidden' }}
-    >
-      <div
-        className="sider-logo"
-        onClick={() => dispatch(sidebarToggled())}
-        style={{ cursor: 'pointer', justifyContent: collapsed ? 'center' : undefined, padding: collapsed ? 0 : undefined }}
+    // The wrapper holds the page space; the menu itself floats over the page while hovered.
+    <div className="sider-slot" style={{ width: pinned ? FULL : RAIL }}>
+      <Layout.Sider
+        width={FULL}
+        collapsedWidth={RAIL}
+        collapsible
+        collapsed={collapsed}
+        trigger={null}
+        className={hovered && !pinned ? 'sider-floating' : undefined}
+        onMouseEnter={open}
+        onMouseLeave={close}
+        onFocus={() => setHovered(true)}
+        onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}
+        style={{ position: 'absolute', top: 0, left: 0, height: '100vh', overflow: 'hidden' }}
       >
-        <MichyMark size={34} ink="#ffffff" />
-        {!collapsed && (
-          <div>
-            <div className="wordmark">
-              <span>MICHY</span> RUBBERS
+        <div className="sider-logo" style={{ justifyContent: collapsed ? 'center' : undefined, padding: collapsed ? 0 : undefined }}>
+          <MichyMark size={34} ink="#ffffff" />
+          {!collapsed && (
+            <div>
+              <div className="wordmark">
+                <span>MICHY</span> RUBBERS
+              </div>
+              <div className="tag">Operations</div>
             </div>
-            <div className="tag">Operations</div>
-          </div>
-        )}
-      </div>
-      <div className="sider-menu">
-        <Menu
-          theme="dark"
-          mode="inline"
-          selectedKeys={[selectedKey]}
-          items={items}
-          onClick={({ key }) => navigate(key)}
-          style={{ borderInlineEnd: 'none', marginTop: 12 }}
-        />
-      </div>
-      {!collapsed && (
-        <div className="sider-footer">
-          <div className="sider-help">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#fff', fontWeight: 700, marginBottom: 4 }}>
-              <QuestionCircleOutlined /> Need help?
-            </div>
-            Call the Michy support desk or watch the 3-minute guide.
-          </div>
+          )}
         </div>
-      )}
-    </Layout.Sider>
+        <div className="sider-menu">
+          <Menu
+            theme="dark"
+            mode="inline"
+            selectedKeys={[selectedKey]}
+            items={items}
+            onClick={({ key }) => navigate(key)}
+            style={{ borderInlineEnd: 'none', marginTop: 12 }}
+          />
+        </div>
+        <div className="sider-footer">
+          <button
+            type="button"
+            className="sider-toggle"
+            onClick={togglePin}
+            title={pinLabel}
+            aria-label={pinLabel}
+            aria-pressed={pinned}
+            style={{ justifyContent: collapsed ? 'center' : undefined }}
+          >
+            {pinned ? <PushpinFilled /> : <PushpinOutlined />}
+            {!collapsed && <span>{pinLabel}</span>}
+          </button>
+        </div>
+      </Layout.Sider>
+    </div>
   )
 }

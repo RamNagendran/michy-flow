@@ -273,7 +273,7 @@ export default function NewProduction() {
                   [
                     ['Company', `${company.name} · ${process.name}`],
                     ['Date · shift', `${formatDate(date.format('YYYY-MM-DD'))} · Shift ${shift}`],
-                    ...(crew.length ? [['Crew', `${crew.length} operator${crew.length > 1 ? 's' : ''}`]] : []),
+                    ...(crew.length ? [['Shift workers', String(crew.length)]] : []),
                     ...(hours ? [['Running hours', `${hours} h · ${formatPercent((hours / SHIFT_HOURS) * 100, 0)} of the shift`]] : []),
                     ['Raw material', `${formatKg(taken)} of ${itemName(material)}`],
                     ...(returned ? [['Returned to stock', formatKg(returned)]] : []),

@@ -37,7 +37,8 @@ export const SCREEN_ACCESS = {
  */
 export const STOCK_READERS = ['view_stock', 'enter_sales', 'enter_production'] as const satisfies readonly CompanyPermission[]
 
-export const DUTY_PERMISSION: Record<Duty, CompanyPermission> = {
+/** 'shift' grants no permission; it only puts the person in the shift crew list. */
+export const DUTY_PERMISSION: Partial<Record<Duty, CompanyPermission>> = {
   purchase: 'enter_purchase',
   sales: 'enter_sales',
   production: 'enter_production',
@@ -52,7 +53,7 @@ export const companyRoleLabel: Record<CompanyRole, string> = {
   operator: 'Operator',
 }
 
-export const dutyLabel: Record<Duty, string> = { purchase: 'Purchase', sales: 'Sales', production: 'Production' }
+export const dutyLabel: Record<Duty, string> = { purchase: 'Purchase', sales: 'Sales', production: 'Production', shift: 'Shift worker' }
 
 export const roleColor: Record<GlobalRole | CompanyRole, string> = {
   super_admin: '#D82E54',
@@ -66,10 +67,10 @@ export const roleColor: Record<GlobalRole | CompanyRole, string> = {
 export const roleDescription: Record<GlobalRole | CompanyRole, string> = {
   super_admin: 'Manages everything: companies, users, item lists and oil factor.',
   ceo: 'Can see all companies. Cannot change anything.',
-  manager: 'Runs one company. Enters and edits entries, and manages suppliers and buyers.',
+  manager: 'Runs one company. Sees all entries, but cannot add or change them. Manages suppliers and buyers.',
   admin: 'Checks and approves entries. Handles wastage and grade A/B/C stock.',
   finance: 'Checks entries again, asks about mismatches, approves or puts on hold.',
-  operator: 'Only enters purchases, sales or production, as ticked for them.',
+  operator: 'Only enters purchases, sales or production, as ticked for them. Shift workers are listed when production is entered.',
 }
 
 export type MatrixColumn = GlobalRole | CompanyRole
@@ -83,8 +84,8 @@ export const ROLE_MATRIX: [string, Partial<Record<MatrixColumn, true | 'duty'>>]
   ['See every company', { super_admin: true, ceo: true }],
   ['See all entries (operators see only their own)', { super_admin: true, ceo: true, manager: true, admin: true, finance: true }],
   ['Comment on entries and reply to questions', { super_admin: true, manager: true, admin: true, finance: true, operator: true }],
-  ['Enter purchases, sales, production', { super_admin: true, manager: true, admin: true, operator: 'duty' }],
-  ['Edit an entry', { super_admin: true, manager: true, admin: true }],
+  ['Enter purchases, sales, production', { super_admin: true, admin: true, operator: 'duty' }],
+  ['Edit an entry', { super_admin: true, admin: true }],
   ['Delete an entry', { super_admin: true, admin: true }],
   ['Approve operator entries', { super_admin: true, admin: true }],
   ['Finance check: approve or put on hold', { super_admin: true, finance: true }],

@@ -6,7 +6,8 @@ import { loggedOut } from './authSlice'
 export type CompanySelection = number | 'all'
 
 export interface UiState {
-  sidebarCollapsed: boolean
+  /** Keep the full menu open. When false the menu shows icons only and opens on hover. */
+  sidebarPinned: boolean
   period: Period
   /** The range picked when period is 'custom'. */
   customRange: DateRange | null
@@ -14,17 +15,14 @@ export interface UiState {
   activeCompany: CompanySelection | null
 }
 
-const initialState: UiState = { sidebarCollapsed: false, period: 'fy', customRange: null, activeCompany: null }
+const initialState: UiState = { sidebarPinned: false, period: 'fy', customRange: null, activeCompany: null }
 
 const uiSlice = createSlice({
   name: 'ui',
   initialState,
   reducers: {
-    sidebarToggled(state) {
-      state.sidebarCollapsed = !state.sidebarCollapsed
-    },
-    sidebarCollapsedSet(state, { payload }: PayloadAction<boolean>) {
-      state.sidebarCollapsed = payload
+    sidebarPinToggled(state) {
+      state.sidebarPinned = !state.sidebarPinned
     },
     periodSet(state, { payload }: PayloadAction<Period>) {
       // A custom period needs a range; until one is picked, stay on the current period.
@@ -42,5 +40,5 @@ const uiSlice = createSlice({
   extraReducers: (builder) => builder.addCase(loggedOut, (state) => ({ ...state, activeCompany: null })),
 })
 
-export const { sidebarToggled, sidebarCollapsedSet, periodSet, customRangeSet, activeCompanySet } = uiSlice.actions
+export const { sidebarPinToggled, periodSet, customRangeSet, activeCompanySet } = uiSlice.actions
 export default uiSlice.reducer

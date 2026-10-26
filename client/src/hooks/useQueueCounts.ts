@@ -14,9 +14,9 @@ export function useQueueCounts() {
   const verifier = useMemo(() => scope.filter((c) => can('verify_entry', c.id)).map((c) => c.id), [scope, can])
   const wastage = useMemo(() => scope.filter((c) => can('adjust_wastage', c.id)).map((c) => c.id), [scope, can])
   const all = useMemo(() => scope.map((c) => c.id), [scope])
-  const forAdmin = useEntries({ status: ['pending'], company_id: approver, page_size: 1 }, approver.length > 0)
-  const forFinance = useEntries({ status: ['approved'], company_id: verifier, page_size: 1 }, verifier.length > 0)
-  const onHold = useEntries({ status: ['on_hold'], company_id: all, page_size: 1 }, all.length > 0)
+  const forAdmin = useEntries({ status: ['pending'], escalated: false, company_id: approver, page_size: 1 }, approver.length > 0)
+  const forFinance = useEntries({ status: ['approved'], escalated: false, company_id: verifier, page_size: 1 }, verifier.length > 0)
+  const onHold = useEntries({ status: ['on_hold'], escalated: false, company_id: all, page_size: 1 }, all.length > 0)
   const escalated = useEntries({ escalated: true, status: ['pending', 'approved', 'on_hold'], company_id: all, page_size: 1 }, all.length > 0)
   const notes = usePendingNotes(wastage)
   const counts = {

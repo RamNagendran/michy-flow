@@ -25,7 +25,7 @@ class CompanyMembership(TimestampMixin, Base):
         ForeignKey("companies.id", ondelete="CASCADE"), index=True
     )
     role: Mapped[str] = mapped_column(String(20))
-    # Operator duties (purchase / sales / production). Empty for every other role.
+    # Operator duties (purchase / sales / production / shift). Empty for every other role.
     duties: Mapped[list[str]] = mapped_column(ARRAY(String(20)), default=list, server_default="{}")
 
     user: Mapped["User"] = relationship(back_populates="memberships")

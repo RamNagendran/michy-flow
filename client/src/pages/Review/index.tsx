@@ -35,19 +35,22 @@ export default function Review() {
   const [params, setParams] = useSearchParams()
   const where = (p: CompanyPermission) => scope.filter((c) => can(p, c.id))
 
-  const queues = useMemo<Queue[]>(() => {
-    const approver = scope.filter((c) => can('approve_entry', c.id))
-    const verifier = scope.filter((c) => can('verify_entry', c.id))
-    const list: Queue[] = []
-    if (approver.length) list.push({ key: 'admin', label: 'Waiting for Admin', hint: 'New entries. Check and approve, or reject.', statuses: ['pending'], companies: approver })
-    if (verifier.length) list.push({ key: 'finance', label: 'Waiting for Finance', hint: 'Approved by the Admin. Check and approve, or put on hold.', statuses: ['approved'], companies: verifier })
-    list.push({ key: 'escalated', label: 'Escalated to operations', hint: 'Finance found a mismatch. Correct the entry, or close it with a note.', statuses: ['pending', 'approved', 'on_hold'], escalated: true, companies: scope })
-    list.push({ key: 'hold', label: 'On hold', hint: 'Finance found a problem. Please read the comments.', statuses: ['on_hold'], companies: scope })
-    list.push({ key: 'open', label: 'Everything in review', hint: 'Not final yet', statuses: ['pending', 'approved', 'on_hold'], companies: scope })
-    return list
-  }, [scope, can])
+  // Each entry sits in exactly one tab, so Admin + Finance + On hold + Escalated always equals
+  // "Everything in review". An escalated entry leaves its status tab until it is resolved.
+  const queues = useMemo<Queue[]>(
+    () => [
+      { key: 'admin', label: 'Waiting for Admin', hint: 'New entries. Check and approve, or reject.', statuses: ['pending'], escalated: false, companies: scope },
+      { key: 'finance', label: 'Waiting for Finance', hint: 'Approved by the Admin. Check and approve, or put on hold.', statuses: ['approved'], escalated: false, companies: scope },
+      { key: 'hold', label: 'On hold', hint: 'Finance found a problem. Please read the comments.', statuses: ['on_hold'], escalated: false, companies: scope },
+      { key: 'escalated', label: 'Escalated to operations', hint: 'Finance found a mismatch. Correct the entry, or close it with a note.', statuses: ['pending', 'approved', 'on_hold'], escalated: true, companies: scope },
+      { key: 'open', label: 'Everything in review', hint: 'Not final yet', statuses: ['pending', 'approved', 'on_hold'], companies: scope },
+    ],
+    [scope],
+  )
 
-  const active = queues.find((q) => q.key === params.get('tab'))?.key ?? queues[0].key
+  // Open on the person's own work: Admins on new entries, Finance on approved ones.
+  const ownQueue = where('approve_entry').length ? 'admin' : where('verify_entry').length ? 'finance' : 'open'
+  const active = queues.find((q) => q.key === params.get('tab'))?.key ?? ownQueue
   const subtitle = where('approve_entry').length
     ? 'Check what operators entered, approve it for Finance, or reject it with a reason.'
     : where('verify_entry').length

@@ -81,7 +81,7 @@ async def test_hold_needs_a_reason_and_admin_edit_resubmits(client: AsyncClient)
     assert (await act(client, t, t.finance, entry, "verify")).json()["status"] == "verified"
 
 
-async def test_manager_edit_goes_back_to_admin(client: AsyncClient) -> None:
+async def test_manager_cannot_enter_or_edit(client: AsyncClient) -> None:
     t = await team(client)
     entry = (await purchase(client, t, t.operator, qty="500")).json()
     await act(client, t, t.admin, entry, "approve")
@@ -95,8 +95,9 @@ async def test_manager_edit_goes_back_to_admin(client: AsyncClient) -> None:
         "invoice_no": entry["invoice_no"],
     }
     res = await client.put(t.url(f"/purchases/{entry['id']}"), json=body, headers=bearer(t.manager))
-    assert res.json()["status"] == "pending"
-    assert res.json()["approved_by_name"] is None
+    assert res.status_code == 403
+    assert (await purchase(client, t, t.manager, n=2)).status_code == 403
+    assert (await client.get(t.url(f"/entries/purchase/{entry['id']}"), headers=bearer(t.manager))).status_code == 200
 
 
 async def test_verified_entries_are_locked_except_for_super_admin(client: AsyncClient) -> None:
@@ -126,7 +127,7 @@ async def test_entries_by_an_approver_start_approved(client: AsyncClient) -> Non
     t = await team(client)
     res = await purchase(client, t, t.admin)
     assert res.json()["status"] == "approved"
-    assert (await purchase(client, t, t.manager, n=2)).json()["status"] == "pending"
+    assert (await purchase(client, t, t.operator, n=2)).json()["status"] == "pending"
 
 
 async def test_rejected_entries_leave_stock(client: AsyncClient) -> None:

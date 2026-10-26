@@ -59,11 +59,10 @@ GLOBAL_COMPANY_PERMISSIONS: dict[GlobalRole, frozenset[CompanyPermission]] = {
 }
 
 COMPANY_ROLE_PERMISSIONS: dict[CompanyRole, frozenset[CompanyPermission]] = {
-    # Runs the entity: enters and edits data, manages suppliers and buyers.
-    # No financial edits and no deleting (that needs the Admin).
-    CompanyRole.MANAGER: _ENTER_ALL
-    | _SEE_AND_DISCUSS
-    | {_CP.EDIT_ENTRY, _CP.MANAGE_PARTIES, _CP.VIEW_FINANCE, _CP.VIEW_OIL_KPI},
+    # Oversees the entity: sees every entry but never enters, edits, approves, rejects or
+    # deletes one. Manages suppliers and buyers and sees the oil KPI.
+    CompanyRole.MANAGER: _SEE_AND_DISCUSS
+    | {_CP.MANAGE_PARTIES, _CP.VIEW_FINANCE, _CP.VIEW_OIL_KPI},
     # Primary data verifier: approves operator entries, wastage and grade stock.
     CompanyRole.ADMIN: _ENTER_ALL
     | _SEE_AND_DISCUSS
@@ -84,6 +83,7 @@ COMPANY_ROLE_PERMISSIONS: dict[CompanyRole, frozenset[CompanyPermission]] = {
     CompanyRole.OPERATOR: frozenset({_CP.VIEW, _CP.COMMENT_ENTRY}),
 }
 
+# Duty.SHIFT grants no permission; it only puts the person in the shift crew list.
 DUTY_PERMISSIONS: dict[Duty, CompanyPermission] = {
     Duty.PURCHASE: _CP.ENTER_PURCHASE,
     Duty.SALES: _CP.ENTER_SALES,
@@ -129,5 +129,5 @@ def membership_permissions(role: str, duties: Iterable[str]) -> frozenset[Compan
     base = COMPANY_ROLE_PERMISSIONS[CompanyRole(role)]
     if role != CompanyRole.OPERATOR:
         return base
-    extra = {DUTY_PERMISSIONS[Duty(d)] for d in duties if d in Duty._value2member_map_}
+    extra = {DUTY_PERMISSIONS[d] for d in duties if d in DUTY_PERMISSIONS}
     return base | extra

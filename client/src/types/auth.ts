@@ -4,7 +4,8 @@ import type { CompanyCategory } from '../data/catalog'
 
 export type GlobalRole = 'super_admin' | 'ceo'
 export type CompanyRole = 'manager' | 'admin' | 'finance' | 'operator'
-export type Duty = 'purchase' | 'sales' | 'production'
+/** 'shift' = works in the plant on production shifts; enters nothing, only listed in shift crews. */
+export type Duty = 'purchase' | 'sales' | 'production' | 'shift'
 
 export type SystemPermission = 'manage_companies' | 'manage_users' | 'manage_config' | 'view_audit'
 

@@ -23,6 +23,8 @@ class Duty(StrEnum):
     PURCHASE = "purchase"
     SALES = "sales"
     PRODUCTION = "production"
+    # Works in the plant on production shifts. Enters nothing; can be put on a shift's crew.
+    SHIFT = "shift"
 
 
 class EntryType(StrEnum):
