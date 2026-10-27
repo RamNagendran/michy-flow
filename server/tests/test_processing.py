@@ -1,4 +1,4 @@
-"""Company types, units (oil in litres), returns to stock and the reverse calculation."""
+"""Company types, units (oil in litres) and working out the raw material used."""
 
 from decimal import Decimal
 
@@ -10,11 +10,10 @@ from tests.conftest import bearer
 from tests.entry_helpers import TODAY, Team, purchase, stock_of, team
 
 
-async def _run(client: AsyncClient, t: Team, material: str, input_kg: str, outputs: dict, **extra):  # noqa: ANN001, ANN202
+async def _run(client: AsyncClient, t: Team, material: str, outputs: dict, **extra):  # noqa: ANN001, ANN202
     body = {
         "entry_date": TODAY,
         "material": material,
-        "input_kg": input_kg,
         "outputs": [{"product": p, "qty": q} for p, q in outputs.items()],
         **extra,
     }
@@ -34,28 +33,23 @@ async def _sell(client: AsyncClient, t: Team, item: str, qty: str, rate: str, **
     return await client.post(t.url("/sales"), json=body, headers=bearer(t.admin))
 
 
-async def test_pyrolysis_run_balances_by_weight_with_oil_in_litres(client: AsyncClient) -> None:
+async def test_pyrolysis_run_works_out_input_with_oil_in_litres(client: AsyncClient) -> None:
     t = await team(client, "pyrolysis")
     assert t.company["category"] == "pyrolysis"
     await purchase(client, t, t.admin, "10000", material="tractor")
-    res = await _run(
-        client,
-        t,
-        "tractor",
-        "10000",
-        {"oil": "4000", "carbon": "2600", "steel": "1500", "waste_water": "720"},
-        returned_kg="500",
-    )
+    outputs = {"oil": "4000", "carbon": "2600", "steel": "1500", "waste_water": "720"}
+    res = await _run(client, t, "tractor", outputs)
     assert res.status_code == 201, res.text
     run = res.json()
-    # 4000 L of oil at the default 1.04 kg/L = 4160 kg. Processed 9500 kg, outputs 8980 kg.
-    assert run["processed_kg"] == 9500 and run["output_kg"] == 8980
-    assert run["wastage_kg"] == 520 and run["wastage_flagged"] is True
+    # 4000 L of oil at the default 1.04 kg/L = 4160 kg, so 8980 kg came out.
+    assert run["output_kg"] == 8980 and run["wastage_kg"] == 179.6  # 2% of 8980
+    assert run["calculated_input_kg"] == 9160 and run["processed_kg"] == 9160
+    assert run["wastage_flagged"] is False
     oil = next(o for o in run["outputs"] if o["product"] == "oil")
     assert (oil["qty"], oil["unit"], oil["qty_kg"]) == (4000, "L", 4160)
 
-    # The 500 kg put back stays in stock; only what was processed is taken out.
-    assert (await stock_of(client, t, "tractor"))["provisional"]["balance"] == 500
+    # Stock goes down by the outputs + 2%.
+    assert (await stock_of(client, t, "tractor"))["provisional"]["balance"] == 840
     line = await stock_of(client, t, "oil", "output")
     assert line["unit"] == "L" and line["provisional"]["balance"] == 4000
 
@@ -69,20 +63,25 @@ async def test_pyrolysis_run_balances_by_weight_with_oil_in_litres(client: Async
     )
     s = summary.json()
     assert (s["sales"]["qty_l"], s["sales"]["qty_kg"]) == (1000, 0)
-    assert s["production"]["returned_kg"] == 500
 
 
-async def test_small_losses_are_not_flagged(client: AsyncClient) -> None:
+async def test_a_bigger_total_changes_only_the_wastage(client: AsyncClient) -> None:
     t = await team(client)
     await purchase(client, t, t.admin, "1000")
-    run = (await _run(client, t, "truck", "1000", {"rubber": "700", "steel": "285"})).json()
-    assert run["wastage_pct"] == 1.5 and run["wastage_flagged"] is False
+    out = {"rubber": "700", "steel": "200"}
+    run = (await _run(client, t, "truck", out, wastage_on_kg="1000")).json()
+    # 900 kg out, 918 kg worked out. The 1000 kg is used only for the wastage (2% = 20 kg).
+    assert run["calculated_input_kg"] == 918 and run["processed_kg"] == 918
+    assert run["wastage_kg"] == 20 and run["wastage_pct"] == 2.0
+    assert (await stock_of(client, t, "truck"))["provisional"]["balance"] == 82
+    low = await _run(client, t, "truck", out, wastage_on_kg="917")
+    assert low.status_code == 422 and low.json()["code"] == "input_below_calculated"
 
 
 async def test_each_type_makes_only_its_own_products(client: AsyncClient) -> None:
     crumb = await team(client)
     await purchase(client, crumb, crumb.admin, "1000")
-    oil = await _run(client, crumb, "truck", "1000", {"oil": "100"})
+    oil = await _run(client, crumb, "truck", {"oil": "100"})
     assert oil.status_code == 422 and oil.json()["code"] == "item_not_allowed"
 
 
@@ -91,23 +90,21 @@ async def test_steel_plant_processes_scrap_steel(client: AsyncClient) -> None:
     tyres = await purchase(client, t, t.admin, "500")
     assert tyres.status_code == 422 and tyres.json()["code"] == "item_not_allowed"
     assert (await purchase(client, t, t.admin, "2000", material="scrap_steel")).status_code == 201
-    run = await _run(client, t, "scrap_steel", "2000", {"steel": "1900", "waste": "70"})
+    run = await _run(client, t, "scrap_steel", {"steel": "1890", "waste": "70"})
     assert run.status_code == 201, run.text
-    assert run.json()["wastage_kg"] == 30
+    assert run.json()["wastage_kg"] == 39.2  # 2% of 1960
     # Weighed waste is recorded but never stocked or sold.
     stock = (await client.get(t.url("/stock"), headers=bearer(t.admin))).json()
     assert [line["item"] for line in stock["output"]] == ["steel"]
     assert (await _sell(client, t, "waste", "10", "1", grade="C")).status_code == 422
 
 
-async def test_outputs_cannot_outweigh_what_was_processed(client: AsyncClient) -> None:
+async def test_outputs_plus_wastage_must_be_in_stock(client: AsyncClient) -> None:
     t = await team(client, "pyrolysis")
     await purchase(client, t, t.admin, "1000", material="car")
-    # 1000 L of oil weighs 1040 kg; with 100 kg returned only 900 kg was processed.
-    res = await _run(client, t, "car", "1000", {"oil": "1000"}, returned_kg="100")
-    assert res.status_code == 422
-    everything_back = await _run(client, t, "car", "1000", {"oil": "1"}, returned_kg="1000")
-    assert everything_back.status_code == 422
+    # 1000 L of oil weighs 1040 kg; + 2% is 1061 kg, more than the 1000 kg in stock.
+    res = await _run(client, t, "car", {"oil": "1000"})
+    assert res.status_code == 409
 
 
 async def test_company_type_is_fixed_once_entries_exist(client: AsyncClient) -> None:

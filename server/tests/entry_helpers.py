@@ -3,7 +3,9 @@
 from dataclasses import dataclass
 
 from httpx import AsyncClient
+from sqlalchemy import text
 
+from app.core.db import engine
 from tests.conftest import bearer, create_company, create_user, login_new_user, signup
 
 TODAY = "2026-10-01"
@@ -42,7 +44,9 @@ async def team(client: AsyncClient, category: str = "crumb") -> Team:
         admin=await _member(client, sa, cid, "adm@example.com", "admin"),
         finance=await _member(client, sa, cid, "fin@example.com", "finance"),
         operator=await _member(client, sa, cid, "ops@example.com", "operator", all_duties),
-        operator2=await _member(client, sa, cid, "ops2@example.com", "operator", (*all_duties, "shift")),
+        operator2=await _member(
+            client, sa, cid, "ops2@example.com", "operator", (*all_duties, "shift")
+        ),
         supplier=0,
         buyer=0,
     )
@@ -73,16 +77,37 @@ async def purchase(client: AsyncClient, t: Team, token: str, qty: str = "1000", 
 
 
 async def production(
-    client: AsyncClient, t: Team, token: str, input_kg: str, outputs: dict[str, str]
+    client: AsyncClient,
+    t: Team,
+    token: str,
+    outputs: dict[str, str],
+    wastage_on_kg: str | None = None,
+    returned_kg: str = "0",
 ):  # noqa: ANN201
+    """A run of truck tyres. Stock goes down by the outputs + 2%."""
     body = {
         "entry_date": TODAY,
         "material": "truck",
-        "input_kg": input_kg,
+        "wastage_on_kg": wastage_on_kg,
+        "returned_kg": returned_kg,
         "shift": 1,
         "outputs": [{"product": p, "qty": q} for p, q in outputs.items()],
     }
     return await client.post(t.url("/production"), json=body, headers=bearer(token))
+
+
+async def as_old_run(run: dict, wastage_pct: str) -> None:
+    """Turn a run into one saved before the fixed wastage rule (wastage = processed − output),
+    waiting for the Admin. New runs can no longer go over the limit; old ones still can."""
+    async with engine.begin() as conn:
+        await conn.execute(
+            text(
+                "UPDATE production SET calculated_input_kg = NULL, wastage_pct = :pct,"
+                " wastage_kg = input_kg * :pct / 100, status = 'pending',"
+                " approved_by_id = NULL, approved_at = NULL WHERE id = :id"
+            ),
+            {"pct": wastage_pct, "id": run["id"]},
+        )
 
 
 async def sale(client: AsyncClient, t: Team, token: str, qty: str, invoice: str = "MR/1"):  # noqa: ANN201

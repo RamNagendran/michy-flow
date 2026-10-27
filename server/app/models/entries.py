@@ -160,10 +160,16 @@ class Production(WorkflowMixin, Base):
     crew_ids: Mapped[list[int]] = mapped_column(ARRAY(Integer), default=list, server_default="{}")
     # Hours the plant actually ran in the shift; efficiency = running hours / shift hours.
     running_hours: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
-    # Worked out by the server, never sent by the client (the reverse calculation):
-    #   processed = input - returned; output = weight of all outputs (oil via its density);
-    #   wastage = processed - output, the weight nobody accounted for.
+    # Worked out by the server, never sent by the client. In-charges weigh only what came out:
+    #   output = weight of all outputs (oil via its density);
+    #   calculated input = output + WASTAGE_ALERT_PCT of it, rounded to whole kg; this is
+    #   input_kg, what stock goes down by;
+    #   wastage = WASTAGE_ALERT_PCT of the output, or of a bigger total the in-charge entered
+    #   (that total is used only for the wastage and is not kept);
+    #   returned_kg is put back into stock, so stock goes down by input - returned.
+    # Older runs (calculated_input_kg is NULL) used wastage = processed - output.
     output_kg: Mapped[Decimal] = mapped_column(KG)
+    calculated_input_kg: Mapped[Decimal | None] = mapped_column(KG)
     wastage_kg: Mapped[Decimal] = mapped_column(KG)
     wastage_pct: Mapped[Decimal] = mapped_column(Numeric(6, 3))  # of the processed weight
 

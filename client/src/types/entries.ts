@@ -105,6 +105,8 @@ export interface EntryDetail {
   /** Production: put back into stock unprocessed. */
   returned_kg: number | null
   processed_kg: number | null
+  /** Products + 2%, worked out on save: what stock went down by. Null on runs saved before this rule. */
+  calculated_input_kg: number | null
   output_kg: number | null
   wastage_kg: number | null
   wastage_pct: number | null
@@ -151,7 +153,9 @@ export interface SaleBody extends EntryBody {
 
 export interface ProductionBody extends EntryBody {
   material: string
-  input_kg: number
+  /** A total bigger than products + 2%, used only to work out the wastage. Not saved. */
+  wastage_on_kg: number | null
+  /** Put back into stock after the run; stock goes down by products + 2% minus this. */
   returned_kg: number
   shift: number | null
   crew_ids: number[]

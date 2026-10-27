@@ -4,7 +4,7 @@ and shift crews."""
 from httpx import AsyncClient
 
 from tests.conftest import bearer
-from tests.entry_helpers import TODAY, Team, act, production, purchase, stock_of, team
+from tests.entry_helpers import TODAY, Team, act, as_old_run, production, purchase, stock_of, team
 
 
 async def _me(client: AsyncClient, token: str) -> int:
@@ -27,8 +27,12 @@ async def _note(client: AsyncClient, t: Team, run: dict, token: str, no: str = "
 async def test_runs_over_the_limit_need_a_debit_note(client: AsyncClient) -> None:
     t = await team(client)
     await purchase(client, t, t.admin, "1000")
-    run = (await production(client, t, t.admin, "1000", {"rubber": "950"})).json()
-    # 5% missing: over the 2% hard limit. Even the Admin's own run waits for review.
+    run = (await production(client, t, t.admin, {"rubber": "900"})).json()
+    # New runs always have 2% wastage; a run saved before that rule can be over the limit.
+    await as_old_run(run, "5")
+    run = (
+        await client.get(t.url(f"/entries/production/{run['id']}"), headers=bearer(t.admin))
+    ).json()
     assert run["debit_note_required"] is True and run["status"] == "pending"
     blocked = await act(client, t, t.admin, run, "approve")
     assert blocked.status_code == 409 and blocked.json()["code"] == "debit_note_required"
@@ -50,7 +54,8 @@ async def test_runs_over_the_limit_need_a_debit_note(client: AsyncClient) -> Non
 async def test_runs_within_the_limit_need_no_note(client: AsyncClient) -> None:
     t = await team(client)
     await purchase(client, t, t.admin, "1000")
-    run = (await production(client, t, t.admin, "1000", {"rubber": "990"})).json()
+    run = (await production(client, t, t.admin, {"rubber": "900"})).json()
+    assert run["wastage_pct"] == 2.0
     assert run["debit_note_required"] is False and run["status"] == "approved"
     assert (await _note(client, t, run, t.admin)).status_code == 409
 
@@ -65,8 +70,8 @@ async def test_monthly_allowance_flags_runs_over_it(client: AsyncClient) -> None
     assert (await client.put(url, json=body, headers=bearer(t.admin))).status_code == 204
 
     await purchase(client, t, t.admin, "1000")
-    run = (await production(client, t, t.admin, "1000", {"rubber": "982"})).json()
-    # 1.8%: over this month's 1.5% allowance, but under the 2% hard limit.
+    run = (await production(client, t, t.admin, {"rubber": "900"})).json()
+    # 2%: over this month's 1.5% allowance, but not over the 2% hard limit.
     assert run["wastage_flagged"] is True and run["debit_note_required"] is False
     assert run["wastage_allowance_pct"] == 1.5
     months = (
@@ -141,7 +146,6 @@ async def test_super_admin_configures_items_and_density(client: AsyncClient) -> 
     body = {
         "entry_date": TODAY,
         "material": "rubber",
-        "input_kg": "1000",
         "outputs": [{"product": "oil", "qty": "900"}],
     }
     run = await client.post(t.url("/production"), json=body, headers=bearer(t.admin))
@@ -173,11 +177,11 @@ async def test_production_in_charge_picks_the_crew(client: AsyncClient) -> None:
     body = {
         "entry_date": TODAY,
         "material": "truck",
-        "input_kg": "960",
         "shift": 2,
         "crew_ids": sorted(ops),
         "running_hours": "6",
-        "outputs": [{"product": "rubber", "qty": "700"}, {"product": "steel", "qty": "250"}],
+        # 941 kg out + 2% = 960 kg used.
+        "outputs": [{"product": "rubber", "qty": "700"}, {"product": "steel", "qty": "241"}],
     }
     res = await client.post(t.url("/production"), json=body, headers=bearer(t.admin))
     assert res.status_code == 201, res.text

@@ -97,7 +97,9 @@ async def test_manager_cannot_enter_or_edit(client: AsyncClient) -> None:
     res = await client.put(t.url(f"/purchases/{entry['id']}"), json=body, headers=bearer(t.manager))
     assert res.status_code == 403
     assert (await purchase(client, t, t.manager, n=2)).status_code == 403
-    assert (await client.get(t.url(f"/entries/purchase/{entry['id']}"), headers=bearer(t.manager))).status_code == 200
+    assert (
+        await client.get(t.url(f"/entries/purchase/{entry['id']}"), headers=bearer(t.manager))
+    ).status_code == 200
 
 
 async def test_verified_entries_are_locked_except_for_super_admin(client: AsyncClient) -> None:
@@ -146,7 +148,7 @@ async def test_cannot_reject_a_purchase_whose_tyres_were_processed(client: Async
     t = await team(client)
     entry = (await purchase(client, t, t.operator, qty="1000")).json()
     assert (
-        await production(client, t, t.operator, "900", {"rubber": "600", "steel": "250"})
+        await production(client, t, t.operator, {"rubber": "600", "steel": "250"})
     ).status_code == 201
     res = await act(client, t, t.admin, entry, "reject", "Duplicate")
     assert res.status_code == 409
@@ -188,7 +190,7 @@ async def test_ceo_reads_but_cannot_act(client: AsyncClient) -> None:
 async def test_sales_check_output_stock(client: AsyncClient) -> None:
     t = await team(client)
     await purchase(client, t, t.operator, qty="1000")
-    await production(client, t, t.operator, "1000", {"rubber": "600", "steel": "300"})
+    await production(client, t, t.operator, {"rubber": "600", "steel": "300"})
     too_much = await sale(client, t, t.operator, "700")
     assert too_much.status_code == 409
     ok = await sale(client, t, t.operator, "600")

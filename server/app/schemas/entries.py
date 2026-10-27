@@ -108,7 +108,10 @@ class ProductionInput(EntryInput):
     and outputs are allowed comes from the company's configuration."""
 
     material: Item
-    input_kg: Kg
+    # Stock goes down by the outputs + 2%, worked out by the server. A bigger total entered by
+    # the in-charge is used only to work out the wastage; it is not saved.
+    wastage_on_kg: Kg | None = None
+    # Raw material put back into stock after the run; stock goes down by outputs + 2% minus this.
     returned_kg: KgOrZero = Decimal(0)
     shift: int | None = Field(default=None, ge=1, le=3)
     # Operators on the shift (user ids), picked by the production in-charge.
@@ -128,8 +131,6 @@ class ProductionInput(EntryInput):
         products = [o.product for o in self.outputs]
         if len(products) != len(set(products)):
             raise ValueError("each output can appear only once")
-        if self.returned_kg >= self.input_kg:
-            raise ValueError("everything was returned to stock: nothing was processed")
         if not any(o.qty > 0 for o in self.outputs):
             raise ValueError("enter at least one output")
         return self
@@ -279,6 +280,8 @@ class EntryDetail(BaseModel):
     shift: int | None = None
     returned_kg: float | None = None
     processed_kg: float | None = None
+    # Products + the wastage rate: what stock went down by. NULL on runs saved before this rule.
+    calculated_input_kg: float | None = None
     output_kg: float | None = None
     wastage_kg: float | None = None
     wastage_pct: float | None = None

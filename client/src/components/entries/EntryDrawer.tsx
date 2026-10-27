@@ -7,7 +7,7 @@ import { useDeleteEntry, useEntry, useEntryAction, useEscalation } from '../../h
 import { useAccess } from '../../hooks/useAccess'
 import DebitNoteModal, { type NoteTarget } from '../wastage/DebitNoteModal'
 import type { EntryAction, EntryDetail, EntryType } from '../../types/entries'
-import { formatDate, formatINR, formatKg, formatPercent, formatTonnes, formatQty, formatRateIn } from '../../utils/format'
+import { formatDate, formatINR, formatKg, formatKgFine, formatPercent, formatTonnes, formatQty, formatRateIn } from '../../utils/format'
 import { GradeTag, StatusTag } from '../ui'
 import { statusMeta } from '../../utils/entryStatus'
 import BillFileModal from '../bill/BillFileModal'
@@ -94,6 +94,55 @@ function DebitNoteBlock({ e, onRecord }: { e: EntryDetail; onRecord?: () => void
 }
 
 function Production({ e, onRecordNote }: { e: EntryDetail; onRecordNote?: () => void }) {
+  // Runs saved under the fixed 2% rule: stock went down by products + 2%.
+  if (e.calculated_input_kg !== null) {
+    const pct = e.wastage_pct ?? 2
+    // Wastage is 2% of the products, or of a bigger total the in-charge typed (not saved).
+    const wastageOn = ((e.wastage_kg ?? 0) * 100) / pct
+    return (
+      <div style={{ marginTop: 16 }}>
+        <div className="strong" style={{ marginBottom: 8 }}>
+          What came out
+        </div>
+        {e.outputs.map((o) => (
+          <div className="summary-line" key={o.product}>
+            <span>{itemName(o.product)}</span>
+            <b className="num">
+              {formatQty(o.qty, o.unit)}
+              {o.unit !== 'kg' && <span className="faint"> · {formatKg(o.qty_kg)}</span>}
+            </b>
+          </div>
+        ))}
+        <div className="summary-line">
+          <span className="muted">Products total</span>
+          <b className="num">{formatKg(e.output_kg ?? 0)}</b>
+        </div>
+        <div className="summary-line">
+          <span className="muted">
+            Wastage ({formatPercent(pct, 0)} of {formatKgFine(wastageOn)})
+          </span>
+          <b className="num">{formatKgFine(e.wastage_kg ?? 0)}</b>
+        </div>
+        {!!e.returned_kg && (
+          <>
+            <div className="summary-line">
+              <span className="muted">Raw material used (products + {formatPercent(pct, 0)})</span>
+              <b className="num">{formatKg(e.calculated_input_kg)}</b>
+            </div>
+            <div className="summary-line">
+              <span className="muted">Returned to stock</span>
+              <b className="num">{formatKg(e.returned_kg)}</b>
+            </div>
+          </>
+        )}
+        <div className="summary-line">
+          <span className="strong">Taken out of stock</span>
+          <b className="num strong">{formatKg(e.calculated_input_kg - (e.returned_kg ?? 0))}</b>
+        </div>
+        <DebitNoteBlock e={e} onRecord={onRecordNote} />
+      </div>
+    )
+  }
   return (
     <div style={{ marginTop: 16 }}>
       <div className="strong" style={{ marginBottom: 8 }}>

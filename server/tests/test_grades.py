@@ -23,7 +23,7 @@ async def test_grades_default_sensibly(client: AsyncClient) -> None:
     t = await team(client)
     bought = (await purchase(client, t, t.admin, "1000")).json()
     assert bought["grade"] == "A"
-    await production(client, t, t.admin, "1000", {"rubber": "900"})
+    await production(client, t, t.admin, {"rubber": "900"})
     assert (await sale(client, t, t.admin, "100")).json()["grade"] == "A"
     resold = await purchase(client, t, t.admin, "500", grade="B", n=2)
     assert resold.json()["grade"] == "B"
@@ -47,7 +47,7 @@ async def test_each_grade_carries_only_its_items(client: AsyncClient) -> None:
 async def test_resale_tyres_cannot_go_into_production(client: AsyncClient) -> None:
     t = await team(client)
     await purchase(client, t, t.admin, "1000", grade="B")
-    made = await production(client, t, t.admin, "500", {"rubber": "450"})
+    made = await production(client, t, t.admin, {"rubber": "450"})
     assert made.status_code == 409
     assert "Grade A truck" in made.json()["detail"]
 
@@ -89,7 +89,7 @@ async def test_admin_can_reclassify_a_purchase(client: AsyncClient) -> None:
     assert res.status_code == 200, res.text
     assert res.json()["grade"] == "A"
     assert res.json()["events"][-1]["changes"]["grade"] == ["B", "A"]
-    assert (await production(client, t, t.admin, "500", {"rubber": "450"})).status_code == 201
+    assert (await production(client, t, t.admin, {"rubber": "450"})).status_code == 201
 
 
 async def test_lists_and_totals_split_by_grade(client: AsyncClient) -> None:
@@ -97,7 +97,7 @@ async def test_lists_and_totals_split_by_grade(client: AsyncClient) -> None:
     await purchase(client, t, t.admin, "1000")
     await purchase(client, t, t.admin, "500", grade="B", n=2)
     await purchase(client, t, t.admin, "200", grade="C", n=3)
-    await production(client, t, t.admin, "1000", {"rubber": "900"})
+    await production(client, t, t.admin, {"rubber": "900"})
 
     rows = (await client.get("/entries?grade=B", headers=bearer(t.admin))).json()["items"]
     assert [(r["type"], r["grade"]) for r in rows] == [("purchase", "B")]

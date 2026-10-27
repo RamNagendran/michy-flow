@@ -285,6 +285,7 @@ async def detail(
             shift=entry.shift,
             returned_kg=entry.returned_kg,
             processed_kg=entry.input_kg - entry.returned_kg,
+            calculated_input_kg=entry.calculated_input_kg,
             output_kg=entry.output_kg,
             wastage_kg=entry.wastage_kg,
             wastage_pct=entry.wastage_pct,

@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAccess } from '../../hooks/useAccess'
 import { itemName } from '../../data/catalog'
 import type { EntryDetail } from '../../types/entries'
-import { formatDate, formatINR, formatKg, formatQty, formatRateIn } from '../../utils/format'
+import { formatDate, formatINR, formatKg, formatKgFine, formatQty, formatRateIn } from '../../utils/format'
 import SavedResult from '../SavedResult'
 import { statusMeta } from '../../utils/entryStatus'
 
@@ -16,10 +16,11 @@ export default function SavedEntry({ entry, again }: { entry: EntryDetail; again
   const lines: [string, string][] =
     entry.type === 'production'
       ? [
-          ['Raw material processed', `${formatKg(entry.processed_kg ?? entry.qty)} · ${itemName(entry.item)}`],
-          ...(entry.returned_kg ? ([['Returned to stock', formatKg(entry.returned_kg)]] as [string, string][]) : []),
           ...entry.outputs.map((o) => [`${itemName(o.product)} produced`, formatQty(o.qty, o.unit)] as [string, string]),
-          ['Missing (wastage)', `${formatKg(entry.wastage_kg ?? 0)} (${(entry.wastage_pct ?? 0).toFixed(1)}%)`],
+          ['Products total', formatKg(entry.output_kg ?? 0)],
+          [`Wastage (${(entry.wastage_pct ?? 0).toFixed(0)}%)`, formatKgFine(entry.wastage_kg ?? 0)],
+          ...(entry.returned_kg ? ([['Returned to stock', formatKg(entry.returned_kg)]] as [string, string][]) : []),
+          ['Taken out of stock', `${formatKg(entry.processed_kg ?? entry.qty)} · ${itemName(entry.item)}`],
         ]
       : [
           [entry.type === 'sale' ? 'Buyer' : 'Supplier', entry.party_name ?? '—'],

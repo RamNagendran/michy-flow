@@ -19,6 +19,10 @@ export const formatINRShort = (value: number) => {
 /** 12,400 kg */
 export const formatKg = (kg: number) => `${inr.format(Math.round(kg))} kg`
 
+const kgOneDecimal = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 1 })
+/** 9.8 kg: for small weights like wastage, where rounding to whole kg hides the figure. */
+export const formatKgFine = (kg: number) => `${kgOneDecimal.format(kg)} kg`
+
 export const formatNumber = (n: number) => inr.format(Math.round(n))
 
 /** 12.4 t */

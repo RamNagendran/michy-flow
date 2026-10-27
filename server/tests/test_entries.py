@@ -3,31 +3,51 @@
 from httpx import AsyncClient
 
 from tests.conftest import bearer, create_company
-from tests.entry_helpers import TODAY, act, party, production, purchase, sale, team
+from tests.entry_helpers import TODAY, act, party, production, purchase, sale, stock_of, team
 
 
-async def test_production_works_out_wastage(client: AsyncClient) -> None:
+async def test_production_works_out_input_and_wastage(client: AsyncClient) -> None:
     t = await team(client)
-    await purchase(client, t, t.operator, qty="1000")
-    res = await production(client, t, t.operator, "1000", {"rubber": "620", "steel": "350"})
+    await purchase(client, t, t.operator, qty="2000")
+    out = {"rubber": "390", "steel": "100"}
+    # 490 kg came out: wastage is 2% of it (9.8 kg), and 490 + 9.8 = 499.8, so stock goes
+    # down by 500 kg.
+    res = await production(client, t, t.operator, out)
     assert res.status_code == 201, res.text
     p = res.json()
-    assert p["output_kg"] == 970
-    assert p["wastage_kg"] == 30
-    assert p["wastage_pct"] == 3.0
-    assert p["wastage_flagged"] is True  # over 2%
+    assert p["output_kg"] == 490 and p["calculated_input_kg"] == 500 and p["qty"] == 500
+    assert p["wastage_kg"] == 9.8 and p["wastage_pct"] == 2.0
+    assert p["wastage_flagged"] is False and p["debit_note_required"] is False
     assert p["ref_no"] == "PRD-MR-00001"
+    assert (await stock_of(client, t, "truck"))["provisional"]["balance"] == 1500
+
+    # The in-charge changes the total to 600 kg: wastage becomes 2% of 600 kg. The 600 is not
+    # kept: stock still goes down by 500 kg and the outputs stay 490 kg.
+    raised = (await production(client, t, t.operator, out, wastage_on_kg="600")).json()
+    assert raised["output_kg"] == 490 and raised["qty"] == 500
+    assert raised["wastage_kg"] == 12 and raised["wastage_pct"] == 2.0
+    assert (await stock_of(client, t, "truck"))["provisional"]["balance"] == 1000
+
+    # 50 kg put back into stock: stock goes down by 500 - 50. Products and wastage stay.
+    back = (await production(client, t, t.operator, out, returned_kg="50")).json()
+    assert back["calculated_input_kg"] == 500 and back["returned_kg"] == 50
+    assert back["processed_kg"] == 450 and back["wastage_kg"] == 9.8
+    assert (await stock_of(client, t, "truck"))["provisional"]["balance"] == 550
+    everything = await production(client, t, t.operator, out, returned_kg="500")
+    assert everything.status_code == 422 and everything.json()["code"] == "returned_too_much"
+
+    # The total can be raised but never lowered below the worked-out 500 kg.
+    low = await production(client, t, t.operator, out, wastage_on_kg="499")
+    assert low.status_code == 422 and low.json()["code"] == "input_below_calculated"
 
 
 async def test_production_input_rules(client: AsyncClient) -> None:
     t = await team(client)
     await purchase(client, t, t.operator, qty="1000")
-    # More out than in.
-    assert (await production(client, t, t.operator, "500", {"rubber": "600"})).status_code == 422
     # Nothing out.
-    assert (await production(client, t, t.operator, "500", {"rubber": "0"})).status_code == 422
-    # More in than is in stock.
-    res = await production(client, t, t.operator, "1500", {"rubber": "900"})
+    assert (await production(client, t, t.operator, {"rubber": "0"})).status_code == 422
+    # Outputs + 2% is more than is in stock (990 + 2% = 1010 kg).
+    res = await production(client, t, t.operator, {"rubber": "990"})
     assert res.status_code == 409
 
 
@@ -97,7 +117,7 @@ async def test_operators_see_only_their_own_entries(client: AsyncClient) -> None
 async def test_entry_list_filters(client: AsyncClient) -> None:
     t = await team(client)
     p = (await purchase(client, t, t.admin, qty="2000", invoice_no="ABC-1")).json()
-    await production(client, t, t.admin, "1000", {"rubber": "600", "steel": "300"})
+    await production(client, t, t.admin, {"rubber": "600", "steel": "300"})
     await sale(client, t, t.admin, "100", invoice="MR/77")
     await act(client, t, t.finance, p, "verify")
 
@@ -115,7 +135,7 @@ async def test_entry_list_filters(client: AsyncClient) -> None:
     page = (await get("page_size=2&page=2")).json()
     assert page["total"] == 3 and len(page["items"]) == 1
     row = (await get("type=production")).json()["items"][0]
-    assert row["output_kg"] == 900 and row["wastage_pct"] == 10.0
+    assert row["output_kg"] == 900 and row["wastage_pct"] == 2.0
 
 
 async def test_summary_counts_pending_but_tracks_verified_money(client: AsyncClient) -> None:

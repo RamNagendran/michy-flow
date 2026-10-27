@@ -19,7 +19,7 @@ async def test_purchase_only_operator_reaches_only_purchases(client: AsyncClient
 
     assert (await purchase(client, t, ops)).status_code == 201
     assert (await sale(client, t, ops, "10")).status_code == 403
-    assert (await production(client, t, ops, "100", {"rubber": "60"})).status_code == 403
+    assert (await production(client, t, ops, {"rubber": "60"})).status_code == 403
 
     listed = (await client.get("/entries", headers=h)).json()
     assert listed["total"] == 1
