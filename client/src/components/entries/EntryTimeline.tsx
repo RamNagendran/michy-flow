@@ -15,6 +15,7 @@ const eventMeta: Record<string, { label: string; color: string }> = {
   rejected: { label: 'rejected it (Super Admin)', color: '#8a919e' },
   edited: { label: 'changed it (Super Admin)', color: '#7A5AF8' },
   commented: { label: 'commented', color: '#d98a0b' },
+  gstin_corrected: { label: 'corrected a GST number read from the bill', color: '#D4380D' },
   // Older entries only.
   held: { label: 'put it on hold', color: '#D4380D' },
   deleted: { label: 'deleted it', color: '#8a919e' },

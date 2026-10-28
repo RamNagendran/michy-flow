@@ -13,6 +13,7 @@ from app.parsing.ocr import Box, group_lines
 from app.parsing.qr import decode_einvoice
 from tests import bill_samples
 from tests.bill_samples import OUR_GSTIN, SELLER_GSTIN
+from tests.conftest import make_gstin
 
 
 def test_indian_number_formats() -> None:
@@ -179,3 +180,27 @@ def test_two_column_sale_bill_finds_the_buyer() -> None:
     bill = parse_lines(TWO_COLUMN_BILL, [1.0] * len(TWO_COLUMN_BILL), "sale", None)
     assert bill.party_name.value == "Apex Green Energy Private Limited"
     assert bill.item.value == "rubber"
+
+
+def test_gst_numbers_are_split_into_seller_and_buyer() -> None:
+    """Seller's under their name at the top; the buyer's under "Buyer (Bill to)". The consignee
+    block comes first in Tally's layout and only stands in when there is no buyer block."""
+    seller, consignee, buyer = make_gstin("s"), make_gstin("c"), make_gstin("b")
+    lines = [
+        "Tax Invoice",
+        "KAVERI RUBBERS Invoice No. e-Way Bill No. Dated",
+        f"GSTIN/UIN: {seller} Reference No. & Date. Other References",
+        "Consignee (Ship to)",
+        "Apex Green Energy Private Limited",
+        f"GSTIN/UIN : {consignee} ROAD Gummidipoondi",
+        "Buyer (Bill to) TN18CZ7996",
+        "Apex Green Energy Private Limited Terms of Delivery",
+        f"GSTIN/UIN : {buyer}",
+        "1 Rubber Crumb Powder 40040000 11,060 KGS 16.25 KGS 1,79,725.00",
+    ]
+    bill = parse_lines(lines, [1.0] * len(lines), "purchase", None)
+    assert (bill.seller_gstin.value, bill.buyer_gstin.value) == (seller, buyer)
+    assert bill.gstins == [seller, consignee, buyer]
+    no_buyer_block = lines[:6]
+    bill = parse_lines(no_buyer_block, [1.0] * len(no_buyer_block), "purchase", None)
+    assert bill.buyer_gstin.value == consignee

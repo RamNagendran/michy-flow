@@ -4,6 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.core import gstin as gst
 from app.models.catalog import (
     INPUT_CHOICES,
     ITEMS,
@@ -33,6 +34,7 @@ class CompanyBrief(BaseModel):
 
 class CompanyRead(CompanyBrief):
     city: str
+    gstin: str | None
     category: CompanyCategory
     # Inventory configuration: what this company processes and makes.
     input_items: list[str]
@@ -72,9 +74,18 @@ class CompanyCreate(BaseModel):
     code: str = Field(min_length=1, max_length=10)
     name: str = Field(min_length=1, max_length=200)
     city: str = Field(default="", max_length=100)
+    gstin: str = Field(max_length=20)
     category: CompanyCategory
 
     _code = field_validator("code")(_clean_code)
+
+    @field_validator("gstin")
+    @classmethod
+    def _gstin(cls, value: str) -> str:
+        cleaned = gst.clean(value)
+        if cleaned is None:
+            raise ValueError("enter the GST number")
+        return cleaned
 
     @field_validator("name", "city")
     @classmethod
@@ -88,6 +99,7 @@ class CompanyUpdate(BaseModel):
     code: str | None = Field(default=None, min_length=1, max_length=10)
     name: str | None = Field(default=None, min_length=1, max_length=200)
     city: str | None = Field(default=None, max_length=100)
+    gstin: str | None = Field(default=None, max_length=20)
     # Can change only while the company has no entries.
     category: CompanyCategory | None = None
     is_active: bool | None = None
@@ -96,6 +108,16 @@ class CompanyUpdate(BaseModel):
     @classmethod
     def _code(cls, value: str | None) -> str | None:
         return None if value is None else _clean_code(value)
+
+    @field_validator("gstin")
+    @classmethod
+    def _gstin(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = gst.clean(value)
+        if cleaned is None:
+            raise ValueError("enter the GST number")
+        return cleaned
 
     @field_validator("name", "city")
     @classmethod

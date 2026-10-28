@@ -1,13 +1,22 @@
 from httpx import AsyncClient
 
-from tests.conftest import bearer, create_company, create_user, login_new_user, signup
+from tests.conftest import bearer, create_company, create_user, login_new_user, make_gstin, signup
 
 
 async def test_super_admin_creates_and_edits_companies(client: AsyncClient) -> None:
     token = (await signup(client))["access_token"]
     company = await create_company(client, token, code="mr")
     assert company["code"] == "MR"
-    assert "gstin" not in company
+    assert company["gstin"] == make_gstin("company-mr")
+    # A GST number is needed, and it must be a real one (format and check digit).
+    base = {"code": "X", "name": "X", "category": "crumb"}
+    for bad in ({}, {"gstin": ""}, {"gstin": "33AAJCR8510J1Z8"}, {"gstin": "GST123"}):
+        res = await client.post("/companies", json={**base, **bad}, headers=bearer(token))
+        assert res.status_code == 422, bad
+    spaced = await client.patch(
+        f"/companies/{company['id']}", json={"gstin": "33aajcr 8510j1z9"}, headers=bearer(token)
+    )
+    assert spaced.json()["gstin"] == "33AAJCR8510J1Z9"
 
     res = await client.patch(
         f"/companies/{company['id']}",
@@ -26,7 +35,7 @@ async def test_company_code_is_unique_per_account(client: AsyncClient) -> None:
     await create_company(client, token, code="MR")
     dup = await client.post(
         "/companies",
-        json={"code": "mr", "name": "Again", "category": "crumb"},
+        json={"code": "mr", "name": "Again", "category": "crumb", "gstin": make_gstin("again")},
         headers=bearer(token),
     )
     assert dup.status_code == 409

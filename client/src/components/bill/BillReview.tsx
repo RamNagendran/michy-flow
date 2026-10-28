@@ -1,13 +1,15 @@
 import { useMemo, useState } from 'react'
 import { Alert, Button, Collapse, DatePicker, Input, InputNumber, Progress, Select, Tag, Tooltip } from 'antd'
-import { CheckOutlined, DeleteOutlined, ExclamationOutlined, LockFilled, QrcodeOutlined, SafetyCertificateFilled } from '@ant-design/icons'
+import { CheckCircleFilled, CheckOutlined, CloseCircleFilled, DeleteOutlined, ExclamationOutlined, LockFilled, QrcodeOutlined, SafetyCertificateFilled } from '@ant-design/icons'
+import { Link } from 'react-router-dom'
 import dayjs from 'dayjs'
 import { itemName, unitOf } from '../../data/catalog'
 import { defaultSaleGrade, itemAllowed, itemsFor, stockSection } from '../../data/grades'
 import { useParties } from '../../hooks/queries/parties'
 import { useStocks } from '../../hooks/queries/stock'
 import { useAccess } from '../../hooks/useAccess'
-import type { BillDocument, EntryDraft } from '../../types/documents'
+import type { BillDocument, EntryDraft, ParsedValue } from '../../types/documents'
+import { isValidGstin, normaliseGstin } from '../../utils/gstin'
 import type { Grade } from '../../types/entries'
 import GradePicker from '../entries/GradePicker'
 import { formatINR, qtyInputProps } from '../../utils/format'
@@ -18,7 +20,63 @@ import { XField } from './ReviewField'
 
 type VerifyKey = 'party' | 'qty' | 'rate'
 // Checks that stop saving. The others are warnings the person can accept.
-const BLOCKING = new Set(['math', 'total', 'party', 'stock', 'unit'])
+const BLOCKING = new Set(['math', 'total', 'party', 'stock', 'unit', 'gst_company', 'gst_party'])
+
+/**
+ * One side's GST number: the registered one next to the one on the bill. When they differ the
+ * person checks the paper bill and, if it was read wrong, types the number from the bill.
+ */
+function GstField({ label, registered, missing, read, readValue, value, onChange }: {
+  label: string
+  registered: string | null | undefined
+  /** Shown instead of the registered number when none is saved yet. */
+  missing: React.ReactNode
+  read: ParsedValue<string> | null
+  readValue: string | null
+  value: string
+  onChange: (v: string) => void
+}) {
+  const typed = normaliseGstin(value)
+  const valid = !typed || isValidGstin(typed)
+  const matches = !!registered && typed === registered
+  const changed = typed !== (readValue ?? '')
+  return (
+    <XField label={label} read={changed ? undefined : read} warn={!matches}>
+      <div className="grid grid-2" style={{ gap: 10, alignItems: 'start' }}>
+        <div>
+          <div className="faint" style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>Registered</div>
+          <div className="num strong" style={{ padding: '6px 0' }}>
+            {registered ?? <span style={{ color: '#D4380D', fontWeight: 600 }}>{missing}</span>}
+          </div>
+        </div>
+        <div>
+          <div className="faint" style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>On the bill</div>
+          <Input
+            value={value}
+            onChange={(e) => onChange(e.target.value.toUpperCase())}
+            maxLength={20}
+            placeholder="Type it from the bill"
+            status={!valid || (registered && typed && !matches) ? 'error' : undefined}
+            // Always a suffix: adding or removing it would rebuild the input and lose the cursor.
+            suffix={matches ? <CheckCircleFilled style={{ color: '#1f9d6b' }} /> : typed ? <CloseCircleFilled style={{ color: '#D4380D' }} /> : <span />}
+          />
+        </div>
+      </div>
+      <div style={{ fontSize: 12.5, marginTop: 6, color: matches ? '#1f9d6b' : '#8a5300' }}>
+        {!registered
+          ? 'Add the registered GST number first, then this can be checked.'
+          : !typed
+            ? 'Not found on the bill. Look at the bill and type the GST number here.'
+            : !valid
+              ? 'This is not a correct GST number. Please check it.'
+              : matches
+                ? 'Matches the registered GST number.'
+                : 'Does not match the registered GST number. Check the bill. If it was read wrong, type the correct number here.'}
+      </div>
+      {changed && readValue && <div className="faint" style={{ fontSize: 12, marginTop: 4 }}>We read {readValue} from the bill. Your change is saved in the history.</div>}
+    </XField>
+  )
+}
 
 interface Props {
   doc: BillDocument
@@ -39,6 +97,9 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
 
   const [partyId, setPartyId] = useState<number | undefined>(doc.party_id ?? undefined)
   const [invoiceNo, setInvoiceNo] = useState(p.invoice_no?.value ?? '')
+  // GST numbers on the bill: as read, or as corrected by the person.
+  const [billOurs, setBillOurs] = useState(doc.company_gstin_on_bill ?? '')
+  const [billTheirs, setBillTheirs] = useState(doc.party_gstin_on_bill ?? '')
   const [date, setDate] = useState(p.invoice_date?.value ?? today())
   const configured = company ?? { category: 'crumb' as const }
   // Purchases default to raw material for production; a sales bill for raw material is a re-sell.
@@ -58,7 +119,8 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
   const party = parties.find((x) => x.id === partyId)
   const line = company && item ? stocks.byCompany.get(company.id)?.[stockSection(doc.kind, grade)].find((l) => l.item === item) : undefined
   const available = line?.provisional.balance ?? null
-  const checks = billChecks(p, { party, qty, unit: itemUnit, rate, date, available, isPurchase })
+  const gstOnBill = { company_gstin_on_bill: normaliseGstin(billOurs) || null, party_gstin_on_bill: normaliseGstin(billTheirs) || null }
+  const checks = billChecks(p, { party, qty, unit: itemUnit, rate, date, available, isPurchase, company, gstOnBill })
   const blocking = checks.filter((c) => !c.ok && BLOCKING.has(c.key))
   const warnings = checks.filter((c) => !c.ok && !BLOCKING.has(c.key))
   const verifiedCount = Object.values(verified).filter(Boolean).length
@@ -145,6 +207,30 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
             >
               <Select value={partyId} onChange={setPartyId} style={{ width: '100%' }} loading={partyList.isLoading} options={parties.map((x) => ({ value: x.id, label: x.name }))} placeholder="Choose" showSearch={{ optionFilterProp: 'label' }} />
             </XField>
+            <GstField
+              label={`Our GST number · ${company?.name ?? ''}`}
+              registered={company?.gstin}
+              missing={access.canSystem('manage_companies') ? <Link to="/settings">Not added. Add it in Settings → Companies</Link> : 'Not added. Ask the Super Admin to add it.'}
+              read={isPurchase ? p.buyer_gstin : p.seller_gstin}
+              readValue={doc.company_gstin_on_bill}
+              value={billOurs}
+              onChange={setBillOurs}
+            />
+            <GstField
+              label={`${isPurchase ? 'Supplier' : 'Buyer'}'s GST number${party ? ` · ${party.name}` : ''}`}
+              registered={party ? party.gstin : undefined}
+              missing={
+                !party
+                  ? `Choose the ${isPurchase ? 'supplier' : 'buyer'} first`
+                  : access.can('manage_parties', doc.company_id)
+                    ? <Link to="/parties">Not added. Add it in Suppliers &amp; buyers</Link>
+                    : 'Not added. Ask the Manager to add it.'
+              }
+              read={isPurchase ? p.seller_gstin : p.buyer_gstin}
+              readValue={doc.party_gstin_on_bill}
+              value={billTheirs}
+              onChange={setBillTheirs}
+            />
             <div className="grid grid-2" style={{ gap: 12 }}>
               <XField label="Bill / invoice number" read={p.invoice_no}>
                 <Input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} maxLength={50} />
@@ -235,7 +321,7 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
               disabled={!ready}
               loading={saving}
               style={{ minWidth: 220 }}
-              onClick={() => onConfirm({ companyId: doc.company_id, partyId: partyId!, grade, invoiceNo: invoiceNo.trim(), date, item: item!, qty, rate, documentId: doc.id })}
+              onClick={() => onConfirm({ companyId: doc.company_id, partyId: partyId!, grade, invoiceNo: invoiceNo.trim(), date, item: item!, qty, rate, documentId: doc.id, billCompanyGstin: gstOnBill.company_gstin_on_bill, billPartyGstin: gstOnBill.party_gstin_on_bill })}
             >
               Save for approval
             </Button>

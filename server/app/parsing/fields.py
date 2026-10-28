@@ -12,7 +12,7 @@ from decimal import Decimal
 from typing import Any
 
 from app.core.clock import today
-from app.parsing.numbers import numbers_in
+from app.parsing.numbers import gstins_in, numbers_in
 from app.parsing.qr import EInvoice
 
 # ---------------------------------------------------------------------------
@@ -30,6 +30,10 @@ class Found:
 @dataclass
 class ParsedBill:
     party_name: Found | None = None
+    # GST numbers of whoever sold and whoever bought, and every one found on the bill.
+    seller_gstin: Found | None = None
+    buyer_gstin: Found | None = None
+    gstins: list[str] = field(default_factory=list)
     invoice_no: Found | None = None
     invoice_date: Found | None = None
     item: Found | None = None
@@ -447,9 +451,46 @@ def _money(bill: ParsedBill, lines: list[str], conf: list[float], qr: EInvoice |
             bill.warnings.append("Amount + tax does not add up to the total read from the bill")
 
 
+def _gstins(bill: ParsedBill, lines: list[str], conf: list[float], qr: EInvoice | None) -> None:
+    """Whose GST number is whose. The seller's comes first, under their name at the top; the
+    buyer's sits under "Buyer (Bill to)" (or the consignee's block when there is no buyer
+    block). The e-invoice QR code names both exactly."""
+    seller: Found | None = None
+    buyer: Found | None = None
+    consignee: Found | None = None
+    block = "seller"
+    for i, line in enumerate(lines):
+        if _BILL_TO.match(line):
+            block = "buyer"
+        elif _SHIP_TO.match(line):
+            block = "consignee"
+        for gstin, checksum_ok in gstins_in(line):
+            if gstin not in bill.gstins:
+                bill.gstins.append(gstin)
+            if not checksum_ok:
+                bill.warnings.append(f"GST number {gstin} looks wrong. It may be misread.")
+            found = Found(gstin, round(conf[i] * (92 if checksum_ok else 60)), "pattern")
+            if block == "seller" and seller is None:
+                seller = found
+            elif block == "buyer" and buyer is None:
+                buyer = found
+            elif block == "consignee" and consignee is None:
+                consignee = found
+    bill.seller_gstin = seller
+    bill.buyer_gstin = buyer or consignee
+    if qr and qr.seller_gstin:
+        bill.seller_gstin = Found(qr.seller_gstin, 99, "qr")
+    if qr and qr.buyer_gstin:
+        bill.buyer_gstin = Found(qr.buyer_gstin, 99, "qr")
+    for g in (bill.seller_gstin, bill.buyer_gstin):
+        if g and g.value not in bill.gstins:
+            bill.gstins.append(g.value)
+
+
 def parse_lines(lines: list[str], conf: list[float], kind: str, qr: EInvoice | None) -> ParsedBill:
     bill = ParsedBill(einvoice=qr is not None)
     _party(bill, lines, conf, kind)
+    _gstins(bill, lines, conf, qr)
     _invoice(bill, lines, conf, qr)
     _goods(bill, lines, conf, kind, qr)
     _money(bill, lines, conf, qr)

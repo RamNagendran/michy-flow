@@ -1,5 +1,5 @@
 import dayjs from 'dayjs'
-import type { ParsedBill } from '../../types/documents'
+import type { BillDocument, ParsedBill } from '../../types/documents'
 import type { Party } from '../../types/entries'
 import type { Unit } from '../../data/catalog'
 import { formatINR, formatQty } from '../../utils/format'
@@ -20,13 +20,56 @@ interface Values {
   date: string
   available: number | null
   isPurchase: boolean
+  /** Our company and its saved GST number. */
+  company?: { name: string; gstin: string | null }
+  /** GST numbers on the bill for each side, as the server worked them out. */
+  gstOnBill: Pick<BillDocument, 'company_gstin_on_bill' | 'party_gstin_on_bill'>
+}
+
+/** Our GST number and the supplier's / buyer's must both be on the bill and match the saved ones. */
+function gstChecks(v: Values): Check[] {
+  const who = v.isPurchase ? 'Supplier' : 'Buyer'
+  const ours = v.gstOnBill.company_gstin_on_bill
+  const theirs = v.gstOnBill.party_gstin_on_bill
+  const checks: Check[] = []
+  if (v.company) {
+    const saved = v.company.gstin
+    checks.push({
+      key: 'gst_company',
+      ok: !!saved && ours === saved,
+      title: `Our GST number matches (${v.company.name})`,
+      detail: !saved
+        ? `Add the GST number for ${v.company.name} in Settings → Companies first.`
+        : !ours
+          ? `Registered ${saved} · not found on the bill. Type it below from the bill.`
+          : ours === saved
+            ? saved
+            : `Registered ${saved} · on the bill ${ours}. If the bill was read wrong, correct it below.`,
+    })
+  }
+  if (v.party) {
+    const saved = v.party.gstin
+    checks.push({
+      key: 'gst_party',
+      ok: !!saved && theirs === saved,
+      title: `${who}'s GST number matches (${v.party.name})`,
+      detail: !saved
+        ? `Add the GST number for ${v.party.name} in Suppliers & buyers first.`
+        : !theirs
+          ? `Registered ${saved} · not found on the bill. Type it below from the bill.`
+          : theirs === saved
+            ? saved
+            : `Registered ${saved} · on the bill ${theirs}. Check the ${who.toLowerCase()}, or correct the number below if it was read wrong.`,
+    })
+  }
+  return checks
 }
 
 const close = (a: number, b: number) => Math.abs(a - b) <= Math.max(1, Math.abs(b) * 0.005)
 
 /** Plain-code checks on what the person is about to save, against what the bill says. */
 export function billChecks(bill: ParsedBill, v: Values): Check[] {
-  const checks: Check[] = []
+  const checks: Check[] = gstChecks(v)
   const amount = v.qty * v.rate
   const who = v.isPurchase ? 'supplier' : 'buyer'
 

@@ -12,6 +12,10 @@ export interface ParsedValue<T = string | number> {
 
 export interface ParsedBill {
   party_name: ParsedValue<string> | null
+  /** GST numbers of whoever sold and whoever bought, and every one found on the bill. */
+  seller_gstin: ParsedValue<string> | null
+  buyer_gstin: ParsedValue<string> | null
+  gstins: string[]
   invoice_no: ParsedValue<string> | null
   invoice_date: ParsedValue<string> | null
   item: ParsedValue<string> | null
@@ -47,8 +51,12 @@ export interface BillDocument {
   created_at: string
   parsed: ParsedBill
   lines: string[]
-  /** The supplier / buyer in this company whose name matches the one read from the bill. */
+  /** The supplier / buyer in this company whose GST number (or else name) matches the bill. */
   party_id: number | null
+  /** Our GST number as the bill shows it (we are the buyer on a purchase, the seller on a sale). */
+  company_gstin_on_bill: string | null
+  /** The supplier's / buyer's GST number as the bill shows it. */
+  party_gstin_on_bill: string | null
   /** Set when this exact file is already the bill of a live entry. */
   duplicate_of: string | null
 }
@@ -65,4 +73,7 @@ export interface EntryDraft {
   qty: number
   rate: number
   documentId?: number
+  /** GST numbers on the bill as confirmed (or corrected) by the person. */
+  billCompanyGstin?: string | null
+  billPartyGstin?: string | null
 }

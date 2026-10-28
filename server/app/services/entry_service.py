@@ -240,11 +240,33 @@ async def create(
         entry.source = EntrySource.AI if data.document_id else data.source
     db.add(entry)
     await _flush(db, kind)
-    if isinstance(data, PurchaseInput | SaleInput) and data.document_id:
-        await document_service.attach(db, ctx, entry_type.value, data.document_id, entry)
     workflow_service.add_event(
         db, entry_type=entry_type, entry=entry, actor=ctx.user, action="created"
     )
+    if isinstance(data, PurchaseInput | SaleInput) and data.document_id:
+        corrected = await document_service.attach(
+            db,
+            ctx,
+            entry_type.value,
+            data.document_id,
+            entry,
+            confirmed=(data.bill_company_gstin, data.bill_party_gstin),
+        )
+        for side, change in corrected.items():
+            who = (
+                "our"
+                if side == "company"
+                else ("supplier's" if entry_type == EntryType.PURCHASE else "buyer's")
+            )
+            workflow_service.add_event(
+                db,
+                entry_type=entry_type,
+                entry=entry,
+                actor=ctx.user,
+                action="gstin_corrected",
+                comment=f"Bill was read as {change['read'] or 'no number'} for the {who} GST "
+                f"number; corrected to {change['entered']}",
+            )
     # It does not count in stock until the Manager approves, but it must fit in stock now.
     await stock_service.assert_stock_not_negative(db, ctx.company.id, (kind.model, entry.id))
     await db.commit()

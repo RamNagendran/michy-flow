@@ -54,6 +54,16 @@ async def save(
     )
     if same_name:
         raise ConflictError(f"A {data.kind} called {data.name} already exists in this company")
+    same_gstin = await db.scalar(
+        select(Party.name).where(
+            Party.company_id == ctx.company.id,
+            Party.kind == data.kind,
+            Party.gstin == data.gstin,
+            Party.id != (party_id or 0),
+        )
+    )
+    if same_gstin:
+        raise ConflictError(f"{same_gstin} already has the GST number {data.gstin}")
     if party_id is None:
         party = Party(company_id=ctx.company.id, **data.model_dump())
         db.add(party)

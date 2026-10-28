@@ -3,14 +3,15 @@
 from httpx import AsyncClient
 
 from tests import bill_samples
-from tests.conftest import bearer
+from tests.bill_samples import SELLER_GSTIN
+from tests.conftest import bearer, make_gstin
 from tests.entry_helpers import Team, party, team
 
 
 async def _with_bill_supplier(client: AsyncClient) -> Team:
-    """A team whose supplier list has the party named on the sample bill."""
+    """A team whose supplier list has the party named on the sample bill, with its GST number."""
     t = await team(client)
-    t.supplier = await party(client, t, "supplier", "Sri Balaji Tyre Traders")
+    t.supplier = await party(client, t, "supplier", "Sri Balaji Tyre Traders", gstin=SELLER_GSTIN)
     return t
 
 
@@ -173,3 +174,66 @@ async def test_every_upload_is_read_afresh(client: AsyncClient) -> None:
     assert again["id"] != first["id"]
     assert again["parsed"]["rate"]["value"] == first["parsed"]["rate"]["value"] != 1
     assert again["duplicate_of"] is None  # not entered yet
+
+
+async def test_bill_gst_numbers_are_read_and_matched(client: AsyncClient) -> None:
+    t = await _with_bill_supplier(client)
+    for with_qr in (False, True):
+        doc = (await _upload(client, t, t.operator, bill_samples.pdf(with_qr=with_qr))).json()
+        assert doc["company_gstin_on_bill"] == bill_samples.OUR_GSTIN, with_qr
+        assert doc["party_gstin_on_bill"] == SELLER_GSTIN
+        # The supplier is found by the GST number on the bill.
+        assert doc["party_id"] == t.supplier
+
+
+async def test_bill_must_show_our_gst_number(client: AsyncClient) -> None:
+    t = await _with_bill_supplier(client)
+    someone_else = make_gstin("not-us")
+    pdf = bill_samples.pdf(buyer=someone_else)
+    doc = (await _upload(client, t, t.operator, pdf)).json()
+    res = await client.post(
+        t.url("/purchases"), json=_purchase_body(t, doc), headers=bearer(t.operator)
+    )
+    assert res.status_code == 400 and res.json()["code"] == "gstin_mismatch"
+    assert someone_else in res.json()["detail"]
+
+
+async def test_bill_must_show_the_supplier_gst_number(client: AsyncClient) -> None:
+    t = await _with_bill_supplier(client)
+    # A different supplier, with its own GST number, picked for this bill.
+    other = await party(client, t, "supplier", "Kaveri Scrap")
+    doc = (await _upload(client, t, t.operator, bill_samples.pdf())).json()
+    body = {**_purchase_body(t, doc), "supplier_id": other}
+    res = await client.post(t.url("/purchases"), json=body, headers=bearer(t.operator))
+    assert res.status_code == 400 and res.json()["code"] == "gstin_mismatch"
+    assert "Kaveri Scrap" in res.json()["detail"]
+    # Typed in by hand (no bill), nothing is checked.
+    manual = {k: v for k, v in body.items() if k != "document_id"}
+    ok = await client.post(t.url("/purchases"), json=manual, headers=bearer(t.operator))
+    assert ok.status_code == 201, ok.text
+
+
+async def test_a_misread_gst_number_can_be_corrected(client: AsyncClient) -> None:
+    t = await _with_bill_supplier(client)
+    # The bill is read with a wrong supplier GST number (e.g. a smudged scan).
+    misread = make_gstin("smudged")
+    doc = (await _upload(client, t, t.operator, bill_samples.pdf(seller=misread))).json()
+    assert doc["party_gstin_on_bill"] == misread
+    body = {**_purchase_body(t, doc), "supplier_id": t.supplier}
+    refused = await client.post(t.url("/purchases"), json=body, headers=bearer(t.operator))
+    assert refused.status_code == 400 and refused.json()["code"] == "gstin_mismatch"
+    assert SELLER_GSTIN in refused.json()["detail"] and misread in refused.json()["detail"]
+    # The person checks the paper bill and types the right number: it is saved and logged.
+    fixed = {**body, "bill_party_gstin": SELLER_GSTIN.lower()}
+    res = await client.post(t.url("/purchases"), json=fixed, headers=bearer(t.operator))
+    assert res.status_code == 201, res.text
+    steps = [(e["action"], e["comment"]) for e in res.json()["events"]]
+    assert steps[0][0] == "created" and steps[1][0] == "gstin_corrected"
+    assert misread in steps[1][1] and SELLER_GSTIN in steps[1][1]
+    logs = (await client.get(t.url("/audit-logs"), headers=bearer(t.manager))).json()["items"]
+    assert any(log["action"] == "bill_gstin_corrected" for log in logs)
+    # A typed number must still be a real GST number.
+    bad = {**body, "bill_party_gstin": "33AAJCR8510J1Z8", "invoice_no": "X-2"}
+    assert (
+        await client.post(t.url("/purchases"), json=bad, headers=bearer(t.operator))
+    ).status_code == 422

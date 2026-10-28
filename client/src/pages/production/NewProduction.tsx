@@ -130,7 +130,7 @@ export default function NewProduction() {
       <PageHeader
         eyebrow="Production"
         title="Record production"
-        subtitle="First enter what came out. The app adds 2% wastage and works out how much raw material was used. That much is taken out of stock."
+        subtitle="First enter what came out. The app adds 2% wastage and works out how much raw material was used. That much is taken out of stock when the Manager approves."
         extra={
           <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/production')}>
             Back to production

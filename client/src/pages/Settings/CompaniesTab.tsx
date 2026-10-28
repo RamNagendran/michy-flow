@@ -9,8 +9,7 @@ import type { Company, CompanyInput } from '../../types/auth'
 import { useAccess } from '../../hooks/useAccess'
 import InventoryModal from './InventoryModal'
 import { requiredMark } from '../../utils/formMarks'
-
-/** Same rule as the server (server/app/schemas/company.py). */
+import { gstinRule, normaliseGstin } from '../../utils/gstin'
 
 /** Mounted only while open, so each opening starts from a clean form. */
 function CompanyModal({ company, onClose }: { company?: Company; onClose: () => void }) {
@@ -25,6 +24,7 @@ function CompanyModal({ company, onClose }: { company?: Company; onClose: () => 
           code: v.code.trim().toUpperCase(),
           name: v.name.trim(),
           city: (v.city ?? '').trim(),
+          gstin: normaliseGstin(v.gstin),
           // Sent only when it changes: the server refuses a change once the company has entries.
           ...(company?.category === v.category ? {} : { category: v.category }),
         },
@@ -35,7 +35,7 @@ function CompanyModal({ company, onClose }: { company?: Company; onClose: () => 
   return (
     <Modal open width={680} title={company ? `Edit ${company.name}` : 'Add a company'} okText={company ? 'Save' : 'Add company'} onOk={() => form.submit()} onCancel={onClose} confirmLoading={save.isPending}>
       {save.isError && <Alert type="error" showIcon title={errorMessage(save.error)} style={{ marginBottom: 16 }} />}
-      <Form<CompanyInput> form={form} layout="vertical" requiredMark={requiredMark} initialValues={company ?? { city: '' }} onFinish={onFinish} style={{ marginTop: 8 }}>
+      <Form<CompanyInput> form={form} layout="vertical" requiredMark={requiredMark} initialValues={company ? { ...company, gstin: company.gstin ?? '' } : { city: '', gstin: '' }} onFinish={onFinish} style={{ marginTop: 8 }}>
         <div className="grid" style={{ gridTemplateColumns: '140px 1fr', columnGap: 16, rowGap: 0 }}>
           <Form.Item
             label="Code"
@@ -71,6 +71,9 @@ function CompanyModal({ company, onClose }: { company?: Company; onClose: () => 
           </Radio.Group>
         </Form.Item>
         <div className="grid grid-2" style={{ columnGap: 16, rowGap: 0 }}>
+          <Form.Item label="GST number" name="gstin" required rules={[gstinRule]} normalize={(v: string) => v.toUpperCase()} extra="Bills uploaded for this company must show this number.">
+            <Input placeholder="33AAJCR8510J1Z9" maxLength={20} />
+          </Form.Item>
           <Form.Item label="City" name="city" rules={[{ max: 100 }]}>
             <Input placeholder="Gummidipoondi" />
           </Form.Item>
@@ -124,6 +127,9 @@ export default function CompaniesTab() {
                   <div style={{ fontWeight: 700 }}>{c.name}</div>
                   <div className="faint" style={{ fontSize: 12.5 }}>
                     {processOf(c.category).name} · {c.city || '—'}
+                  </div>
+                  <div className="faint num" style={{ fontSize: 12.5 }}>
+                    {c.gstin ? `GST ${c.gstin}` : <span style={{ color: '#D4380D' }}>GST number not added</span>}
                   </div>
                 </span>
               </span>

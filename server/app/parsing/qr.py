@@ -1,7 +1,8 @@
 """The signed QR code printed on e-invoices.
 
 It is a JWT issued by the government's e-invoice system (NIC). Its payload holds the invoice
-number and date, total value and main HSN code, so when a bill carries one those fields are
+number and date, total value, main HSN code and both GST numbers, so when a bill carries one
+those fields are
 exact. The signature is not checked here; the values are cross-checked against
 the printed bill and the person confirms them.
 """
@@ -23,6 +24,8 @@ class EInvoice:
     total: Decimal | None
     hsn: str | None
     irn: str | None
+    seller_gstin: str | None = None
+    buyer_gstin: str | None = None
 
 
 def _b64(part: str) -> bytes:
@@ -57,6 +60,8 @@ def decode_einvoice(token: str) -> EInvoice | None:
         total=Decimal(str(total)) if total is not None else None,
         hsn=str(data["MainHsnCode"]) if data.get("MainHsnCode") else None,
         irn=str(data["Irn"]) if data.get("Irn") else None,
+        seller_gstin=str(data["SellerGstin"]).upper() if data.get("SellerGstin") else None,
+        buyer_gstin=str(data["BuyerGstin"]).upper() if data.get("BuyerGstin") else None,
     )
 
 

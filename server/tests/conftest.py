@@ -93,11 +93,29 @@ def bearer(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
+def make_gstin(seed: str, state: str = "33") -> str:
+    """A GST number with a valid check digit, the same for the same seed."""
+    import hashlib
+
+    from app.core.gstin import _CHARS, checksum_ok
+
+    h = hashlib.sha256(seed.encode()).digest()
+    letters = "".join(chr(65 + b % 26) for b in h[:6])
+    digits = "".join(str(b % 10) for b in h[6:10])
+    body = f"{state}{letters[:5]}{digits}{letters[5]}1Z"
+    gstin = next(body + c for c in _CHARS if checksum_ok(body + c))
+    return gstin
+
+
 async def create_company(client: AsyncClient, token: str, code: str = "MR", **extra: str) -> dict:
+    from tests.bill_samples import OUR_GSTIN
+
     body = {
         "code": code,
         "name": f"Company {code}",
         "city": "Chennai",
+        # "MR" is the company the sample bills are addressed to.
+        "gstin": OUR_GSTIN if code == "MR" else make_gstin(f"company-{code}"),
         "category": "crumb",
         **extra,
     }

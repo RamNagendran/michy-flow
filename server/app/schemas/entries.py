@@ -4,6 +4,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.core import gstin as gst
 from app.core.clock import today
 from app.models import grades
 from app.models.enums import (
@@ -67,7 +68,20 @@ class _Invoice(BaseModel):
         return value
 
 
-class PurchaseInput(EntryInput, _Invoice):
+class _BillGstins(BaseModel):
+    """GST numbers on the uploaded bill as the person confirmed them: what was read, or what
+    they typed when it was read wrong. Only used with a document; a correction is logged."""
+
+    bill_company_gstin: str | None = Field(default=None, max_length=20)
+    bill_party_gstin: str | None = Field(default=None, max_length=20)
+
+    @field_validator("bill_company_gstin", "bill_party_gstin")
+    @classmethod
+    def _gstin(cls, value: str | None) -> str | None:
+        return gst.clean(value)
+
+
+class PurchaseInput(EntryInput, _Invoice, _BillGstins):
     supplier_id: int = Field(gt=0)
     # A: tyres for production (the default), B: tyres to re-sell, C: invoice only.
     # Which items a grade may carry depends on the company type: checked in entry_service.
@@ -80,7 +94,7 @@ class PurchaseInput(EntryInput, _Invoice):
     document_id: int | None = Field(default=None, gt=0)
 
 
-class SaleInput(EntryInput, _Invoice):
+class SaleInput(EntryInput, _Invoice, _BillGstins):
     buyer_id: int = Field(gt=0)
     # Left out: A for a product, B for tyres. Grade C must be chosen.
     grade: Grade | None = None

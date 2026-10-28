@@ -2,7 +2,7 @@
 
 from httpx import AsyncClient
 
-from tests.conftest import bearer, create_company
+from tests.conftest import bearer, create_company, make_gstin
 from tests.entry_helpers import TODAY, act, party, production, purchase, sale, stock_of, team
 
 
@@ -84,7 +84,7 @@ async def test_party_must_belong_to_the_company(client: AsyncClient) -> None:
     other = await create_company(client, t.super_admin, code="ES")
     res = await client.post(
         f"/companies/{other['id']}/parties",
-        json={"kind": "supplier", "name": "Elsewhere"},
+        json={"kind": "supplier", "name": "Elsewhere", "gstin": make_gstin("elsewhere")},
         headers=bearer(t.super_admin),
     )
     foreign = res.json()["id"]
@@ -166,6 +166,7 @@ async def test_parties_are_managed_by_the_manager(client: AsyncClient) -> None:
     body = {
         "kind": "supplier",
         "name": "Kaveri Scrap",
+        "gstin": "33AAJCR8510J1Z9",
         "phone": "+91 94433 51902",
     }
     assert (
@@ -176,11 +177,21 @@ async def test_parties_are_managed_by_the_manager(client: AsyncClient) -> None:
     ).status_code == 403
     created = await client.post(t.url("/parties"), json=body, headers=bearer(t.admin))
     assert created.status_code == 201
-    assert "gstin" not in created.json()
+    assert created.json()["gstin"] == "33AAJCR8510J1Z9"
     dup = await client.post(
         t.url("/parties"), json={**body, "name": " kaveri SCRAP "}, headers=bearer(t.manager)
     )
     assert dup.status_code == 409
+    # One supplier per GST number, and the number must be real.
+    same_gst = await client.post(
+        t.url("/parties"), json={**body, "name": "Other"}, headers=bearer(t.manager)
+    )
+    assert same_gst.status_code == 409 and "Kaveri Scrap" in same_gst.json()["detail"]
+    for bad in ("", "33AAJCR8510J1Z8"):
+        res = await client.post(
+            t.url("/parties"), json={**body, "name": "New", "gstin": bad}, headers=bearer(t.manager)
+        )
+        assert res.status_code == 422
     listed = await client.get(t.url("/parties?kind=supplier"), headers=bearer(t.operator))
     assert {p["name"] for p in listed.json()} == {"Sri Balaji Tyres", "Kaveri Scrap"}
 
@@ -190,7 +201,12 @@ async def test_inactive_party_cannot_be_chosen(client: AsyncClient) -> None:
     pid = await party(client, t, "supplier", "Old Supplier")
     await client.put(
         t.url(f"/parties/{pid}"),
-        json={"kind": "supplier", "name": "Old Supplier", "is_active": False},
+        json={
+            "kind": "supplier",
+            "name": "Old Supplier",
+            "gstin": make_gstin("supplier-Old Supplier"),
+            "is_active": False,
+        },
         headers=bearer(t.manager),
     )
     res = await purchase(client, t, t.operator, supplier_id=pid)

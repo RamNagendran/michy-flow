@@ -6,7 +6,7 @@ from httpx import AsyncClient
 from sqlalchemy import text
 
 from app.core.db import engine
-from tests.conftest import bearer, create_company, create_user, login_new_user, signup
+from tests.conftest import bearer, create_company, create_user, login_new_user, make_gstin, signup
 
 TODAY = "2026-10-01"
 
@@ -58,9 +58,8 @@ async def team(client: AsyncClient, category: str = "crumb") -> Team:
 
 
 async def party(client: AsyncClient, t: Team, kind: str, name: str, **extra: object) -> int:
-    res = await client.post(
-        t.url("/parties"), json={"kind": kind, "name": name, **extra}, headers=bearer(t.manager)
-    )
+    body = {"kind": kind, "name": name, "gstin": make_gstin(f"{kind}-{name}"), **extra}
+    res = await client.post(t.url("/parties"), json=body, headers=bearer(t.manager))
     assert res.status_code == 201, res.text
     return res.json()["id"]
 

@@ -22,6 +22,8 @@ class Company(TimestampMixin, Base):
     code: Mapped[str] = mapped_column(String(10))
     name: Mapped[str] = mapped_column(String(200))
     city: Mapped[str] = mapped_column(String(100), default="", server_default="")
+    # GST number; bills uploaded for this company must show it.
+    gstin: Mapped[str | None] = mapped_column(String(15))
     # What the plant does: decides its raw material and products (models/catalog.py).
     category: Mapped[str] = mapped_column(
         String(20), default=CompanyCategory.CRUMB.value, server_default=CompanyCategory.CRUMB.value

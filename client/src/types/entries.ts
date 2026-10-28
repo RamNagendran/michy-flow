@@ -143,6 +143,9 @@ export interface PurchaseBody extends EntryBody {
   invoice_no: string
   source?: EntrySource
   document_id?: number
+  /** GST numbers on the bill as confirmed (or corrected) by the person; only with a document. */
+  bill_company_gstin?: string | null
+  bill_party_gstin?: string | null
 }
 
 export interface SaleBody extends EntryBody {
@@ -154,6 +157,9 @@ export interface SaleBody extends EntryBody {
   invoice_no: string
   source?: EntrySource
   document_id?: number
+  /** GST numbers on the bill as confirmed (or corrected) by the person; only with a document. */
+  bill_company_gstin?: string | null
+  bill_party_gstin?: string | null
 }
 
 export interface ProductionBody extends EntryBody {
@@ -192,13 +198,15 @@ export interface Party {
   company_id: number
   kind: PartyKind
   name: string
+  /** GST number. A bill from or to this party must show it. */
+  gstin: string | null
   city: string
   contact_name: string
   phone: string
   is_active: boolean
 }
 
-export type PartyInput = Omit<Party, 'id' | 'company_id'>
+export type PartyInput = Omit<Party, 'id' | 'company_id' | 'gstin'> & { gstin: string }
 
 /** In the line's unit: kg, or litres for oil. */
 export interface StockFigures {

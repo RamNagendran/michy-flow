@@ -41,6 +41,8 @@ export interface CompanyBrief {
 
 export interface Company extends CompanyBrief {
   city: string
+  /** GST number. Bills uploaded for this company must show it. */
+  gstin: string | null
   /** What the plant does: decides its raw material and products (data/catalog.ts). */
   category: CompanyCategory
   /** Inventory configuration: what this company processes and makes (set by the Super Admin). */
@@ -130,6 +132,7 @@ export interface CompanyInput {
   code: string
   name: string
   city: string
+  gstin: string
   is_active?: boolean
 }
 
@@ -179,4 +182,4 @@ export interface ChangePasswordRequest {
 }
 
 /** The bits of a company most screens need. */
-export type CompanyRef = Pick<Company, 'id' | 'code' | 'name' | 'city' | 'category' | 'input_items' | 'output_items' | 'oil_density'>
+export type CompanyRef = Pick<Company, 'id' | 'code' | 'name' | 'city' | 'gstin' | 'category' | 'input_items' | 'output_items' | 'oil_density'>
