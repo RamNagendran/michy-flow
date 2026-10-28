@@ -167,6 +167,7 @@ async def _fields(
         "rate": data.rate,
         "amount": _money(data.qty, data.rate),
         "invoice_no": data.invoice_no,
+        **({"vehicle_nos": data.vehicle_nos} if is_purchase else {}),
     }
 
 

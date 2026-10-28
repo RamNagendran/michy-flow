@@ -129,6 +129,8 @@ export interface EntryDetail {
   rate: number | null
   amount: number | null
   invoice_no: string | null
+  /** Purchases: vehicles the goods came in. */
+  vehicle_nos: string[]
   source: EntrySource
   document_id: number | null
   /** Purchase: notes raised on this bill, notes this bill took off, and the supplier's other open notes. */
@@ -174,6 +176,8 @@ export interface PurchaseBody extends EntryBody {
   bill_party_gstin?: string | null
   /** The supplier's open debit notes settled on this bill (new purchases only). */
   debit_note_ids?: number[]
+  /** Vehicles the goods came in, for the record only. */
+  vehicle_nos?: string[]
 }
 
 export interface SaleBody extends EntryBody {

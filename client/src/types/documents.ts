@@ -78,4 +78,6 @@ export interface EntryDraft {
   billPartyGstin?: string | null
   /** Purchases: the supplier's open debit notes settled on this bill. */
   debitNoteIds?: number[]
+  /** Purchases: vehicles the goods came in. */
+  vehicleNos?: string[]
 }

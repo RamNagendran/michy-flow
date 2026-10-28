@@ -35,6 +35,7 @@ const fieldLabel: Record<string, string> = {
   rate: 'Rate',
   amount: 'Amount',
   invoice_no: 'Bill no.',
+  vehicle_nos: 'Vehicle numbers',
   entry_date: 'Date',
   material: 'Tyre type',
   product: 'Product',

@@ -18,6 +18,7 @@ import BillPreview from './BillPreview'
 import { billChecks } from './billChecks'
 import SupplierDebitNotes from '../debitNotes/DebitNoteList'
 import { XField } from './ReviewField'
+import VehicleNumbersInput from '../entries/VehicleNumbersInput'
 
 type VerifyKey = 'party' | 'qty' | 'rate'
 // Checks that stop saving. The others are warnings the person can accept.
@@ -104,6 +105,7 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
     setNotesOff([])
   }
   const [invoiceNo, setInvoiceNo] = useState(p.invoice_no?.value ?? '')
+  const [vehicleNos, setVehicleNos] = useState<string[]>([])
   // GST numbers on the bill: as read, or as corrected by the person.
   const [billOurs, setBillOurs] = useState(doc.company_gstin_on_bill ?? '')
   const [billTheirs, setBillTheirs] = useState(doc.party_gstin_on_bill ?? '')
@@ -247,6 +249,12 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
                 <DatePicker value={dayjs(date)} onChange={(d) => d && setDate(d.format('YYYY-MM-DD'))} format="DD MMM YYYY" style={{ width: '100%' }} allowClear={false} disabledDate={(d) => d.isAfter(dayjs(), 'day')} />
               </XField>
             </div>
+            {isPurchase && (
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 6 }}>Vehicle numbers (optional)</div>
+                <VehicleNumbersInput value={vehicleNos} onChange={setVehicleNos} />
+              </div>
+            )}
           </div>
         </div>
 
@@ -329,7 +337,7 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
               disabled={!ready}
               loading={saving}
               style={{ minWidth: 220 }}
-              onClick={() => onConfirm({ companyId: doc.company_id, partyId: partyId!, grade, invoiceNo: invoiceNo.trim(), date, item: item!, qty, rate, documentId: doc.id, billCompanyGstin: gstOnBill.company_gstin_on_bill, billPartyGstin: gstOnBill.party_gstin_on_bill, debitNoteIds: isPurchase ? notesOff : undefined })}
+              onClick={() => onConfirm({ companyId: doc.company_id, partyId: partyId!, grade, invoiceNo: invoiceNo.trim(), date, item: item!, qty, rate, documentId: doc.id, billCompanyGstin: gstOnBill.company_gstin_on_bill, billPartyGstin: gstOnBill.party_gstin_on_bill, debitNoteIds: isPurchase ? notesOff : undefined, vehicleNos: isPurchase ? vehicleNos : undefined })}
             >
               Save for approval
             </Button>

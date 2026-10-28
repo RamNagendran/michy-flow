@@ -10,6 +10,7 @@ import { formatKg, kgInputProps, qtyInputProps } from '../../utils/format'
 import { calculatedInput } from '../../utils/production'
 import { useAccess } from '../../hooks/useAccess'
 import GradePicker from './GradePicker'
+import VehicleNumbersInput from './VehicleNumbersInput'
 import { requiredMark } from '../../utils/formMarks'
 
 interface Values {
@@ -23,6 +24,7 @@ interface Values {
   returned_kg?: number | null
   rate?: number
   invoice_no?: string
+  vehicle_nos?: string[]
   shift?: number | null
   outputs?: Record<string, number | null>
   notes: string
@@ -60,6 +62,7 @@ export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail;
     wastage_on: savedTotal !== null && entry.calculated_input_kg !== null && savedTotal > entry.calculated_input_kg ? savedTotal : null,
     rate: entry.rate ?? undefined,
     invoice_no: entry.invoice_no ?? undefined,
+    vehicle_nos: entry.vehicle_nos ?? [],
     shift: entry.shift,
     outputs: Object.fromEntries(process.outputs.map((o) => [o.id, entry.outputs.find((x) => x.product === o.id)?.qty ?? null])),
     notes: entry.notes,
@@ -70,7 +73,7 @@ export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail;
     const base = { entry_date: v.entry_date.format('YYYY-MM-DD'), notes: v.notes ?? '', comment: v.comment ?? '' }
     const target = { companyId: entry.company_id, id: entry.id }
     if (entry.type === 'purchase') {
-      purchase.mutate({ ...target, body: { ...base, supplier_id: v.party_id!, grade: v.grade, material: v.item, qty: v.qty, rate: v.rate!, invoice_no: v.invoice_no! } }, { onSuccess: onClose })
+      purchase.mutate({ ...target, body: { ...base, supplier_id: v.party_id!, grade: v.grade, material: v.item, qty: v.qty, rate: v.rate!, invoice_no: v.invoice_no!, vehicle_nos: v.vehicle_nos ?? [] } }, { onSuccess: onClose })
     } else if (entry.type === 'sale') {
       sale.mutate({ ...target, body: { ...base, buyer_id: v.party_id!, grade: v.grade, product: v.item, qty: v.qty, rate: v.rate!, invoice_no: v.invoice_no! } }, { onSuccess: onClose })
     } else {
@@ -115,6 +118,11 @@ export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail;
               <Form.Item label="Bill / invoice no." name="invoice_no" rules={[{ required: true, whitespace: true, max: 50 }]}>
                 <Input />
               </Form.Item>
+              {entry.type === 'purchase' && (
+                <Form.Item label="Vehicle numbers" name="vehicle_nos" style={{ gridColumn: '1 / -1' }}>
+                  <VehicleNumbersInput />
+                </Form.Item>
+              )}
             </>
           )}
           {isProduction ? (

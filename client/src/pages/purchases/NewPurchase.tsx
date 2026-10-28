@@ -38,7 +38,7 @@ export default function NewPurchase() {
         save={(d) =>
           create.mutateAsync({
             companyId: d.companyId,
-            body: { entry_date: d.date, supplier_id: d.partyId, grade: d.grade, material: d.item, qty: d.qty, rate: d.rate, invoice_no: d.invoiceNo, document_id: d.documentId, bill_company_gstin: d.billCompanyGstin, bill_party_gstin: d.billPartyGstin, debit_note_ids: d.debitNoteIds ?? [] },
+            body: { entry_date: d.date, supplier_id: d.partyId, grade: d.grade, material: d.item, qty: d.qty, rate: d.rate, invoice_no: d.invoiceNo, document_id: d.documentId, bill_company_gstin: d.billCompanyGstin, bill_party_gstin: d.billPartyGstin, debit_note_ids: d.debitNoteIds ?? [], vehicle_nos: d.vehicleNos ?? [] },
           })
         }
         renderManual={(onSaved, back, saving) => <ManualTradeForm kind="purchase" saving={saving} onSaved={onSaved} back={back} />}

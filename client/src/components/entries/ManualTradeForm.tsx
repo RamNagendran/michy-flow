@@ -12,6 +12,7 @@ import { formatINR, formatQty, formatRateIn, qtyInputProps } from '../../utils/f
 import type { EntryDraft } from '../../types/documents'
 import type { Grade } from '../../types/entries'
 import GradePicker from './GradePicker'
+import VehicleNumbersInput from './VehicleNumbersInput'
 import { requiredMark } from '../../utils/formMarks'
 import SaleableStock from '../SaleableStock'
 import SupplierDebitNotes from '../debitNotes/DebitNoteList'
@@ -25,6 +26,7 @@ interface Values {
   date: Dayjs
   qty: number
   rate: number
+  vehicleNos?: string[]
 }
 
 /** Type in a purchase bill or a sales invoice by hand. Only companies the person may enter for. */
@@ -74,7 +76,7 @@ export default function ManualTradeForm({ kind, saving, onSaved, back }: { kind:
           }
         }}
         onFinish={(v) =>
-          onSaved({ partyId: v.partyId, grade: v.grade, invoiceNo: v.invoiceNo.trim(), date: v.date.format('YYYY-MM-DD'), item: v.item, qty: v.qty, rate: v.rate, companyId: v.companyId, debitNoteIds: isPurchase ? notesOff : undefined })
+          onSaved({ partyId: v.partyId, grade: v.grade, invoiceNo: v.invoiceNo.trim(), date: v.date.format('YYYY-MM-DD'), item: v.item, qty: v.qty, rate: v.rate, companyId: v.companyId, debitNoteIds: isPurchase ? notesOff : undefined, vehicleNos: isPurchase ? (v.vehicleNos ?? []) : undefined })
         }
       >
         <div className="surface" style={{ padding: 24 }}>
@@ -112,6 +114,11 @@ export default function ManualTradeForm({ kind, saving, onSaved, back }: { kind:
               <DatePicker format="DD MMM YYYY" style={{ width: '100%' }} disabledDate={(d) => d.isAfter(dayjs(), 'day')} allowClear={false} />
             </Form.Item>
           </div>
+          {isPurchase && (
+            <Form.Item label="Vehicle numbers" name="vehicleNos" extra="Optional. The lorry or vehicle numbers the goods came in.">
+              <VehicleNumbersInput />
+            </Form.Item>
+          )}
           {isPurchase && <SupplierDebitNotes companyId={company?.id} supplierId={partyId} supplierName={parties.data?.find((p) => p.id === partyId)?.name} selected={notesOff} onSelect={setNotesOff} />}
         </div>
 

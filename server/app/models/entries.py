@@ -96,6 +96,10 @@ class Purchase(WorkflowMixin, Base):
     rate: Mapped[Decimal] = mapped_column(RATE)
     amount: Mapped[Decimal] = mapped_column(MONEY)
     invoice_no: Mapped[str] = mapped_column(String(50))
+    # Lorries / vehicles the goods came in, for the record only.
+    vehicle_nos: Mapped[list[str]] = mapped_column(
+        ARRAY(String(20)), default=list, server_default="{}"
+    )
     source: Mapped[str] = mapped_column(String(10), default=EntrySource.MANUAL)
     # The uploaded bill this was read from, if any.
     document_id: Mapped[int | None] = mapped_column(ForeignKey("documents.id", ondelete="SET NULL"))

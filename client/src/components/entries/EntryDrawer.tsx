@@ -47,6 +47,7 @@ function Facts({ e }: { e: EntryDetail }) {
     ['Date', formatDate(e.entry_date)],
     ...(e.party_name ? ([[e.type === 'sale' ? 'Buyer' : 'Supplier', e.party_name]] as [string, string][]) : []),
     ...(e.invoice_no ? ([['Bill / invoice no.', e.invoice_no]] as [string, string][]) : []),
+    ...(e.vehicle_nos?.length ? ([['Vehicle numbers', e.vehicle_nos.join(', ')]] as [string, string][]) : []),
     ['Grade', <span key="g"><GradeTag grade={e.grade} type={e.type} /> {e.type === 'production' ? 'Production' : gradeInfo(e.grade)[e.type]}</span>],
     [e.type === 'production' ? 'Raw material' : 'Item', itemName(e.item)],
     [e.type === 'production' ? 'Taken from stock' : 'Quantity', e.unit === 'kg' ? `${formatKg(e.qty)} (${formatTonnes(e.qty)})` : formatQty(e.qty, e.unit)],

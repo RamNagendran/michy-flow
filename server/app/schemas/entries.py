@@ -94,11 +94,20 @@ class PurchaseInput(EntryInput, _Invoice, _BillGstins):
     document_id: int | None = Field(default=None, gt=0)
     # The supplier's open debit notes settled on this bill.
     debit_note_ids: list[Annotated[int, Field(gt=0)]] = Field(default=[], max_length=50)
+    # Vehicles the goods came in, e.g. TN38AB1234. For the record only.
+    vehicle_nos: list[Annotated[str, Field(max_length=20)]] = Field(default=[], max_length=20)
 
     @field_validator("debit_note_ids")
     @classmethod
     def _unique_notes(cls, value: list[int]) -> list[int]:
         return list(dict.fromkeys(value))
+
+    @field_validator("vehicle_nos")
+    @classmethod
+    def _clean_vehicles(cls, value: list[str]) -> list[str]:
+        # "tn 38 ab 1234" and "TN38AB1234" are the same vehicle.
+        cleaned = ("".join(v.split()).upper() for v in value)
+        return list(dict.fromkeys(v for v in cleaned if v))
 
 
 class SaleInput(EntryInput, _Invoice, _BillGstins):
@@ -339,6 +348,7 @@ class EntryDetail(BaseModel):
     rate: float | None = None  # per unit
     amount: float | None = None
     invoice_no: str | None = None
+    vehicle_nos: list[str] = []  # purchases only
     source: EntrySource = EntrySource.MANUAL
     document_id: int | None = None
     # Purchase: debit notes raised on this bill, those this bill took off, and the

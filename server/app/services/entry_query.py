@@ -324,6 +324,7 @@ async def detail(
         rate=entry.rate,
         amount=entry.amount,
         invoice_no=entry.invoice_no,
+        vehicle_nos=entry.vehicle_nos if isinstance(entry, Purchase) else [],
         source=entry.source,
         document_id=entry.document_id,
     )
