@@ -58,6 +58,13 @@ function columnsFor(types: EntryType[], showCompany: boolean): ColumnsType<Entry
           <div>
             <div style={{ fontWeight: 700 }}>{r.party_name}</div>
             {r.invoice_no && <div className="faint" style={{ fontSize: 12.5 }}>Bill {r.invoice_no}</div>}
+            {r.open_debit_notes > 0 && (
+              <Tooltip title="This supplier has open debit notes from earlier bills. Open the entry to read them.">
+                <Tag color="orange" icon={<WarningFilled />} style={{ marginTop: 4 }}>
+                  {r.open_debit_notes === 1 ? 'Debit note open' : `${r.open_debit_notes} debit notes open`}
+                </Tag>
+              </Tooltip>
+            )}
           </div>
         ) : (
           <span className="faint">—</span>

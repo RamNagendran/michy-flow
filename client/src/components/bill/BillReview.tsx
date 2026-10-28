@@ -16,6 +16,7 @@ import { formatINR, qtyInputProps } from '../../utils/format'
 import { today } from '../../utils/period'
 import BillPreview from './BillPreview'
 import { billChecks } from './billChecks'
+import SupplierDebitNotes from '../debitNotes/DebitNoteList'
 import { XField } from './ReviewField'
 
 type VerifyKey = 'party' | 'qty' | 'rate'
@@ -95,7 +96,13 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
   const parties = useMemo(() => (partyList.data ?? []).filter((x) => x.is_active), [partyList.data])
   const stocks = useStocks(company && access.canReadStock(company.id) ? [company] : [])
 
-  const [partyId, setPartyId] = useState<number | undefined>(doc.party_id ?? undefined)
+  const [partyId, setPartyIdRaw] = useState<number | undefined>(doc.party_id ?? undefined)
+  // Purchases: the supplier's open debit notes settled on this bill.
+  const [notesOff, setNotesOff] = useState<number[]>([])
+  const setPartyId = (id: number | undefined) => {
+    setPartyIdRaw(id)
+    setNotesOff([])
+  }
   const [invoiceNo, setInvoiceNo] = useState(p.invoice_no?.value ?? '')
   // GST numbers on the bill: as read, or as corrected by the person.
   const [billOurs, setBillOurs] = useState(doc.company_gstin_on_bill ?? '')
@@ -207,6 +214,7 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
             >
               <Select value={partyId} onChange={setPartyId} style={{ width: '100%' }} loading={partyList.isLoading} options={parties.map((x) => ({ value: x.id, label: x.name }))} placeholder="Choose" showSearch={{ optionFilterProp: 'label' }} />
             </XField>
+            {isPurchase && <SupplierDebitNotes companyId={doc.company_id} supplierId={partyId} supplierName={party?.name} selected={notesOff} onSelect={setNotesOff} />}
             <GstField
               label={`Our GST number · ${company?.name ?? ''}`}
               registered={company?.gstin}
@@ -321,7 +329,7 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
               disabled={!ready}
               loading={saving}
               style={{ minWidth: 220 }}
-              onClick={() => onConfirm({ companyId: doc.company_id, partyId: partyId!, grade, invoiceNo: invoiceNo.trim(), date, item: item!, qty, rate, documentId: doc.id, billCompanyGstin: gstOnBill.company_gstin_on_bill, billPartyGstin: gstOnBill.party_gstin_on_bill })}
+              onClick={() => onConfirm({ companyId: doc.company_id, partyId: partyId!, grade, invoiceNo: invoiceNo.trim(), date, item: item!, qty, rate, documentId: doc.id, billCompanyGstin: gstOnBill.company_gstin_on_bill, billPartyGstin: gstOnBill.party_gstin_on_bill, debitNoteIds: isPurchase ? notesOff : undefined })}
             >
               Save for approval
             </Button>

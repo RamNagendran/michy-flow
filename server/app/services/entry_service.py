@@ -1,4 +1,4 @@
-"""Create, edit and delete purchases, sales and production entries.
+"""Create and edit purchases, sales and production entries.
 
 Every write in a company runs under that company's stock lock and ends with a stock check,
 so entries can never take stock below zero, however many people save at once.
@@ -28,6 +28,7 @@ from app.schemas.entries import (
 )
 from app.services import (
     crew_service,
+    debit_note_service,
     document_service,
     party_service,
     stock_service,
@@ -267,6 +268,8 @@ async def create(
                 comment=f"Bill was read as {change['read'] or 'no number'} for the {who} GST "
                 f"number; corrected to {change['entered']}",
             )
+    if isinstance(data, PurchaseInput) and data.debit_note_ids:
+        await debit_note_service.adjust(db, ctx, entry, data.debit_note_ids, commit=False)
     # It does not count in stock until the Manager approves, but it must fit in stock now.
     await stock_service.assert_stock_not_negative(db, ctx.company.id, (kind.model, entry.id))
     await db.commit()
@@ -316,6 +319,8 @@ async def update(
         setattr(entry, key, value)
     workflow_service.reset_after_edit(entry)
     await _flush(db, kind)
+    if isinstance(entry, Purchase) and "supplier_id" in changes:
+        await debit_note_service.supplier_changed(db, ctx, entry)
     workflow_service.add_event(
         db,
         entry_type=entry_type,

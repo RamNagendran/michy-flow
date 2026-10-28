@@ -45,9 +45,12 @@ export const API_ROUTES = {
   wastage: {
     months: (companyId: number) => `/companies/${companyId}/wastage`,
     allowances: (companyId: number) => `/companies/${companyId}/wastage/allowances`,
-    pendingNotes: (companyId: number) => `/companies/${companyId}/debit-notes/pending`,
-    debitNote: (companyId: number, productionId: number) => `/companies/${companyId}/production/${productionId}/debit-note`,
     stockChecks: (companyId: number) => `/companies/${companyId}/stock-checks`,
+  },
+  debitNotes: {
+    list: (companyId: number) => `/companies/${companyId}/debit-notes`,
+    raise: (companyId: number, purchaseId: number) => `/companies/${companyId}/purchases/${purchaseId}/debit-notes`,
+    adjust: (companyId: number, purchaseId: number) => `/companies/${companyId}/purchases/${purchaseId}/debit-notes/adjust`,
   },
   stock: (companyId: number) => `/companies/${companyId}/stock`,
   summary: (companyId: number) => `/companies/${companyId}/summary`,

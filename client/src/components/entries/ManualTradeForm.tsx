@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, DatePicker, Form, Input, InputNumber, Select } from 'antd'
 import { ArrowLeftOutlined, CheckOutlined } from '@ant-design/icons'
@@ -14,6 +14,7 @@ import type { Grade } from '../../types/entries'
 import GradePicker from './GradePicker'
 import { requiredMark } from '../../utils/formMarks'
 import SaleableStock from '../SaleableStock'
+import SupplierDebitNotes from '../debitNotes/DebitNoteList'
 
 interface Values {
   companyId: number
@@ -37,6 +38,9 @@ export default function ManualTradeForm({ kind, saving, onSaved, back }: { kind:
   const qty = Form.useWatch('qty', form) ?? 0
   const rate = Form.useWatch('rate', form) ?? 0
   const companyId = Form.useWatch('companyId', form)
+  const partyId = Form.useWatch('partyId', form)
+  // Purchases: the supplier's open debit notes settled on this bill.
+  const [notesOff, setNotesOff] = useState<number[]>([])
   const item = Form.useWatch('item', form)
   const grade: Grade = Form.useWatch('grade', form) ?? 'A'
   const company = companies.find((c) => c.id === companyId)
@@ -62,6 +66,7 @@ export default function ManualTradeForm({ kind, saving, onSaved, back }: { kind:
         initialValues={{ date: dayjs(), companyId: initialCompany, grade: 'A' }}
         onValuesChange={(changed) => {
           if ('companyId' in changed) form.setFieldValue('partyId', undefined)
+          if ('companyId' in changed || 'partyId' in changed) setNotesOff([])
           // A grade carries only some items (e.g. Grade A sales are products), so clear a misfit.
           if (changed.grade || changed.companyId) {
             const c = companies.find((x) => x.id === form.getFieldValue('companyId'))
@@ -69,7 +74,7 @@ export default function ManualTradeForm({ kind, saving, onSaved, back }: { kind:
           }
         }}
         onFinish={(v) =>
-          onSaved({ partyId: v.partyId, grade: v.grade, invoiceNo: v.invoiceNo.trim(), date: v.date.format('YYYY-MM-DD'), item: v.item, qty: v.qty, rate: v.rate, companyId: v.companyId })
+          onSaved({ partyId: v.partyId, grade: v.grade, invoiceNo: v.invoiceNo.trim(), date: v.date.format('YYYY-MM-DD'), item: v.item, qty: v.qty, rate: v.rate, companyId: v.companyId, debitNoteIds: isPurchase ? notesOff : undefined })
         }
       >
         <div className="surface" style={{ padding: 24 }}>
@@ -107,6 +112,7 @@ export default function ManualTradeForm({ kind, saving, onSaved, back }: { kind:
               <DatePicker format="DD MMM YYYY" style={{ width: '100%' }} disabledDate={(d) => d.isAfter(dayjs(), 'day')} allowClear={false} />
             </Form.Item>
           </div>
+          {isPurchase && <SupplierDebitNotes companyId={company?.id} supplierId={partyId} supplierName={parties.data?.find((p) => p.id === partyId)?.name} selected={notesOff} onSelect={setNotesOff} />}
         </div>
 
         <div className="surface" style={{ padding: 24, marginTop: 16 }}>

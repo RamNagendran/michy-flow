@@ -9,8 +9,7 @@
     Super Admin           → edit a change request (→ pending, back to the Manager) or reject
 
 An escalation stays open through any number of comments; the side that raised it closes it by
-approving. A production run over the hard wastage limit (older runs only) cannot be approved
-until the Manager records a debit note. Nobody deletes entries.
+approving. Nobody deletes entries.
 
 Every step, edit and comment is written to entry_events (the entry's history) and to the
 company audit log.
@@ -24,11 +23,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.permissions import CompanyPermission as P
 from app.core.clock import now
-from app.core.errors import AppError, ConflictError, ForbiddenError
+from app.core.errors import AppError, ForbiddenError
 from app.models import EntryEvent, Production, Purchase, Sale, User
 from app.models.enums import EntryStatus as S
 from app.models.enums import EntryType
-from app.services import audit_service, stock_service, wastage_service
+from app.services import audit_service, stock_service
 from app.services.access_service import CompanyContext
 
 Entry = Purchase | Sale | Production
@@ -68,9 +67,6 @@ TRANSITIONS: dict[str, Transition] = {
         "rejected",
     ),
 }
-
-# Steps a run over the hard wastage limit cannot take without a debit note.
-_NEEDS_NOTE_FOR = frozenset({S.APPROVED, S.VERIFIED})
 
 
 def can_edit(ctx: CompanyContext, entry: Entry) -> bool:
@@ -188,16 +184,6 @@ async def act(
         )
     if transition.needs_comment and not comment:
         raise AppError("Please write the reason in the comment", code="comment_required")
-    if (
-        transition.to_status in _NEEDS_NOTE_FOR
-        and isinstance(entry, Production)
-        and wastage_service.needs_debit_note(entry.wastage_pct)
-        and not await wastage_service.has_note(db, entry.id)
-    ):
-        raise ConflictError(
-            f"Wastage is over {wastage_service.HARD_LIMIT}%: record a debit note first",
-            code="debit_note_required",
-        )
 
     entry.status = transition.to_status
     if transition.to_status == S.APPROVED:
@@ -219,6 +205,10 @@ async def act(
         comment=comment,
         request=request,
     )
+    if transition.to_status == S.REJECTED and isinstance(entry, Purchase):
+        from app.services import debit_note_service  # local: it imports this module
+
+        await debit_note_service.reopen_for(db, ctx, entry, f"{entry.ref_no} was rejected")
     if transition.to_status in (S.APPROVED, S.REJECTED):
         # Approving a sale must not sell more than is in stock; rejecting a purchase must not
         # leave processed tyres with no stock behind them.

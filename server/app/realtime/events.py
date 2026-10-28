@@ -23,8 +23,7 @@ async def _publish(event: dict[str, Any]) -> None:
 async def entry_changed(
     entry_type: EntryType, entry: Any, action: str, actor: User, alert: str | None = None
 ) -> None:
-    """`alert` marks events that need attention now, e.g. "wastage_high" for a production run
-    over the hard wastage limit (a debit note is needed)."""
+    """`alert` marks events that need attention now, e.g. "escalated"."""
     await _publish(
         {
             "alert": alert,

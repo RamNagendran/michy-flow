@@ -1,63 +1,33 @@
-"""Wastage limits, debit notes, monthly allowances, stock checks, escalation, configuration
+"""Wastage limits, monthly allowances, stock checks, escalation, configuration
 and shift crews."""
 
 from httpx import AsyncClient
 
 from tests.conftest import bearer
-from tests.entry_helpers import TODAY, Team, act, as_old_run, production, purchase, stock_of, team
+from tests.entry_helpers import TODAY, act, as_old_run, production, purchase, stock_of, team
 
 
 async def _me(client: AsyncClient, token: str) -> int:
     return (await client.get("/auth/me", headers=bearer(token))).json()["id"]
 
 
-async def _note(client: AsyncClient, t: Team, run: dict, token: str, no: str = "DN-1"):  # noqa: ANN202
-    body = {
-        "note_no": no,
-        "supplier_id": t.supplier,
-        "qty_kg": "50",
-        "amount": "725",
-        "reason": "Wet tyres",
-    }
-    return await client.post(
-        t.url(f"/production/{run['id']}/debit-note"), json=body, headers=bearer(token)
-    )
-
-
-async def test_runs_over_the_limit_need_a_debit_note(client: AsyncClient) -> None:
+async def test_old_runs_over_the_limit_are_approved_without_a_debit_note(
+    client: AsyncClient,
+) -> None:
+    """Debit notes are only for purchases now; production keeps the comments."""
     t = await team(client)
     await purchase(client, t, t.admin, "1000")
     run = (await production(client, t, t.admin, {"rubber": "900"})).json()
-    # New runs always have 2% wastage; a run saved before that rule can be over the limit.
+    assert run["wastage_pct"] == 2.0 and "debit_note_required" not in run
     await as_old_run(run, "5")
-    run = (
-        await client.get(t.url(f"/entries/production/{run['id']}"), headers=bearer(t.admin))
-    ).json()
-    assert run["debit_note_required"] is True and run["status"] == "pending"
-    blocked = await act(client, t, t.admin, run, "approve")
-    assert blocked.status_code == 409 and blocked.json()["code"] == "debit_note_required"
-
-    pending = (await client.get(t.url("/debit-notes/pending"), headers=bearer(t.admin))).json()
-    assert [p["ref_no"] for p in pending] == [run["ref_no"]]
-    assert (await _note(client, t, run, t.operator)).status_code == 403
-    noted = await _note(client, t, run, t.admin)
-    assert noted.status_code == 201, noted.text
-    assert noted.json()["debit_note"]["note_no"] == "DN-1"
-    assert (await _note(client, t, run, t.admin, "DN-2")).status_code == 409
-    assert (await act(client, t, t.admin, run, "approve")).status_code == 200
-    summary = await client.get(
-        t.url(f"/summary?date_from={TODAY}&date_to={TODAY}"), headers=bearer(t.admin)
+    assert (await act(client, t, t.manager, run, "approve")).status_code == 200
+    gone = await client.post(
+        t.url(f"/production/{run['id']}/debit-note"), json={}, headers=bearer(t.manager)
     )
-    assert summary.json()["queue"]["debit_notes_due"] == 0
-
-
-async def test_runs_within_the_limit_need_no_note(client: AsyncClient) -> None:
-    t = await team(client)
-    await purchase(client, t, t.admin, "1000")
-    run = (await production(client, t, t.admin, {"rubber": "900"})).json()
-    assert run["wastage_pct"] == 2.0
-    assert run["debit_note_required"] is False
-    assert (await _note(client, t, run, t.admin)).status_code == 409
+    assert gone.status_code in (404, 405)
+    assert (
+        await client.get(t.url("/debit-notes/pending"), headers=bearer(t.manager))
+    ).status_code in (404, 405, 422)
 
 
 async def test_monthly_allowance_flags_runs_over_it(client: AsyncClient) -> None:
@@ -72,7 +42,7 @@ async def test_monthly_allowance_flags_runs_over_it(client: AsyncClient) -> None
     await purchase(client, t, t.admin, "1000")
     run = (await production(client, t, t.admin, {"rubber": "900"})).json()
     # 2%: over this month's 1.5% allowance, but not over the 2% hard limit.
-    assert run["wastage_flagged"] is True and run["debit_note_required"] is False
+    assert run["wastage_flagged"] is True
     assert run["wastage_allowance_pct"] == 1.5
     months = (
         await client.get(

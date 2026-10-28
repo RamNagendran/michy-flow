@@ -23,7 +23,7 @@ export default function AllowanceModal({ companyId, open, current, onClose }: { 
         showIcon
         style={{ marginBottom: 16 }}
         title={`Enter between 0.1% and ${WASTAGE_ALERT_PCT}% of the weight processed`}
-        description={`Entries above this are marked for checking. Above ${WASTAGE_ALERT_PCT}% always needs a debit note.`}
+        description={`Entries above this are marked for checking. It can be at most ${WASTAGE_ALERT_PCT}%.`}
       />
       {save.isError && <Alert type="error" showIcon title={errorMessage(save.error)} style={{ marginBottom: 12 }} />}
       <Form<Values> form={form} layout="vertical" requiredMark={requiredMark} onFinish={submit} initialValues={{ month: dayjs(), pct: current ?? 1.5, note: '' }} preserve={false}>

@@ -69,8 +69,8 @@ export function useRealtime(enabled: boolean) {
       const can = resolveAccess(me, null).can
       const what = `${kindLabel[e.entry_type!]} ${e.ref_no}`
       const mine = e.created_by_id === me.id
-      if (e.alert === 'wastage_high' && (can('adjust_wastage', e.company_id) || can('view_oil_kpi', e.company_id))) {
-        notify.alert(`High wastage on ${what}`, `More than 2% (entered by ${e.actor_name}). Make a debit note first, then it can be approved.`)
+      if (e.action === 'debit_note' && (can('approve_entry', e.company_id) || can('verify_entry', e.company_id) || can('enter_purchase', e.company_id))) {
+        notify.warning(`Debit note on ${what}`, `${e.actor_name} flagged an issue with this supplier. Open it to read.`)
       } else if (e.alert === 'escalated' && e.status === 'pending' && mine) {
         notify.warning(`${what}: Manager has a question`, `${e.actor_name} sent it back to you. Open it and reply in the comments.`)
       } else if (e.alert === 'escalated' && e.status === 'approved' && can('approve_entry', e.company_id)) {

@@ -40,6 +40,8 @@ export interface EntryRow {
   source: EntrySource
   created_by_name: string | null
   created_at: string
+  /** Purchases: the supplier's debit notes not yet settled. */
+  open_debit_notes: number
 }
 
 export interface EntryEvent {
@@ -56,16 +58,39 @@ export interface CrewMember {
   name: string
 }
 
+/** A flag about a supplier, raised on a purchase: any issue the team should know about. Changes nothing by itself. */
 export interface DebitNote {
   id: number
   note_no: string
   supplier_id: number | null
   supplier_name: string | null
-  qty_kg: number
-  amount: number
+  /** The purchase it was raised on. */
+  purchase_id: number
+  purchase_ref_no: string
+  purchase_date: string
+  invoice_no: string
+  item: string | null
+  /** Optional, for the record only. */
+  qty: number | null
+  unit: Unit
+  amount: number | null
   reason: string
   created_by_name: string | null
   created_at: string
+  /** The later bill it was settled on; null while open. */
+  adjusted_purchase_id: number | null
+  adjusted_ref_no: string | null
+  adjusted_by_name: string | null
+  adjusted_at: string | null
+  is_open: boolean
+}
+
+export interface DebitNoteInput {
+  /** Blank: the next number is given. */
+  note_no: string
+  qty: number | null
+  amount: number | null
+  reason: string
 }
 
 export interface StatusCount {
@@ -106,6 +131,10 @@ export interface EntryDetail {
   invoice_no: string | null
   source: EntrySource
   document_id: number | null
+  /** Purchase: notes raised on this bill, notes this bill took off, and the supplier's other open notes. */
+  debit_notes: DebitNote[]
+  adjusted_debit_notes: DebitNote[]
+  supplier_open_debit_notes: DebitNote[]
   shift: number | null
   /** Production: put back into stock unprocessed. */
   returned_kg: number | null
@@ -118,9 +147,6 @@ export interface EntryDetail {
   /** Over the month's declared allowance. */
   wastage_flagged: boolean
   wastage_allowance_pct: number | null
-  /** Over the hard limit: a high alert, and it cannot be approved without a debit note. */
-  debit_note_required: boolean
-  debit_note: DebitNote | null
   crew: CrewMember[]
   running_hours: number | null
   efficiency_pct: number | null
@@ -146,6 +172,8 @@ export interface PurchaseBody extends EntryBody {
   /** GST numbers on the bill as confirmed (or corrected) by the person; only with a document. */
   bill_company_gstin?: string | null
   bill_party_gstin?: string | null
+  /** The supplier's open debit notes settled on this bill (new purchases only). */
+  debit_note_ids?: number[]
 }
 
 export interface SaleBody extends EntryBody {
@@ -294,7 +322,8 @@ export interface QueueCounts {
   escalated_to_incharge: number
   /** Finance is waiting on the Manager. */
   escalated_to_manager: number
-  debit_notes_due: number
+  /** Purchase debit notes not yet settled. */
+  open_debit_notes: number
 }
 
 export interface CompanySummary {

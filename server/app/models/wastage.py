@@ -1,5 +1,4 @@
-"""Wastage control: monthly allowances, debit notes for runs over the limit, and the Manager's
-physical stock checks."""
+"""Wastage control: monthly allowances and the Manager's physical stock checks."""
 
 from datetime import date, datetime
 from decimal import Decimal
@@ -18,7 +17,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
-from app.models.entries import KG, MONEY, QTY
+from app.models.entries import QTY
 
 
 class WastageAllowance(TimestampMixin, Base):
@@ -36,30 +35,6 @@ class WastageAllowance(TimestampMixin, Base):
     pct: Mapped[Decimal] = mapped_column(Numeric(4, 2))
     note: Mapped[str] = mapped_column(Text, default="", server_default="")
     declared_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
-
-
-class DebitNote(Base):
-    """Raised for a production run whose missing weight is over the hard limit."""
-
-    __tablename__ = "debit_notes"
-    __table_args__ = (
-        UniqueConstraint("company_id", "note_no", name="uq_debit_notes_company_note"),
-    )
-
-    id: Mapped[int] = mapped_column(primary_key=True)
-    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"))
-    production_id: Mapped[int] = mapped_column(
-        ForeignKey("production.id", ondelete="CASCADE"), unique=True
-    )
-    note_no: Mapped[str] = mapped_column(String(50))
-    supplier_id: Mapped[int | None] = mapped_column(ForeignKey("parties.id", ondelete="RESTRICT"))
-    qty_kg: Mapped[Decimal] = mapped_column(KG)
-    amount: Mapped[Decimal] = mapped_column(MONEY)
-    reason: Mapped[str] = mapped_column(Text)
-    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=text("now()"), nullable=False
-    )
 
 
 class StockCheck(Base):

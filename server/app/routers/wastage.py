@@ -1,25 +1,21 @@
 from datetime import date
 
-from fastapi import APIRouter, Depends, Path, status
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import require_company_permission
 from app.auth.permissions import CompanyPermission as P
 from app.core.db import get_db
-from app.models.enums import EntryType
 from app.realtime import events
 from app.routers._range import Range, report_range
-from app.schemas.entries import EntryDetail
 from app.schemas.wastage import (
     AllowanceInput,
     AllowanceRead,
-    DebitNoteInput,
-    PendingDebitNote,
     StockCheckInput,
     StockCheckRead,
     WastageMonth,
 )
-from app.services import entry_query, wastage_service
+from app.services import wastage_service
 from app.services.access_service import CompanyContext
 
 router = APIRouter(prefix="/companies/{company_id}", tags=["wastage"])
@@ -53,30 +49,6 @@ async def declare_allowance(
     """The Manager declares the month's allowed wastage (up to 2%)."""
     await wastage_service.declare(db, ctx, data)
     await events.company_changed(ctx.company)
-
-
-@router.get("/debit-notes/pending", response_model=list[PendingDebitNote])
-async def pending_debit_notes(
-    ctx: CompanyContext = Depends(_see), db: AsyncSession = Depends(get_db)
-) -> list[PendingDebitNote]:
-    return await wastage_service.pending_notes(db, ctx.company.id)
-
-
-@router.post(
-    "/production/{production_id}/debit-note",
-    response_model=EntryDetail,
-    status_code=status.HTTP_201_CREATED,
-)
-async def add_debit_note(
-    data: DebitNoteInput,
-    production_id: int = Path(gt=0),
-    ctx: CompanyContext = Depends(_manage),
-    db: AsyncSession = Depends(get_db),
-) -> EntryDetail:
-    run = await wastage_service.add_note(db, ctx, production_id, data)
-    detail = await entry_query.detail(db, ctx, EntryType.PRODUCTION, run)
-    await events.entry_changed(EntryType.PRODUCTION, run, "debit_note", ctx.user)
-    return detail
 
 
 @router.get("/stock-checks", response_model=list[StockCheckRead])

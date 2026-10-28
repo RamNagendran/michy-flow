@@ -17,7 +17,7 @@ async def test_production_works_out_input_and_wastage(client: AsyncClient) -> No
     p = res.json()
     assert p["output_kg"] == 490 and p["calculated_input_kg"] == 500 and p["qty"] == 500
     assert p["wastage_kg"] == 9.8 and p["wastage_pct"] == 2.0
-    assert p["wastage_flagged"] is False and p["debit_note_required"] is False
+    assert p["wastage_flagged"] is False
     assert p["ref_no"] == "PRD-MR-00001"
     assert (await stock_of(client, t, "truck"))["provisional"]["balance"] == 1500
 
@@ -157,7 +157,7 @@ async def test_summary_counts_pending_but_tracks_verified_money(client: AsyncCli
         "change_requested": 0,
         "escalated_to_incharge": 0,
         "escalated_to_manager": 0,
-        "debit_notes_due": 0,
+        "open_debit_notes": 0,
     }
 
 

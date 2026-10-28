@@ -36,7 +36,7 @@ from app.schemas.entries import (
     OutputRead,
     StatusCount,
 )
-from app.services import crew_service, wastage_service, workflow_service
+from app.services import crew_service, debit_note_service, wastage_service, workflow_service
 from app.services.access_service import CompanyContext, accessible_companies, permissions_in
 from app.services.workflow_service import Entry
 
@@ -67,6 +67,7 @@ def _rows_purchases():  # noqa: ANN202
         Purchase.escalated_at.is_not(None).label("escalated"),
         Purchase.escalated_to,
         Purchase.supplier_id.label("party_id"),
+        debit_note_service.open_count_column(Purchase).label("open_debit_notes"),
     ).join(Party, Party.id == Purchase.supplier_id).where(
         Purchase.deleted_at.is_(None)
     )  # fmt: skip
@@ -83,6 +84,7 @@ def _rows_sales():  # noqa: ANN202
         Sale.escalated_at.is_not(None).label("escalated"),
         Sale.escalated_to,
         Sale.buyer_id.label("party_id"),
+        literal(0, Integer).label("open_debit_notes"),
     ).join(Party, Party.id == Sale.buyer_id).where(Sale.deleted_at.is_(None))  # fmt: skip
 
 
@@ -100,6 +102,7 @@ def _rows_production():  # noqa: ANN202
         Production.escalated_at.is_not(None).label("escalated"),
         Production.escalated_to,
         cast(null(), Integer).label("party_id"),
+        literal(0, Integer).label("open_debit_notes"),
     ).where(Production.deleted_at.is_(None))  # fmt: skip
 
 
@@ -225,17 +228,14 @@ async def _names(db: AsyncSession, ids: set[int | None]) -> dict[int, str]:
 
 
 async def _production_extras(db: AsyncSession, run: Production) -> dict:
-    """Wastage against the month's allowance, the debit note, the crew and efficiency."""
+    """Wastage against the month's allowance, the crew and efficiency."""
     allowance = await wastage_service.allowance_for(db, run.company_id, run.entry_date)
-    note = (await wastage_service.notes_for(db, [run.id])).get(run.id)
     crew = await crew_service.names(db, run.crew_ids)
     processed = run.input_kg - run.returned_kg
     hours = run.running_hours
     return {
         "wastage_allowance_pct": allowance,
         "wastage_flagged": run.wastage_pct > allowance,
-        "debit_note_required": wastage_service.needs_debit_note(run.wastage_pct),
-        "debit_note": note,
         "crew": [CrewMember(id=i, name=crew[i]) for i in run.crew_ids if i in crew],
         "running_hours": hours,
         "efficiency_pct": round(hours / Decimal(str(settings.SHIFT_HOURS)) * 100, 1)
@@ -306,8 +306,16 @@ async def detail(
         Party, entry.supplier_id if isinstance(entry, Purchase) else entry.buyer_id
     )
     item = entry.material if isinstance(entry, Purchase) else entry.product
+    notes: dict = {}
+    if isinstance(entry, Purchase):
+        notes = await debit_note_service.for_purchase(db, entry)
+        if debit_note_service.can_raise(ctx, entry):
+            base["actions"].append("debit_note")
+        if notes["supplier_open_debit_notes"] and debit_note_service.can_adjust(ctx, entry):
+            base["actions"].append("adjust_debit_note")
     return EntryDetail(
         **base,
+        **notes,
         party_id=party.id if party else None,
         party_name=party.name if party else None,
         item=item,

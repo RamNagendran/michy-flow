@@ -1,19 +1,17 @@
 import { useState } from 'react'
 import { Button, Table, Tag } from 'antd'
-import { AuditOutlined, CalendarOutlined, FileExclamationOutlined, PercentageOutlined } from '@ant-design/icons'
+import { AuditOutlined, CalendarOutlined, PercentageOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import CompanyPicker from '../../components/CompanyPicker'
 import WastageChart from '../../components/charts/WastageChart'
-import EntryDrawer, { type EntryRef } from '../../components/entries/EntryDrawer'
 import { PageHeader, SectionTitle } from '../../components/ui'
-import DebitNoteModal, { type NoteTarget } from '../../components/wastage/DebitNoteModal'
 import { itemName, WASTAGE_ALERT_PCT } from '../../data/catalog'
 import { useStocks } from '../../hooks/queries/stock'
-import { useAllowances, usePendingNotes, useStockChecks, useWastageMonths } from '../../hooks/queries/wastage'
+import { useAllowances, useStockChecks, useWastageMonths } from '../../hooks/queries/wastage'
 import { useAccess } from '../../hooks/useAccess'
 import { usePeriod } from '../../hooks/usePeriod'
 import { useReportCompany } from '../../hooks/useReportCompany'
-import type { PendingDebitNote, StockCheck, WastageMonth } from '../../types/reports'
+import type { StockCheck, WastageMonth } from '../../types/reports'
 import { formatDate, formatKg, formatPercent, formatQty } from '../../utils/format'
 import AllowanceModal from './AllowanceModal'
 import StockCheckModal from './StockCheckModal'
@@ -34,7 +32,7 @@ function Card({ icon, tone, label, value, sub, action }: { icon: React.ReactNode
   )
 }
 
-/** Wastage control: the monthly allowance, runs that need a debit note, and stock checks. */
+/** Wastage control: the monthly allowance and stock checks. */
 export default function Wastage() {
   const { can } = useAccess()
   const { label, range } = usePeriod()
@@ -43,24 +41,20 @@ export default function Wastage() {
   const manage = !!cid && can('adjust_wastage', cid)
   const months = useWastageMonths(cid, range)
   const allowances = useAllowances(cid)
-  const pending = usePendingNotes(cid ? [cid] : [])
   const checks = useStockChecks(cid)
   const stocks = useStocks(company ? [company] : [])
   const stock = cid ? stocks.byCompany.get(cid) : undefined
   const [declaring, setDeclaring] = useState(false)
   const [counting, setCounting] = useState(false)
-  const [noteFor, setNoteFor] = useState<NoteTarget | null>(null)
-  const [open, setOpen] = useState<EntryRef | null>(null)
 
   const thisMonth = dayjs().startOf('month').format('YYYY-MM-DD')
   const declared = allowances.data?.find((a) => a.month === thisMonth)
-  const due = pending.byCompany.get(cid ?? -1) ?? []
 
   return (
     <div className="page">
-      <PageHeader title="Wastage control" subtitle={`Allowance, debit notes and stock checks · ${label}`} extra={<CompanyPicker companies={companies} value={cid} onChange={setCompany} />} />
+      <PageHeader title="Wastage control" subtitle={`Allowance and stock checks · ${label}`} extra={<CompanyPicker companies={companies} value={cid} onChange={setCompany} />} />
 
-      <div className="grid grid-3 stagger">
+      <div className="grid grid-2 stagger">
         <Card
           icon={<PercentageOutlined />}
           tone="#2F6FEB"
@@ -68,13 +62,6 @@ export default function Wastage() {
           value={formatPercent(declared?.pct ?? WASTAGE_ALERT_PCT, 2)}
           sub={declared ? `Declared by ${declared.declared_by_name ?? '—'}${declared.note ? ` · ${declared.note}` : ''}` : `Not declared · the ${WASTAGE_ALERT_PCT}% limit applies`}
           action={manage && <Button onClick={() => setDeclaring(true)}>{declared ? 'Change allowance' : 'Declare allowance'}</Button>}
-        />
-        <Card
-          icon={<FileExclamationOutlined />}
-          tone={due.length ? '#D4380D' : '#1F9D6B'}
-          label="Debit notes due"
-          value={due.length}
-          sub={due.length ? `Runs over ${WASTAGE_ALERT_PCT}% waiting for a note before approval` : 'Every run over the limit has its note'}
         />
         <Card
           icon={<AuditOutlined />}
@@ -122,42 +109,6 @@ export default function Wastage() {
         </div>
       </div>
 
-      <SectionTitle title="Runs that need a debit note" hint={`wastage above ${WASTAGE_ALERT_PCT}% · needs a debit note before approval`} />
-      <div className="surface table-card">
-        <Table<PendingDebitNote>
-          rowKey="production_id"
-          loading={pending.isLoading}
-          pagination={{ pageSize: 8, hideOnSinglePage: true }}
-          dataSource={due}
-          locale={{ emptyText: 'Nothing pending. All high-wastage entries have a debit note.' }}
-          onRow={(r) => ({ onClick: () => cid && setOpen({ companyId: cid, type: 'production', id: r.production_id }), className: 'clickable' })}
-          columns={[
-            { title: 'Run', render: (_, r) => <span className="id-link">{r.ref_no}</span> },
-            { title: 'Date', render: (_, r) => formatDate(r.entry_date) },
-            { title: 'Material', render: (_, r) => itemName(r.material) },
-            { title: 'Processed', align: 'right', render: (_, r) => <span className="num">{formatKg(r.processed_kg)}</span> },
-            { title: 'Missing', align: 'right', render: (_, r) => <span className="num strong" style={{ color: '#D4380D' }}>{`${formatKg(r.wastage_kg)} · ${formatPercent(r.wastage_pct, 2)}`}</span> },
-            {
-              key: 'act',
-              align: 'right',
-              render: (_, r) =>
-                manage && (
-                  <Button
-                    type="primary"
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setNoteFor({ companyId: cid!, productionId: r.production_id, refNo: r.ref_no, wastageKg: r.wastage_kg, wastagePct: r.wastage_pct })
-                    }}
-                  >
-                    Record debit note
-                  </Button>
-                ),
-            },
-          ]}
-        />
-      </div>
-
       <SectionTitle title="Stock checks" hint="stock counted by the Manager · any difference corrects the stock" />
       <div className="surface table-card">
         <Table<StockCheck>
@@ -195,8 +146,6 @@ export default function Wastage() {
 
       {cid && <AllowanceModal companyId={cid} open={declaring} current={declared?.pct} onClose={() => setDeclaring(false)} />}
       {cid && <StockCheckModal companyId={cid} stock={stock} open={counting} onClose={() => setCounting(false)} />}
-      <DebitNoteModal target={noteFor} onClose={() => setNoteFor(null)} />
-      <EntryDrawer entryRef={open} onClose={() => setOpen(null)} />
     </div>
   )
 }

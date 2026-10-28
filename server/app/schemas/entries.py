@@ -92,6 +92,13 @@ class PurchaseInput(EntryInput, _Invoice, _BillGstins):
     source: EntrySource = EntrySource.MANUAL
     # The uploaded bill this was read from (POST /companies/{id}/documents).
     document_id: int | None = Field(default=None, gt=0)
+    # The supplier's open debit notes settled on this bill.
+    debit_note_ids: list[Annotated[int, Field(gt=0)]] = Field(default=[], max_length=50)
+
+    @field_validator("debit_note_ids")
+    @classmethod
+    def _unique_notes(cls, value: list[int]) -> list[int]:
+        return list(dict.fromkeys(value))
 
 
 class SaleInput(EntryInput, _Invoice, _BillGstins):
@@ -157,6 +164,8 @@ class EditReason(BaseModel):
 class PurchaseUpdate(PurchaseInput, EditReason):
     # Required on edits, so leaving it out never quietly moves an entry to another grade.
     grade: Grade
+    # Debit notes are reduced on a bill from its drawer, not by editing it.
+    debit_note_ids: list[int] = Field(default=[], max_length=0)
 
 
 class SaleUpdate(SaleInput, EditReason):
@@ -174,6 +183,31 @@ class ActionRequest(BaseModel):
     @classmethod
     def _strip(cls, value: str) -> str:
         return value.strip()
+
+
+class DebitNoteInput(BaseModel):
+    """A flag about the supplier for the team: any issue with this purchase. It changes
+    nothing by itself; quantity and amount are only for the record."""
+
+    # Left blank, the next number is given (DN-MR-00001).
+    note_no: str = Field(default="", max_length=50)
+    qty: Qty | None = None  # in the purchased item's unit
+    amount: (
+        Annotated[Decimal, Field(ge=0, le=100_000_000, max_digits=16, decimal_places=2)] | None
+    ) = None
+    reason: str = Field(min_length=1, max_length=2000)
+
+    @field_validator("note_no", "reason")
+    @classmethod
+    def _strip(cls, value: str) -> str:
+        return value.strip()
+
+    @field_validator("reason")
+    @classmethod
+    def _reason(cls, value: str) -> str:
+        if not value:
+            raise ValueError("write what happened")
+        return value
 
 
 class CommentRequest(BaseModel):
@@ -218,6 +252,8 @@ class EntryRow(BaseModel):
     source: EntrySource
     created_by_name: str | None
     created_at: datetime
+    # Purchases: the supplier's debit notes still waiting to come off a bill.
+    open_debit_notes: int = 0
 
 
 class StatusCount(BaseModel):
@@ -252,11 +288,24 @@ class DebitNoteRead(BaseModel):
     note_no: str
     supplier_id: int | None
     supplier_name: str | None
-    qty_kg: float
-    amount: float
+    # The purchase it was raised on.
+    purchase_id: int
+    purchase_ref_no: str
+    purchase_date: date
+    invoice_no: str
+    item: str | None
+    qty: float | None
+    unit: str
+    amount: float | None
     reason: str
     created_by_name: str | None
     created_at: datetime
+    # The later bill it was settled on; all None while the note is open.
+    adjusted_purchase_id: int | None
+    adjusted_ref_no: str | None
+    adjusted_by_name: str | None
+    adjusted_at: datetime | None
+    is_open: bool
 
 
 class EntryDetail(BaseModel):
@@ -292,6 +341,11 @@ class EntryDetail(BaseModel):
     invoice_no: str | None = None
     source: EntrySource = EntrySource.MANUAL
     document_id: int | None = None
+    # Purchase: debit notes raised on this bill, those this bill took off, and the
+    # supplier's other notes still open (shown to everyone who enters or approves).
+    debit_notes: list[DebitNoteRead] = []
+    adjusted_debit_notes: list[DebitNoteRead] = []
+    supplier_open_debit_notes: list[DebitNoteRead] = []
     # Production
     shift: int | None = None
     returned_kg: float | None = None
@@ -303,9 +357,6 @@ class EntryDetail(BaseModel):
     wastage_pct: float | None = None
     wastage_flagged: bool = False  # over the month's declared allowance
     wastage_allowance_pct: float | None = None
-    # Over the hard limit: a high alert, and the Manager cannot approve without a debit note.
-    debit_note_required: bool = False
-    debit_note: "DebitNoteRead | None" = None
     crew: list[CrewMember] = []
     running_hours: float | None = None
     efficiency_pct: float | None = None  # running hours / shift hours

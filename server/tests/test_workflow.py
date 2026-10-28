@@ -79,9 +79,16 @@ async def test_each_step_belongs_to_its_role(client: AsyncClient) -> None:
         assert (await act(client, t, token, entry, "approve")).status_code == 403
     # The detail tells each person which buttons they have.
     detail = await client.get(_one(t, entry), headers=bearer(t.manager))
-    assert set(detail.json()["actions"]) == {"approve", "request_change", "escalate", "comment"}
+    # Purchases also let the Manager and the purchase in-charge add a debit note.
+    assert set(detail.json()["actions"]) == {
+        "approve",
+        "request_change",
+        "escalate",
+        "comment",
+        "debit_note",
+    }
     mine = await client.get(_one(t, entry), headers=bearer(t.operator))
-    assert mine.json()["actions"] == ["comment"]
+    assert mine.json()["actions"] == ["comment", "debit_note"]
 
     await act(client, t, t.manager, entry, "approve")
     for token in (t.operator, t.manager):

@@ -46,7 +46,7 @@ const titles: [string, string][] = [
 /** Smaller controls just for the header bar, so it stays on one calm line. */
 const HEADER_THEME: ThemeConfig = { token: { controlHeight: 32, fontSize: 13 }, components: { Segmented: { trackPadding: 2 } } }
 
-const URGENT = new Set(['fromFinance', 'toIncharge', 'changes', 'wastage'])
+const URGENT = new Set(['fromFinance', 'toIncharge', 'changes'])
 
 const PERIOD_PAGES = ['/finance', '/stock', '/companies', '/reports', '/pricing', '/wastage', '/purchases', '/sales', '/production']
 
@@ -71,14 +71,13 @@ export default function MainLayout() {
     { key: 'finance', n: queue.finance, text: 'waiting for your approval', tab: 'finance' },
     { key: 'changes', n: queue.changes, text: 'waiting for you to change or reject', tab: 'changes' },
     { key: 'toIncharge', n: queue.toIncharge, text: 'sent back to you by the Manager. Please reply.', tab: 'incharge' },
-    { key: 'wastage', n: queue.wastage, text: 'have wastage above 2% and need a debit note', tab: 'wastage' },
   ].filter((i) => i.n > 0)
   const notifications = (
     <div style={{ width: 340 }}>
       <div style={{ fontWeight: 800, fontSize: 15, padding: '4px 4px 10px' }}>Notifications</div>
       {items.length ? (
         items.map((i) => (
-          <div key={i.key} className="qa-row" onClick={() => navigate(i.key === 'wastage' ? '/wastage' : sees('review') ? `/review?tab=${i.tab}` : '/')}>
+          <div key={i.key} className="qa-row" onClick={() => navigate(sees('review') ? `/review?tab=${i.tab}` : '/')}>
             <span className="kpi-icon" style={{ background: URGENT.has(i.key) ? '#fdeef2' : '#f4efff', color: URGENT.has(i.key) ? '#D4380D' : '#6941c6' }}>
               <FileTextFilled />
             </span>

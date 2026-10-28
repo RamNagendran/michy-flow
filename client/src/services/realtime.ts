@@ -8,7 +8,7 @@
 
 export interface RealtimeEvent {
   type: 'ready' | 'entry' | 'party' | 'company' | 'access' | 'stock'
-  /** Needs attention now: "wastage_high" (a debit note is needed) or "escalated" (by Finance). */
+  /** Needs attention now: "escalated" (sent back by the Manager or Finance). */
   alert?: string | null
   action?: string
   company_id?: number

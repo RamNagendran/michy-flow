@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
 import { useEntries } from './queries/entries'
-import { usePendingNotes } from './queries/wastage'
 import { useAccess } from './useAccess'
 
 /**
@@ -9,17 +8,15 @@ import { useAccess } from './useAccess'
  * - Finance: entries the Manager approved.
  * - Super Admin: change requests from the Manager.
  * - In-charge: their own entries the Manager sent back (the server returns only their own).
- * - Whoever manages wastage: debit notes.
  */
 export function useQueueCounts() {
   const { scope, can } = useAccess()
-  const { manager, finance, superAdmin, wastage, incharge } = useMemo(() => {
+  const { manager, finance, superAdmin, incharge } = useMemo(() => {
     const where = (p: Parameters<typeof can>[0]) => scope.filter((c) => can(p, c.id)).map((c) => c.id)
     return {
       manager: where('approve_entry'),
       finance: where('verify_entry'),
       superAdmin: where('edit_entry'),
-      wastage: where('adjust_wastage'),
       // In-charges: anyone who enters but cannot see everyone's entries.
       incharge: scope
         .filter((c) => !can('view_all_entries', c.id) && (can('enter_purchase', c.id) || can('enter_sales', c.id) || can('enter_production', c.id)))
@@ -31,7 +28,6 @@ export function useQueueCounts() {
   const toVerify = useEntries({ status: ['approved'], escalated: false, company_id: finance, page_size: 1 }, finance.length > 0)
   const changes = useEntries({ status: ['change_requested'], company_id: superAdmin, page_size: 1 }, superAdmin.length > 0)
   const toIncharge = useEntries({ escalated_to: 'incharge', company_id: incharge, page_size: 1 }, incharge.length > 0)
-  const notes = usePendingNotes(wastage)
   const n = (on: number[], q: { data?: { total: number } }) => (on.length ? (q.data?.total ?? 0) : 0)
   const counts = {
     manager: n(manager, toApprove),
@@ -39,7 +35,6 @@ export function useQueueCounts() {
     finance: n(finance, toVerify),
     changes: n(superAdmin, changes),
     toIncharge: n(incharge, toIncharge),
-    wastage: notes.total,
   }
   return { ...counts, total: Object.values(counts).reduce((a, b) => a + b, 0) }
 }

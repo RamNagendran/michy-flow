@@ -114,7 +114,6 @@ export interface WastageMonth {
   over_allowance: boolean
   flagged_runs: number
   high_runs: number
-  notes_missing: number
 }
 
 export interface Allowance {
@@ -123,17 +122,6 @@ export interface Allowance {
   note: string
   declared_by_name: string | null
   updated_at: string
-}
-
-export interface PendingDebitNote {
-  production_id: number
-  ref_no: string
-  entry_date: string
-  material: string
-  processed_kg: number
-  wastage_kg: number
-  wastage_pct: number
-  status: string
 }
 
 export type CountSection = 'raw' | 'output' | 'resale'
@@ -155,12 +143,4 @@ export interface StockCheck {
   counted_by_name: string | null
   created_at: string
   lines: CountLine[]
-}
-
-export interface DebitNoteInput {
-  note_no: string
-  supplier_id?: number
-  qty_kg: number
-  amount: number
-  reason: string
 }

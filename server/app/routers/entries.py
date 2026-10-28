@@ -91,13 +91,8 @@ async def _created(
 ) -> EntryDetail:  # noqa: ANN001
     entry = await entry_service.create(db, ctx, entry_type, data)
     detail = await entry_query.detail(db, ctx, entry_type, entry)
-    await events.entry_changed(entry_type, entry, "created", ctx.user, _alert(detail))
+    await events.entry_changed(entry_type, entry, "created", ctx.user)
     return detail
-
-
-def _alert(detail: EntryDetail) -> str | None:
-    """A run over the hard wastage limit is a high alert for the Managers."""
-    return "wastage_high" if detail.debit_note_required and not detail.debit_note else None
 
 
 async def _updated(
@@ -105,7 +100,7 @@ async def _updated(
 ) -> EntryDetail:  # noqa: ANN001
     entry = await entry_service.update(db, ctx, entry_type, entry_id, data)
     detail = await entry_query.detail(db, ctx, entry_type, entry)
-    await events.entry_changed(entry_type, entry, "edited", ctx.user, _alert(detail))
+    await events.entry_changed(entry_type, entry, "edited", ctx.user)
     return detail
 
 

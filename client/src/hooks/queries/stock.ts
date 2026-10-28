@@ -84,7 +84,7 @@ export function combineSummaries(list: CompanySummary[]): CompanySummary {
       change_requested: sum((s) => s.queue.change_requested),
       escalated_to_incharge: sum((s) => s.queue.escalated_to_incharge),
       escalated_to_manager: sum((s) => s.queue.escalated_to_manager),
-      debit_notes_due: sum((s) => s.queue.debit_notes_due),
+      open_debit_notes: sum((s) => s.queue.open_debit_notes),
     },
   }
 }

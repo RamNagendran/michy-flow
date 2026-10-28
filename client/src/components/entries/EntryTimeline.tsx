@@ -16,11 +16,13 @@ const eventMeta: Record<string, { label: string; color: string }> = {
   edited: { label: 'changed it (Super Admin)', color: '#7A5AF8' },
   commented: { label: 'commented', color: '#d98a0b' },
   gstin_corrected: { label: 'corrected a GST number read from the bill', color: '#D4380D' },
+  debit_note: { label: 'added a debit note', color: '#D98A0B' },
+  debit_note_adjusted: { label: 'marked a debit note as settled', color: '#1f9d6b' },
+  debit_note_reopened: { label: 'debit note is open again', color: '#D98A0B' },
   // Older entries only.
   held: { label: 'put it on hold', color: '#D4380D' },
   deleted: { label: 'deleted it', color: '#8a919e' },
   resolved: { label: 'closed the escalation', color: '#1f9d6b' },
-  debit_note: { label: 'recorded a debit note', color: '#0F9D8A' },
 }
 
 const fieldLabel: Record<string, string> = {

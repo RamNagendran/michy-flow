@@ -98,7 +98,7 @@ export default function SidebarNavigation() {
     ...group(collapsed ? null : 'Stock', [sees('stock') && { key: '/stock', icon: <InboxOutlined />, label: 'Stock by company' }]),
     ...group(collapsed ? null : 'Reports', [
       sees('reports') && { key: '/reports', icon: <BarChartOutlined />, label: 'Reports' },
-      sees('wastage') && { key: '/wastage', icon: <AlertOutlined />, label: withBadge('Wastage control', queue.wastage) },
+      sees('wastage') && { key: '/wastage', icon: <AlertOutlined />, label: 'Wastage control' },
       sees('pricing') && { key: '/pricing', icon: <DollarOutlined />, label: 'Purchase prices' },
       sees('finance') && { key: '/finance', icon: <LineChartOutlined />, label: 'Finance' },
       sees('records') && { key: '/records', icon: <DatabaseOutlined />, label: 'All records' },

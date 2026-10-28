@@ -76,4 +76,6 @@ export interface EntryDraft {
   /** GST numbers on the bill as confirmed (or corrected) by the person. */
   billCompanyGstin?: string | null
   billPartyGstin?: string | null
+  /** Purchases: the supplier's open debit notes settled on this bill. */
+  debitNoteIds?: number[]
 }

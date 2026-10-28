@@ -85,7 +85,7 @@ class QueueCounts(BaseModel):
     change_requested: int  # the Manager asked the Super Admin to edit or reject
     escalated_to_incharge: int  # the Manager is waiting on an in-charge
     escalated_to_manager: int  # Finance is waiting on the Manager
-    debit_notes_due: int  # runs over the hard wastage limit without a debit note
+    open_debit_notes: int  # purchase debit notes not yet settled
 
 
 class CompanySummary(BaseModel):

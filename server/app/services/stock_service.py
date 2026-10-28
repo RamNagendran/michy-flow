@@ -323,7 +323,9 @@ async def _production_totals(
 
 
 async def _queue(db: AsyncSession, cid: int) -> QueueCounts:
-    from app.services import wastage_service  # local: wastage_service imports this module
+    from app.services import (
+        debit_note_service,
+    )  # local: it imports entry_service, which imports this module
 
     counts: dict[str, int] = defaultdict(int)
     escalated: dict[str | None, int] = defaultdict(int)
@@ -342,7 +344,7 @@ async def _queue(db: AsyncSession, cid: int) -> QueueCounts:
         change_requested=counts[EntryStatus.CHANGE_REQUESTED],
         escalated_to_incharge=escalated["incharge"],
         escalated_to_manager=escalated["manager"],
-        debit_notes_due=await wastage_service.count_pending_notes(db, cid),
+        open_debit_notes=await debit_note_service.count_open(db, cid),
     )
 
 

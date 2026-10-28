@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Alert, Button, Drawer, Input, Modal, Skeleton, Space } from 'antd'
-import { CheckOutlined, FileDoneOutlined, FlagOutlined, CloseOutlined, EditOutlined, FileSearchOutlined, SafetyCertificateOutlined, SendOutlined, WarningFilled } from '@ant-design/icons'
+import { CheckOutlined, FileExclamationOutlined, FlagOutlined, CloseOutlined, EditOutlined, FileSearchOutlined, SafetyCertificateOutlined, SendOutlined, WarningFilled } from '@ant-design/icons'
 import { itemName } from '../../data/catalog'
 import { gradeInfo } from '../../data/grades'
 import { useEntry, useEntryAction, useEscalation } from '../../hooks/queries/entries'
-import { useAccess } from '../../hooks/useAccess'
-import DebitNoteModal, { type NoteTarget } from '../wastage/DebitNoteModal'
+import DebitNoteModal from '../debitNotes/DebitNoteModal'
+import { DebitNoteGroup, OpenDebitNotes } from '../debitNotes/DebitNoteList'
+import { useAdjustDebitNotes } from '../../hooks/queries/debitNotes'
 import type { EntryAction, EntryDetail, EntryType } from '../../types/entries'
 import { formatDate, formatINR, formatKg, formatKgFine, formatPercent, formatTonnes, formatQty, formatRateIn } from '../../utils/format'
 import { GradeTag, StatusTag } from '../ui'
@@ -72,36 +73,39 @@ function Facts({ e }: { e: EntryDetail }) {
   )
 }
 
-function DebitNoteBlock({ e, onRecord }: { e: EntryDetail; onRecord?: () => void }) {
-  if (!e.debit_note_required) return null
-  const n = e.debit_note
-  return n ? (
-    <div className="surface" style={{ padding: '12px 14px', marginTop: 12, borderColor: '#cfe9dc', background: '#f6fbf8' }}>
-      <div className="strong" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <FileDoneOutlined style={{ color: '#1F9D6B' }} /> Debit note {n.note_no}
-      </div>
-      <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>
-        {formatKg(n.qty_kg)} · {formatINR(n.amount)}
-        {n.supplier_name ? ` · against ${n.supplier_name}` : ''} · by {n.created_by_name ?? '—'}, {formatDate(n.created_at)}
-      </div>
-      <div style={{ fontSize: 13, marginTop: 4 }}>{n.reason}</div>
-    </div>
-  ) : (
-    <div className="alert-strip danger" style={{ marginTop: 12 }}>
-      <WarningFilled />
-      <div style={{ flex: 1 }}>
-        <b>Debit note needed.</b> More than 2% weight is missing. This entry cannot be approved until a debit note is added.
-      </div>
-      {onRecord && (
-        <Button size="small" type="primary" danger onClick={onRecord}>
-          Record debit note
+/** Purchases: debit notes raised on this bill, settled on it, and the supplier's other open notes. */
+function PurchaseDebitNotes({ e, onRaise }: { e: EntryDetail; onRaise: () => void }) {
+  const adjust = useAdjustDebitNotes()
+  const [ticked, setTicked] = useState<number[]>([])
+  const canAdjust = e.actions.includes('adjust_debit_note')
+  return (
+    <>
+      <OpenDebitNotes
+        notes={e.supplier_open_debit_notes}
+        supplierName={e.party_name}
+        selected={canAdjust ? ticked : undefined}
+        onSelect={canAdjust ? setTicked : undefined}
+        hint="If this bill settles a note, tick it and press Settled on this bill."
+        footer={
+          canAdjust && (
+            <Button size="small" type="primary" style={{ marginTop: 8 }} disabled={!ticked.length} loading={adjust.isPending} onClick={() => adjust.mutate({ entry: e, noteIds: ticked }, { onSuccess: () => setTicked([]) })}>
+              Settled on this bill
+            </Button>
+          )
+        }
+      />
+      <DebitNoteGroup title="Debit notes settled on this bill" notes={e.adjusted_debit_notes} tone="done" />
+      <DebitNoteGroup title={e.debit_notes.length === 1 ? 'Debit note on this bill' : 'Debit notes on this bill'} notes={e.debit_notes} tone="warn" />
+      {e.actions.includes('debit_note') && (
+        <Button icon={<FileExclamationOutlined />} style={{ marginTop: 12 }} onClick={onRaise}>
+          Add debit note
         </Button>
       )}
-    </div>
+    </>
   )
 }
 
-function Production({ e, onRecordNote }: { e: EntryDetail; onRecordNote?: () => void }) {
+function Production({ e }: { e: EntryDetail }) {
   // Runs saved under the fixed 2% rule: stock went down by products + 2%.
   if (e.calculated_input_kg !== null) {
     const pct = e.wastage_pct ?? 2
@@ -147,7 +151,6 @@ function Production({ e, onRecordNote }: { e: EntryDetail; onRecordNote?: () => 
           <span className="strong">Taken out of stock</span>
           <b className="num strong">{formatKg(e.calculated_input_kg - (e.returned_kg ?? 0))}</b>
         </div>
-        <DebitNoteBlock e={e} onRecord={onRecordNote} />
       </div>
     )
   }
@@ -186,14 +189,13 @@ function Production({ e, onRecordNote }: { e: EntryDetail; onRecordNote?: () => 
           icon={<WarningFilled />}
           style={{ marginTop: 10 }}
           title={`Missing ${formatKg(e.wastage_kg ?? 0)} (${formatPercent(e.wastage_pct ?? 0)}) — over this month's ${formatPercent(e.wastage_allowance_pct ?? 2)} allowance`}
-          description={e.debit_note_required ? 'Over the 2% limit: a high alert, and a debit note is required.' : 'Flagged as waste for the Manager to check before approving.'}
+          description="Flagged as waste for the Manager to check before approving."
         />
       ) : (
         <div className="muted" style={{ fontSize: 13, marginTop: 6 }}>
           Missing {formatKg(e.wastage_kg ?? 0)} ({formatPercent(e.wastage_pct ?? 0)}) — within this month's {formatPercent(e.wastage_allowance_pct ?? 2)} allowance
         </div>
       )}
-      <DebitNoteBlock e={e} onRecord={onRecordNote} />
     </div>
   )
 }
@@ -203,9 +205,8 @@ export default function EntryDrawer({ entryRef, onClose }: { entryRef: EntryRef 
   const entry = useEntry(entryRef)
   const act = useEntryAction()
   const escalation = useEscalation()
-  const { can } = useAccess()
   const [pending, setPending] = useState<Step | null>(null)
-  const [noteFor, setNoteFor] = useState<NoteTarget | null>(null)
+  const [noteFor, setNoteFor] = useState<EntryDetail | null>(null)
   const [comment, setComment] = useState('')
   const [editing, setEditing] = useState(false)
   const [showBill, setShowBill] = useState(false)
@@ -266,22 +267,14 @@ export default function EntryDrawer({ entryRef, onClose }: { entryRef: EntryRef 
               </div>
             </div>
           )}
+          {e.type === 'purchase' && <PurchaseDebitNotes e={e} onRaise={() => setNoteFor(e)} />}
           {e.document_id && (
             <Button icon={<FileSearchOutlined />} style={{ marginTop: 12 }} onClick={() => setShowBill(true)}>
               Original bill
             </Button>
           )}
           <Facts e={e} />
-          {e.type === 'production' && (
-            <Production
-              e={e}
-              onRecordNote={
-                can('adjust_wastage', e.company_id)
-                  ? () => setNoteFor({ companyId: e.company_id, productionId: e.id, refNo: e.ref_no, wastageKg: e.wastage_kg ?? 0, wastagePct: e.wastage_pct ?? 0 })
-                  : undefined
-              }
-            />
-          )}
+          {e.type === 'production' && <Production e={e} />}
           <div className="strong" style={{ margin: '24px 0 12px' }}>
             History and comments
           </div>
@@ -308,7 +301,7 @@ export default function EntryDrawer({ entryRef, onClose }: { entryRef: EntryRef 
         />
       </Modal>
       {e && editing && <EntryEditModal entry={e} onClose={() => setEditing(false)} />}
-      <DebitNoteModal target={noteFor} onClose={() => setNoteFor(null)} />
+      <DebitNoteModal purchase={noteFor} onClose={() => setNoteFor(null)} />
       {e?.document_id && showBill && <BillFileModal companyId={e.company_id} documentId={e.document_id} title={`Bill for ${e.ref_no}`} onClose={() => setShowBill(false)} />}
     </Drawer>
   )

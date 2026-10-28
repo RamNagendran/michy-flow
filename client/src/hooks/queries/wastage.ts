@@ -1,8 +1,7 @@
-import { keepPreviousData, useMutation, useQueries, useQuery } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQuery } from '@tanstack/react-query'
 import { api } from '../../services/api'
 import { API_ROUTES } from '../../utils/apiRoutes'
-import type { EntryDetail } from '../../types/entries'
-import type { Allowance, DebitNoteInput, PendingDebitNote, StockCheck, WastageMonth } from '../../types/reports'
+import type { Allowance, StockCheck, WastageMonth } from '../../types/reports'
 import { useNotify } from '../useNotify'
 import { useInvalidateEntries } from './entries'
 
@@ -25,21 +24,6 @@ export function useAllowances(companyId: number | undefined) {
   })
 }
 
-/** Runs over the hard limit without a debit note, for each company the person may fix. */
-export function usePendingNotes(companyIds: number[]) {
-  return useQueries({
-    queries: companyIds.map((id) => ({
-      queryKey: ['debit-notes', id],
-      queryFn: async () => (await api.get<PendingDebitNote[]>(API_ROUTES.wastage.pendingNotes(id))).data,
-    })),
-    combine: (results) => ({
-      byCompany: new Map(companyIds.map((id, i) => [id, results[i]?.data ?? []])),
-      total: results.reduce((s, r) => s + (r.data?.length ?? 0), 0),
-      isLoading: results.some((r) => r.isLoading),
-    }),
-  })
-}
-
 export function useStockChecks(companyId: number | undefined) {
   return useQuery({
     queryKey: ['stock-checks', companyId],
@@ -57,20 +41,6 @@ export function useDeclareAllowance() {
     },
     onSuccess: () => {
       notify.success('Wastage allowance saved')
-      // Refresh lists in the background: the save is done, so the form can close now.
-      void invalidate()
-    },
-  })
-}
-
-export function useAddDebitNote() {
-  const notify = useNotify()
-  const invalidate = useInvalidateEntries()
-  return useMutation({
-    mutationFn: async ({ companyId, productionId, body }: { companyId: number; productionId: number; body: DebitNoteInput }) =>
-      (await api.post<EntryDetail>(API_ROUTES.wastage.debitNote(companyId, productionId), body)).data,
-    onSuccess: (e) => {
-      notify.success('Debit note recorded', `${e.ref_no} can now be approved`)
       // Refresh lists in the background: the save is done, so the form can close now.
       void invalidate()
     },

@@ -2,12 +2,11 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, model_validator
 
-from app.schemas.entries import Kg, QtyOrZero, Text
+from app.schemas.entries import QtyOrZero, Text
 
 Pct = Annotated[Decimal, Field(gt=0, le=2, max_digits=4, decimal_places=2)]
-Money = Annotated[Decimal, Field(ge=0, le=100_000_000, max_digits=16, decimal_places=2)]
 Section = Literal["raw", "output", "resale"]
 
 
@@ -38,36 +37,7 @@ class WastageMonth(BaseModel):
     wastage_pct: float
     over_allowance: bool
     flagged_runs: int  # over the month's allowance
-    high_runs: int  # over the hard limit: need a debit note
-    notes_missing: int  # of the high runs, how many still have no debit note
-
-
-class DebitNoteInput(BaseModel):
-    note_no: str = Field(min_length=1, max_length=50)
-    supplier_id: int | None = Field(default=None, gt=0)
-    qty_kg: Kg
-    amount: Money
-    reason: str = Field(min_length=1, max_length=2000)
-
-    @field_validator("note_no", "reason")
-    @classmethod
-    def _strip(cls, value: str) -> str:
-        if not value.strip():
-            raise ValueError("this cannot be blank")
-        return value.strip()
-
-
-class PendingDebitNote(BaseModel):
-    """A run over the hard limit that has no debit note yet."""
-
-    production_id: int
-    ref_no: str
-    entry_date: date
-    material: str
-    processed_kg: float
-    wastage_kg: float
-    wastage_pct: float
-    status: str
+    high_runs: int  # over the hard limit (older runs; new runs use the fixed rate)
 
 
 class CountLine(BaseModel):
