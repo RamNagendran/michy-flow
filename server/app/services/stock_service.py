@@ -3,17 +3,18 @@
 Stock is kept per grade (see models/grades.py): Grade A raw material and products, Grade B
 re-sell material, and the Grade C book stock. Quantities are in each item's unit (litres for
 oil, kg for the rest; see models/catalog.py). Two figures for every item:
-- provisional: every live entry, including ones still waiting for approval. Stock moves the
-  moment something is recorded, and this is what new entries are checked against.
-- confirmed: only entries Finance has verified. This is the finalised inventory.
-Rejected and deleted entries never count.
+- provisional: every entry the Manager has approved (approved_at is set), including ones still
+  waiting for Finance. Entries waiting for the Manager do not count yet. This is what new
+  entries and approvals are checked against.
+- confirmed: only entries Finance has approved (verified). This is the finalised inventory.
+Rejected (and older deleted) entries never count.
 """
 
 from collections import defaultdict
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import Select, case, func, select, text
+from sqlalchemy import Select, case, func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.clock import add_months, today
@@ -58,6 +59,18 @@ def _live(model: type[Purchase] | type[Sale] | type[Production]):  # noqa: ANN20
     return (model.deleted_at.is_(None), model.status != EntryStatus.REJECTED)
 
 
+Model = type[Purchase] | type[Sale] | type[Production]
+
+
+def _in_stock(model: Model, also: tuple[Model, int] | None = None):  # noqa: ANN202
+    """Entries that move stock: live and approved by the Manager. `also` counts one more
+    entry as if approved, to check a new entry before it waits for the Manager."""
+    approved = model.approved_at.is_not(None)
+    if also is not None and also[0] is model:
+        approved = or_(approved, model.id == also[1])
+    return (*_live(model), approved)
+
+
 def _is_verified(model: type[Purchase] | type[Sale] | type[Production]):  # noqa: ANN202
     return model.status == EntryStatus.VERIFIED
 
@@ -87,7 +100,7 @@ def _lines(
 ) -> list[StockLine]:
     """One line per item: the company's configured items, plus any other item that has moved
     in this grade (so nothing in stock is ever hidden). Weighed waste is never stocked.
-    `counted` holds stock-check differences (book − counted) for this section, which the Admin
+    `counted` holds stock-check differences (book − counted) for this section, which the Manager
     verified, so they apply to both figures."""
     counted = counted or {}
     moved = {item for g, item in (*ins, *outs) if g == grade} | counted.keys()
@@ -126,7 +139,7 @@ async def _counted(db: AsyncSession, company_id: int) -> dict[str, dict[str, Dec
 
 
 async def _check_schedule(db: AsyncSession, company: Company) -> dict:
-    """When the Admin last counted the stock, and when the next count is due."""
+    """When the Manager last counted the stock, and when the next count is due."""
     last = await db.scalar(
         select(func.max(StockCheck.counted_on)).where(StockCheck.company_id == company.id)
     )
@@ -140,7 +153,9 @@ async def _check_schedule(db: AsyncSession, company: Company) -> dict:
     }
 
 
-async def company_stock(db: AsyncSession, company_id: int) -> CompanyStock:
+async def company_stock(
+    db: AsyncSession, company_id: int, also: tuple[Model, int] | None = None
+) -> CompanyStock:
     company = await db.get(Company, company_id)
     assert company is not None
     process = process_of(company)
@@ -149,7 +164,7 @@ async def company_stock(db: AsyncSession, company_id: int) -> CompanyStock:
         query = select(*cols, model.status, func.sum(qty_col))
         for target, on in joins:
             query = query.join(target, on)
-        return query.where(model.company_id == company_id, *_live(model)).group_by(
+        return query.where(model.company_id == company_id, *_in_stock(model, also)).group_by(
             *cols, model.status
         )
 
@@ -191,12 +206,15 @@ _SHORT_HINT = {
 }
 
 
-async def assert_stock_not_negative(db: AsyncSession, company_id: int) -> None:
+async def assert_stock_not_negative(
+    db: AsyncSession, company_id: int, also: tuple[Model, int] | None = None
+) -> None:
     """Call after a change, inside the same locked transaction. Refuses the change if it
     would leave any item in any grade below zero (selling more than you have, processing
-    tyres that were bought to re-sell, rejecting a purchase that was already used, ...)."""
+    tyres that were bought to re-sell, rejecting a purchase that was already used, ...).
+    `also` counts a new entry that is still waiting for the Manager."""
     await db.flush()
-    stock = await company_stock(db, company_id)
+    stock = await company_stock(db, company_id, also)
     for line in [*stock.raw, *stock.output, *stock.resale, *stock.books]:
         if line.provisional.balance < 0:
             raise ConflictError(
@@ -308,21 +326,22 @@ async def _queue(db: AsyncSession, cid: int) -> QueueCounts:
     from app.services import wastage_service  # local: wastage_service imports this module
 
     counts: dict[str, int] = defaultdict(int)
-    escalated = 0
+    escalated: dict[str | None, int] = defaultdict(int)
     for model in (Purchase, Sale, Production):
         rows = await db.execute(
-            select(model.status, func.count(), func.count(model.escalated_at))
+            select(model.status, model.escalated_to, func.count())
             .where(model.company_id == cid, model.deleted_at.is_(None))
-            .group_by(model.status)
+            .group_by(model.status, model.escalated_to)
         )
-        for status, n, open_escalations in rows:
+        for status, to, n in rows:
             counts[status] += n
-            escalated += open_escalations
+            escalated[to] += n
     return QueueCounts(
         pending=counts[EntryStatus.PENDING],
         approved=counts[EntryStatus.APPROVED],
-        on_hold=counts[EntryStatus.ON_HOLD],
-        escalated=escalated,
+        change_requested=counts[EntryStatus.CHANGE_REQUESTED],
+        escalated_to_incharge=escalated["incharge"],
+        escalated_to_manager=escalated["manager"],
         debit_notes_due=await wastage_service.count_pending_notes(db, cid),
     )
 

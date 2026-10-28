@@ -30,15 +30,15 @@ export function useStatusSummary(query: Pick<EntryQuery, 'type' | 'company_id' |
   })
 }
 
-/** Finance escalates a mismatch to operations; the Admin resolves it. */
+/** The Manager sends an entry back to the in-charge, or Finance sends it back to the Manager. */
 export function useEscalation() {
   const notify = useNotify()
   const invalidate = useInvalidateEntries()
   return useMutation({
-    mutationFn: async ({ entry, step, comment }: { entry: EntryDetail; step: 'escalate' | 'resolve'; comment: string }) =>
-      (await api.post<EntryDetail>(API_ROUTES.entries[step](entry.company_id, entry.type, entry.id), { comment })).data,
-    onSuccess: (e, { step }) => {
-      notify.success(step === 'escalate' ? 'Escalated to the operations team' : 'Escalation resolved', e.ref_no)
+    mutationFn: async ({ entry, comment }: { entry: EntryDetail; comment: string }) =>
+      (await api.post<EntryDetail>(API_ROUTES.entries.escalate(entry.company_id, entry.type, entry.id), { comment })).data,
+    onSuccess: (e) => {
+      notify.success(e.escalated_to === 'incharge' ? 'Sent back to the in-charge' : 'Sent back to the Manager', e.ref_no)
       // Refresh lists in the background: the save is done, so the form can close now.
       void invalidate()
     },
@@ -79,7 +79,7 @@ export function useUpdateEntry<T extends EntryType>(type: T) {
     mutationFn: async ({ companyId, id, body }: { companyId: number; id: number; body: EntryBodyFor[T] & { comment?: string } }) =>
       (await api.put<EntryDetail>(API_ROUTES.entries.update(companyId, type, id), body)).data,
     onSuccess: (e) => {
-      notify.success('Entry updated', `${e.ref_no} is back in review`)
+      notify.success('Entry changed', `${e.ref_no} goes to the Manager again`)
       // Refresh lists in the background: the save is done, so the form can close now.
       void invalidate()
     },
@@ -87,10 +87,10 @@ export function useUpdateEntry<T extends EntryType>(type: T) {
 }
 
 const actionDone: Record<EntryAction, string> = {
-  approve: 'Approved — sent to Finance',
+  approve: 'Approved. Sent to Finance',
+  request_change: 'Sent to the Super Admin',
+  verify: 'Approved. This entry is final',
   reject: 'Rejected',
-  verify: 'Verified — stock finalised',
-  hold: 'Put on hold',
 }
 
 export function useEntryAction() {
@@ -116,21 +116,5 @@ export function useCommentOnEntry() {
       (await api.post<EntryDetail>(API_ROUTES.entries.comments(entry.company_id, entry.type, entry.id), { comment })).data,
     onSuccess: (e) => qc.setQueryData(entryKeys.one(e.company_id, e.type, e.id), e),
     onError: (err) => notify.error(err, 'Could not add the comment'),
-  })
-}
-
-export function useDeleteEntry() {
-  const notify = useNotify()
-  const invalidate = useInvalidateEntries()
-  return useMutation({
-    mutationFn: async ({ entry, reason }: { entry: EntryDetail; reason: string }) => {
-      await api.delete(API_ROUTES.entries.one(entry.company_id, entry.type, entry.id), { params: { reason } })
-    },
-    onSuccess: (_, { entry }) => {
-      notify.success('Entry deleted', entry.ref_no)
-      // Refresh lists in the background: the save is done, so the form can close now.
-      void invalidate()
-    },
-    onError: (err) => notify.error(err, 'Could not delete the entry'),
   })
 }

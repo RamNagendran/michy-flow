@@ -84,7 +84,7 @@ export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail;
   return (
     <Modal open title={`Edit ${entry.ref_no}`} okText="Save changes" onOk={() => form.submit()} onCancel={onClose} confirmLoading={mutation.isPending} width={720}>
       {mutation.isError && <Alert type="error" showIcon title={errorMessage(mutation.error)} style={{ marginBottom: 12 }} />}
-      <Alert type="info" showIcon style={{ marginBottom: 16 }} title="After you save, this entry will be checked again. The old values are kept in its history." />
+      <Alert type="info" showIcon style={{ marginBottom: 16 }} title="After you save, it goes back to the Manager, then Finance. The old values are kept in its history." />
       <Form<Values>
         form={form}
         layout="vertical"

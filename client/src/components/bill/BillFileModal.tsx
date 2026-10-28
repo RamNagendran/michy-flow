@@ -1,7 +1,7 @@
 import { Empty, Modal, Skeleton } from 'antd'
 import { useBillFile } from '../../hooks/queries/documents'
 
-/** The original uploaded bill of an entry, for the Admin and Finance to compare against. */
+/** The original uploaded bill of an entry, for the Manager and Finance to compare against. */
 export default function BillFileModal({ companyId, documentId, title, onClose }: { companyId: number; documentId: number; title: string; onClose: () => void }) {
   const { url, type, isLoading } = useBillFile(companyId, documentId)
   return (

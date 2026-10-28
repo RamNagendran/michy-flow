@@ -16,6 +16,8 @@ class Team:
     company: dict
     super_admin: str
     manager: str
+    # The Admin role is gone. Tests that need someone who can do everything (enter, approve,
+    # manage wastage) use the Super Admin under this name.
     admin: str
     finance: str
     operator: str
@@ -41,7 +43,7 @@ async def team(client: AsyncClient, category: str = "crumb") -> Team:
         company=company,
         super_admin=sa,
         manager=await _member(client, sa, cid, "mgr@example.com", "manager"),
-        admin=await _member(client, sa, cid, "adm@example.com", "admin"),
+        admin=sa,
         finance=await _member(client, sa, cid, "fin@example.com", "finance"),
         operator=await _member(client, sa, cid, "ops@example.com", "operator", all_duties),
         operator2=await _member(
@@ -63,7 +65,26 @@ async def party(client: AsyncClient, t: Team, kind: str, name: str, **extra: obj
     return res.json()["id"]
 
 
-async def purchase(client: AsyncClient, t: Team, token: str, qty: str = "1000", **extra: object):  # noqa: ANN201
+async def approve_new(client: AsyncClient, t: Team, res, approve: bool = True):  # noqa: ANN001, ANN201
+    """New entries wait for the Manager and do not count in stock until approved. Most tests
+    need the stock, so the helpers approve straight away (the response is still the one from
+    creating it). Pass approve=False to keep it waiting."""
+    if approve and res.status_code == 201:
+        entry = res.json()
+        url = t.url(f"/entries/{entry['type']}/{entry['id']}/actions/approve")
+        done = await client.post(url, json={"comment": ""}, headers=bearer(t.manager))
+        assert done.status_code == 200, done.text
+    return res
+
+
+async def purchase(  # noqa: ANN201
+    client: AsyncClient,
+    t: Team,
+    token: str,
+    qty: str = "1000",
+    approve: bool = True,
+    **extra: object,
+):
     body = {
         "entry_date": TODAY,
         "supplier_id": t.supplier,
@@ -73,7 +94,8 @@ async def purchase(client: AsyncClient, t: Team, token: str, qty: str = "1000", 
         "invoice_no": f"INV-{qty}-{len(token) % 97}-{extra.pop('n', 1)}",
         **extra,
     }
-    return await client.post(t.url("/purchases"), json=body, headers=bearer(token))
+    res = await client.post(t.url("/purchases"), json=body, headers=bearer(token))
+    return await approve_new(client, t, res, approve)
 
 
 async def production(
@@ -83,6 +105,7 @@ async def production(
     outputs: dict[str, str],
     wastage_on_kg: str | None = None,
     returned_kg: str = "0",
+    approve: bool = True,
 ):  # noqa: ANN201
     """A run of truck tyres. Stock goes down by the outputs + 2%."""
     body = {
@@ -93,12 +116,13 @@ async def production(
         "shift": 1,
         "outputs": [{"product": p, "qty": q} for p, q in outputs.items()],
     }
-    return await client.post(t.url("/production"), json=body, headers=bearer(token))
+    res = await client.post(t.url("/production"), json=body, headers=bearer(token))
+    return await approve_new(client, t, res, approve)
 
 
 async def as_old_run(run: dict, wastage_pct: str) -> None:
     """Turn a run into one saved before the fixed wastage rule (wastage = processed − output),
-    waiting for the Admin. New runs can no longer go over the limit; old ones still can."""
+    waiting for the Manager. New runs can no longer go over the limit; old ones still can."""
     async with engine.begin() as conn:
         await conn.execute(
             text(
@@ -110,7 +134,14 @@ async def as_old_run(run: dict, wastage_pct: str) -> None:
         )
 
 
-async def sale(client: AsyncClient, t: Team, token: str, qty: str, invoice: str = "MR/1"):  # noqa: ANN201
+async def sale(  # noqa: ANN201
+    client: AsyncClient,
+    t: Team,
+    token: str,
+    qty: str,
+    invoice: str = "MR/1",
+    approve: bool = True,
+):
     body = {
         "entry_date": TODAY,
         "buyer_id": t.buyer,
@@ -119,7 +150,8 @@ async def sale(client: AsyncClient, t: Team, token: str, qty: str, invoice: str 
         "rate": "30",
         "invoice_no": invoice,
     }
-    return await client.post(t.url("/sales"), json=body, headers=bearer(token))
+    res = await client.post(t.url("/sales"), json=body, headers=bearer(token))
+    return await approve_new(client, t, res, approve)
 
 
 async def act(

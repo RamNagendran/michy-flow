@@ -98,7 +98,7 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
             showIcon
             icon={<LockFilled />}
             title={<span style={{ fontWeight: 700 }}>Nothing is saved until you confirm.</span>}
-            description="After saving, stock is updated at once. It becomes final after the Admin and Finance check it."
+            description="After saving, it goes to the Manager. Stock changes only when the Manager approves. It becomes final after Finance approves."
           />
         </div>
 

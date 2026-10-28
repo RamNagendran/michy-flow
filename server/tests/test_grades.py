@@ -3,7 +3,7 @@
 from httpx import AsyncClient
 
 from tests.conftest import bearer
-from tests.entry_helpers import TODAY, Team, production, purchase, sale, stock_of, team
+from tests.entry_helpers import TODAY, Team, approve_new, production, purchase, sale, stock_of, team
 
 
 async def _sale(client: AsyncClient, t: Team, item: str, qty: str, invoice: str, **extra):  # noqa: ANN001, ANN202
@@ -16,7 +16,8 @@ async def _sale(client: AsyncClient, t: Team, item: str, qty: str, invoice: str,
         "invoice_no": invoice,
         **extra,
     }
-    return await client.post(t.url("/sales"), json=body, headers=bearer(t.admin))
+    res = await client.post(t.url("/sales"), json=body, headers=bearer(t.admin))
+    return await approve_new(client, t, res)
 
 
 async def test_grades_default_sensibly(client: AsyncClient) -> None:

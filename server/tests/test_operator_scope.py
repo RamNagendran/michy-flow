@@ -25,8 +25,8 @@ async def test_purchase_only_operator_reaches_only_purchases(client: AsyncClient
     assert listed["total"] == 1
     assert {row["type"] for row in listed["items"]} == {"purchase"}
 
-    # No stock or company-wide figures.
-    assert (await client.get(t.url("/stock"), headers=h)).status_code == 403
+    # The stock, but no company-wide figures.
+    assert (await client.get(t.url("/stock"), headers=h)).status_code == 200
     summary = await client.get(
         t.url("/summary"), params={"date_from": "2026-10-01", "date_to": "2026-10-31"}, headers=h
     )

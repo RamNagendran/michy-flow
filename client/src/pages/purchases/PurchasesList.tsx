@@ -18,7 +18,7 @@ export default function PurchasesList() {
         { label: 'Bills', value: String(t.purchases.count), sub: 'not counting rejected' },
         { label: 'Raw material received', value: formatTonnes(physical(t.purchases.by_grade)), sub: `${formatKg(physical(t.purchases.by_grade))} · Grade A and B` },
         { label: 'Spent', value: formatINRShort(t.purchases.amount), sub: `${formatINRShort(t.purchases.verified_amount)} verified` },
-        { label: 'Waiting for review', value: String(t.queue.pending + t.queue.approved + t.queue.on_hold), sub: 'all entry types, any date' },
+        { label: 'Waiting for review', value: String(t.queue.pending + t.queue.approved + t.queue.change_requested), sub: 'all entry types, any date' },
       ]}
     />
   )

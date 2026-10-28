@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { Alert, App, Button, Drawer, Input, Modal, Skeleton, Space } from 'antd'
-import { CheckCircleOutlined, CheckOutlined, FileDoneOutlined, FlagOutlined, CloseOutlined, DeleteOutlined, EditOutlined, FileSearchOutlined, PauseOutlined, SafetyCertificateOutlined, WarningFilled } from '@ant-design/icons'
+import { Alert, Button, Drawer, Input, Modal, Skeleton, Space } from 'antd'
+import { CheckOutlined, FileDoneOutlined, FlagOutlined, CloseOutlined, EditOutlined, FileSearchOutlined, SafetyCertificateOutlined, SendOutlined, WarningFilled } from '@ant-design/icons'
 import { itemName } from '../../data/catalog'
 import { gradeInfo } from '../../data/grades'
-import { useDeleteEntry, useEntry, useEntryAction, useEscalation } from '../../hooks/queries/entries'
+import { useEntry, useEntryAction, useEscalation } from '../../hooks/queries/entries'
 import { useAccess } from '../../hooks/useAccess'
 import DebitNoteModal, { type NoteTarget } from '../wastage/DebitNoteModal'
 import type { EntryAction, EntryDetail, EntryType } from '../../types/entries'
@@ -20,18 +20,26 @@ export interface EntryRef {
   id: number
 }
 
-/** Workflow actions plus Finance's escalation and the Admin's resolution. */
-type Step = EntryAction | 'escalate' | 'resolve'
+/** Workflow actions plus escalating back one step. */
+type Step = EntryAction | 'escalate'
 
-const actionMeta: Record<Step, { label: string; icon: React.ReactNode; primary?: boolean; danger?: boolean; needsComment: boolean; prompt: string }> = {
-  approve: { label: 'Approve', icon: <CheckOutlined />, primary: true, needsComment: false, prompt: 'Approve and send to Finance?' },
-  verify: { label: 'Verify', icon: <SafetyCertificateOutlined />, primary: true, needsComment: false, prompt: 'Verify? This finalises the stock.' },
-  hold: { label: 'Put on hold', icon: <PauseOutlined />, needsComment: true, prompt: 'What is wrong? The team sees your comment.' },
-  reject: { label: 'Reject', icon: <CloseOutlined />, danger: true, needsComment: true, prompt: 'Why is it rejected?' },
-  escalate: { label: 'Escalate to operations', icon: <FlagOutlined />, needsComment: true, prompt: 'What does not match? The Admin, Managers and whoever entered it are told at once.' },
-  resolve: { label: 'Resolve escalation', icon: <CheckCircleOutlined />, needsComment: true, prompt: 'What was found and done? This closes Finance’s escalation.' },
+type StepMeta = { label: string; icon: React.ReactNode; primary?: boolean; danger?: boolean; needsComment: boolean; prompt: string }
+
+const actionMeta: Record<Step, StepMeta> = {
+  approve: { label: 'Approve', icon: <CheckOutlined />, primary: true, needsComment: false, prompt: 'Approve? It goes into stock and then to Finance.' },
+  verify: { label: 'Approve', icon: <SafetyCertificateOutlined />, primary: true, needsComment: false, prompt: 'Give the final approval? After this the entry is final.' },
+  escalate: { label: 'Escalate', icon: <FlagOutlined />, needsComment: true, prompt: 'What is wrong? You can talk in the comments after this.' },
+  request_change: { label: 'Ask Super Admin to change', icon: <SendOutlined />, needsComment: true, prompt: 'What should be changed, and why? The Super Admin will change it or reject it.' },
+  reject: { label: 'Reject', icon: <CloseOutlined />, danger: true, needsComment: true, prompt: 'Why is it rejected? This cannot be undone.' },
 }
-const STEPS: Step[] = ['approve', 'verify', 'hold', 'escalate', 'resolve', 'reject']
+const STEPS: Step[] = ['approve', 'verify', 'escalate', 'request_change', 'reject']
+
+/** The escalate button says who it goes back to: the in-charge (from the Manager) or the Manager (from Finance). */
+function stepMeta(step: Step, e: EntryDetail): StepMeta {
+  if (step !== 'escalate') return actionMeta[step]
+  const to = e.status === 'pending' ? 'in-charge' : 'Manager'
+  return { ...actionMeta.escalate, label: `Escalate to ${to}`, prompt: `What is wrong? The ${to} is told at once. You can talk in the comments. Approve when you agree.` }
+}
 
 function Facts({ e }: { e: EntryDetail }) {
   const rows: [string, React.ReactNode][] = [
@@ -46,8 +54,8 @@ function Facts({ e }: { e: EntryDetail }) {
     ...(e.crew.length ? ([['Crew', e.crew.map((c) => c.name).join(', ')]] as [string, string][]) : []),
     ...(e.running_hours ? ([['Running hours', `${e.running_hours} h · ${formatPercent(e.efficiency_pct ?? 0, 0)} efficiency · ${(e.kg_per_hour ?? 0).toLocaleString('en-IN')} kg/h`]] as [string, string][]) : []),
     ['Entered by', `${e.created_by_name ?? '—'} · ${formatDate(e.created_at)}`],
-    ...(e.approved_by_name ? ([['Approved by', `${e.approved_by_name} · ${formatDate(e.approved_at!)}`]] as [string, string][]) : []),
-    ...(e.verified_by_name ? ([['Verified by', `${e.verified_by_name} · ${formatDate(e.verified_at!)}`]] as [string, string][]) : []),
+    ...(e.approved_by_name ? ([['Approved by (Manager)', `${e.approved_by_name} · ${formatDate(e.approved_at!)}`]] as [string, string][]) : []),
+    ...(e.verified_by_name ? ([['Final approval by', `${e.verified_by_name} · ${formatDate(e.verified_at!)}`]] as [string, string][]) : []),
     ...(e.notes ? ([['Notes', e.notes]] as [string, string][]) : []),
   ]
   return (
@@ -178,7 +186,7 @@ function Production({ e, onRecordNote }: { e: EntryDetail; onRecordNote?: () => 
           icon={<WarningFilled />}
           style={{ marginTop: 10 }}
           title={`Missing ${formatKg(e.wastage_kg ?? 0)} (${formatPercent(e.wastage_pct ?? 0)}) — over this month's ${formatPercent(e.wastage_allowance_pct ?? 2)} allowance`}
-          description={e.debit_note_required ? 'Over the 2% limit: a high alert, and a debit note is required.' : 'Flagged as waste for the Admin to check before approving.'}
+          description={e.debit_note_required ? 'Over the 2% limit: a high alert, and a debit note is required.' : 'Flagged as waste for the Manager to check before approving.'}
         />
       ) : (
         <div className="muted" style={{ fontSize: 13, marginTop: 6 }}>
@@ -192,11 +200,9 @@ function Production({ e, onRecordNote }: { e: EntryDetail; onRecordNote?: () => 
 
 /** One entry: its details, history and comments, and the workflow buttons this person may use. */
 export default function EntryDrawer({ entryRef, onClose }: { entryRef: EntryRef | null; onClose: () => void }) {
-  const { modal } = App.useApp()
   const entry = useEntry(entryRef)
   const act = useEntryAction()
   const escalation = useEscalation()
-  const remove = useDeleteEntry()
   const { can } = useAccess()
   const [pending, setPending] = useState<Step | null>(null)
   const [noteFor, setNoteFor] = useState<NoteTarget | null>(null)
@@ -208,19 +214,8 @@ export default function EntryDrawer({ entryRef, onClose }: { entryRef: EntryRef 
   const confirmAction = () => {
     if (!e || !pending) return
     const done = { onSuccess: () => setPending(null) }
-    if (pending === 'escalate' || pending === 'resolve') escalation.mutate({ entry: e, step: pending, comment: comment.trim() }, done)
+    if (pending === 'escalate') escalation.mutate({ entry: e, comment: comment.trim() }, done)
     else act.mutate({ entry: e, action: pending, comment: comment.trim() }, done)
-  }
-
-  const confirmDelete = (target: EntryDetail) => {
-    let reason = ''
-    modal.confirm({
-      title: `Delete ${target.ref_no}?`,
-      content: <Input placeholder="Reason (kept in the history)" onChange={(ev) => (reason = ev.target.value)} />,
-      okText: 'Delete',
-      okButtonProps: { danger: true },
-      onOk: () => remove.mutateAsync({ entry: target, reason }).then(onClose),
-    })
   }
 
   return (
@@ -240,17 +235,12 @@ export default function EntryDrawer({ entryRef, onClose }: { entryRef: EntryRef 
                     setComment('')
                     setPending(a)
                   }}>
-                  {actionMeta[a].label}
+                  {stepMeta(a, e).label}
                 </Button>
               ))}
             {e.actions.includes('edit') && (
               <Button icon={<EditOutlined />} onClick={() => setEditing(true)}>
                 Edit
-              </Button>
-            )}
-            {e.actions.includes('delete') && (
-              <Button danger type="text" icon={<DeleteOutlined />} onClick={() => confirmDelete(e)}>
-                Delete
               </Button>
             )}
           </Space>
@@ -271,7 +261,7 @@ export default function EntryDrawer({ entryRef, onClose }: { entryRef: EntryRef 
             <div className="alert-strip warn fade-in" style={{ marginTop: 12 }}>
               <FlagOutlined />
               <div>
-                <b>Escalated to operations</b> by Finance on {formatDate(e.escalated_at)}
+                <b>{e.escalated_to === 'incharge' ? 'Manager sent it back to the in-charge' : 'Finance sent it back to the Manager'}</b> on {formatDate(e.escalated_at)}. Please reply in the comments below.
                 <div style={{ fontSize: 13 }}>{[...e.events].reverse().find((ev) => ev.action === 'escalated')?.comment}</div>
               </div>
             </div>
@@ -301,14 +291,14 @@ export default function EntryDrawer({ entryRef, onClose }: { entryRef: EntryRef 
 
       <Modal
         open={!!pending}
-        title={pending && actionMeta[pending].label}
-        okText={pending && actionMeta[pending].label}
+        title={pending && e && stepMeta(pending, e).label}
+        okText={pending && e && stepMeta(pending, e).label}
         okButtonProps={{ danger: pending === 'reject', disabled: !!pending && actionMeta[pending].needsComment && !comment.trim() }}
         confirmLoading={act.isPending || escalation.isPending}
         onOk={confirmAction}
         onCancel={() => setPending(null)}
       >
-        <p>{pending && actionMeta[pending].prompt}</p>
+        <p>{pending && e && stepMeta(pending, e).prompt}</p>
         <Input.TextArea
           value={comment}
           onChange={(ev) => setComment(ev.target.value)}

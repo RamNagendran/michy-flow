@@ -52,6 +52,7 @@ class EntryFilters:
     item: str | None
     q: str | None
     escalated: bool | None = None
+    escalated_to: str | None = None
     party_id: int | None = None
 
 
@@ -64,6 +65,7 @@ def _rows_purchases():  # noqa: ANN202
         cast(null(), Numeric).label("output_kg"), cast(null(), Numeric).label("wastage_pct"),
         Purchase.source, Purchase.created_by_id, Purchase.created_at,
         Purchase.escalated_at.is_not(None).label("escalated"),
+        Purchase.escalated_to,
         Purchase.supplier_id.label("party_id"),
     ).join(Party, Party.id == Purchase.supplier_id).where(
         Purchase.deleted_at.is_(None)
@@ -79,6 +81,7 @@ def _rows_sales():  # noqa: ANN202
         cast(null(), Numeric).label("output_kg"), cast(null(), Numeric).label("wastage_pct"),
         Sale.source, Sale.created_by_id, Sale.created_at,
         Sale.escalated_at.is_not(None).label("escalated"),
+        Sale.escalated_to,
         Sale.buyer_id.label("party_id"),
     ).join(Party, Party.id == Sale.buyer_id).where(Sale.deleted_at.is_(None))  # fmt: skip
 
@@ -95,6 +98,7 @@ def _rows_production():  # noqa: ANN202
         literal(EntrySource.MANUAL.value, String).label("source"),
         Production.created_by_id, Production.created_at,
         Production.escalated_at.is_not(None).label("escalated"),
+        Production.escalated_to,
         cast(null(), Integer).label("party_id"),
     ).where(Production.deleted_at.is_(None))  # fmt: skip
 
@@ -152,6 +156,8 @@ async def _filtered(db: AsyncSession, user: User, f: EntryFilters):  # noqa: ANN
         where.append(rows.c.item == f.item)
     if f.escalated is not None:
         where.append(rows.c.escalated.is_(f.escalated))
+    if f.escalated_to:
+        where.append(rows.c.escalated_to == f.escalated_to)
     if f.party_id:
         where.append(rows.c.party_id == f.party_id)
     if f.q:
@@ -264,6 +270,7 @@ async def detail(
         "status": entry.status,
         "grade": getattr(entry, "grade", Grade.A),
         "escalated_at": entry.escalated_at,
+        "escalated_to": entry.escalated_to,
         "notes": entry.notes,
         "created_by_name": names.get(entry.created_by_id),
         "approved_by_name": names.get(entry.approved_by_id),

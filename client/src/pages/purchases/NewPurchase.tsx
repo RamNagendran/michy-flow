@@ -22,7 +22,7 @@ export default function NewPurchase() {
           subtitle={
             step === 'review'
               ? 'Compare each value with the bill on the left. Values we are unsure of are marked in amber.'
-              : 'Add a raw-material purchase. It counts in stock at once and goes to the Admin for approval.'
+              : 'Add a raw-material purchase. It goes to the Manager for approval. Stock changes when the Manager approves.'
           }
           extra={
             <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/purchases')}>

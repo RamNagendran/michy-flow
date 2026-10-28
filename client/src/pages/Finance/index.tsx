@@ -55,7 +55,7 @@ export default function Finance() {
       <div className="info-banner" style={{ marginBottom: 20 }}>
         <InfoCircleFilled style={{ marginTop: 3 }} />
         <div>
-          <b>A basic difference only:</b> sales received minus purchases spent. Labour, electricity, transport and other overheads are not included. "Verified" counts
+          <b>A basic difference only:</b> sales received minus purchases spent. Labour, electricity, transport and other overheads are not included. "Final" counts
           only entries Finance has approved.
         </div>
       </div>
@@ -64,7 +64,7 @@ export default function Finance() {
         {(
           [
             ['All entries (including those in approval)', t?.sales.amount, t?.purchases.amount, margin],
-            ['Verified by Finance only', t?.sales.verified_amount, t?.purchases.verified_amount, verifiedMargin],
+            ['Final only (Finance approved)', t?.sales.verified_amount, t?.purchases.verified_amount, verifiedMargin],
           ] as const
         ).map(([label, sales, spend, diff]) => (
           <div key={label} className="surface" style={{ padding: 22 }}>
@@ -137,7 +137,7 @@ export default function Finance() {
                 )
               },
             },
-            { title: 'Not final yet', align: 'right', render: (_, c) => <span className="num">{c.s.queue.pending + c.s.queue.approved + c.s.queue.on_hold}</span> },
+            { title: 'Not final yet', align: 'right', render: (_, c) => <span className="num">{c.s.queue.pending + c.s.queue.approved + c.s.queue.change_requested}</span> },
           ]}
         />
       </div>

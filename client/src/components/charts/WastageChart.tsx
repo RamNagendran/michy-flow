@@ -9,7 +9,7 @@ import { ANIMATION_MS, axisProps, gridProps, reportColors as c } from './chartKi
 
 const barColor = (m: WastageMonth) => (m.wastage_pct > WASTAGE_ALERT_PCT ? c.danger : m.over_allowance ? c.wastage : c.output)
 
-/** Each month's wastage % against the Admin's declared allowance and the hard limit. */
+/** Each month's wastage % against the Manager's declared allowance and the hard limit. */
 export default function WastageChart({ months, loading, refreshing }: { months: WastageMonth[]; loading?: boolean; refreshing?: boolean }) {
   return (
     <ChartCard

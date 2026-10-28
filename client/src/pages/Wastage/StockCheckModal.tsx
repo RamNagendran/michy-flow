@@ -22,7 +22,7 @@ interface Row {
   book: number
 }
 
-/** The Admin's physical count. Leave a line empty to skip it; differences adjust the book stock. */
+/** The Manager's physical count. Leave a line empty to skip it; differences adjust the book stock. */
 export default function StockCheckModal({ companyId, stock, open, onClose }: { companyId: number; stock: CompanyStock | undefined; open: boolean; onClose: () => void }) {
   const save = useRecordStockCheck()
   const [counts, setCounts] = useState<Record<string, number | null>>({})

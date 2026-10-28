@@ -50,7 +50,7 @@ async def declare_allowance(
     ctx: CompanyContext = Depends(_manage),
     db: AsyncSession = Depends(get_db),
 ) -> None:
-    """The Admin declares the month's allowed wastage (up to 2%)."""
+    """The Manager declares the month's allowed wastage (up to 2%)."""
     await wastage_service.declare(db, ctx, data)
     await events.company_changed(ctx.company)
 
@@ -92,7 +92,7 @@ async def record_stock_check(
     ctx: CompanyContext = Depends(_manage),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, int | date]:
-    """The Admin's physical count. Differences from the book stock adjust it from now on."""
+    """The Manager's physical count. Differences from the book stock adjust it from now on."""
     check = await wastage_service.record_check(db, ctx, data)
     await events.stock_checked(ctx.company, ctx.user)
     return {"id": check.id, "counted_on": check.counted_on}

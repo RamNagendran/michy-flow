@@ -36,7 +36,7 @@ export default function OperatorHome() {
   const saleStocks = useStocks(saleCompanies)
   const ids = access.scope.map((c) => c.id)
   // The server only returns this operator's own entries.
-  const held = useEntries({ status: ['on_hold'], company_id: ids, page_size: 1 })
+  const held = useEntries({ escalated_to: 'incharge', company_id: ids, page_size: 1 })
   const hour = dayjs().hour()
 
   return (
@@ -85,9 +85,9 @@ export default function OperatorHome() {
 
       {(held.data?.total ?? 0) > 0 && (
         <>
-          <SectionTitle title="Finance has questions" hint="Open an entry to read the comment and reply" />
+          <SectionTitle title="Manager has questions" hint="Open an entry, read the comment and reply" />
           <div className="surface table-card" style={{ borderColor: '#f5c8d3' }}>
-            <EntryTable types={myTypes} companies={access.scope} statuses={['on_hold']} compact />
+            <EntryTable types={myTypes} companies={access.scope} escalatedTo="incharge" compact />
           </div>
         </>
       )}

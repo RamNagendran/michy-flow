@@ -79,7 +79,7 @@ export default function Dashboard() {
 
   const margin = (t?.sales.amount ?? 0) - (t?.purchases.amount ?? 0)
   const marginPct = t?.sales.amount ? (margin / t.sales.amount) * 100 : 0
-  const queue = t ? t.queue.pending + t.queue.approved + t.queue.on_hold : 0
+  const queue = t ? t.queue.pending + t.queue.approved + t.queue.change_requested : 0
 
 
   return (
@@ -97,13 +97,13 @@ export default function Dashboard() {
 
       {queue > 0 && (
         <Alert
-          type={t!.queue.on_hold ? 'error' : 'warning'}
+          type={t!.queue.change_requested || t!.queue.escalated_to_manager ? 'error' : 'warning'}
           showIcon
           style={{ marginBottom: 16, borderRadius: 12 }}
           title={`${queue} ${queue === 1 ? 'entry is' : 'entries are'} not final yet`}
-          description={`${t!.queue.pending} waiting for the Admin · ${t!.queue.approved} waiting for Finance · ${t!.queue.on_hold} on hold`}
+          description={`${t!.queue.pending} waiting for the Manager · ${t!.queue.approved} waiting for Finance · ${t!.queue.change_requested} with the Super Admin${t!.queue.escalated_to_manager ? ` · ${t!.queue.escalated_to_manager} sent back by Finance` : ''}`}
           action={
-            canAnywhere('approve_entry', 'verify_entry') && (
+            canAnywhere('approve_entry', 'verify_entry', 'edit_entry') && (
               <Button onClick={() => navigate('/review')}>
                 Open approvals <RightOutlined />
               </Button>

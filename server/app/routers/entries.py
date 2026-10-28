@@ -1,4 +1,5 @@
 from datetime import date
+from typing import Literal
 
 from fastapi import APIRouter, Depends, Path, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -44,6 +45,7 @@ def _filters(
     item: str | None = Query(None, max_length=20),
     q: str | None = Query(None, max_length=100),
     escalated: bool | None = None,
+    escalated_to: Literal["incharge", "manager"] | None = None,
     party_id: int | None = Query(None, gt=0),
 ) -> entry_query.EntryFilters:
     return entry_query.EntryFilters(
@@ -56,6 +58,7 @@ def _filters(
         item=item,
         q=q.strip() if q and q.strip() else None,
         escalated=escalated,
+        escalated_to=escalated_to,
         party_id=party_id,
     )
 
@@ -93,7 +96,7 @@ async def _created(
 
 
 def _alert(detail: EntryDetail) -> str | None:
-    """A run over the hard wastage limit is a high alert for the Admin and Managers."""
+    """A run over the hard wastage limit is a high alert for the Managers."""
     return "wastage_high" if detail.debit_note_required and not detail.debit_note else None
 
 
@@ -106,7 +109,7 @@ async def _updated(
     return detail
 
 
-# Creating needs the matching "enter" permission; editing needs EDIT_ENTRY.
+# Creating needs the matching "enter" permission; editing needs EDIT_ENTRY (Super Admin).
 
 
 @router.post(
@@ -182,7 +185,7 @@ async def update_production(
     return await _updated(db, ctx, EntryType.PRODUCTION, entry_id, data)
 
 
-# One entry: detail, workflow steps, comments, delete.
+# One entry: detail, workflow steps and comments. Entries are never deleted.
 
 
 @router.get(_one, response_model=EntryDetail)
@@ -198,6 +201,7 @@ async def get_entry(
 
 @router.post(_one + "/actions/{action}", response_model=EntryDetail)
 async def act_on_entry(
+    request: Request,
     entry_type: EntryType,
     action: Action,
     data: ActionRequest,
@@ -205,9 +209,10 @@ async def act_on_entry(
     ctx: CompanyContext = Depends(require_company_permission(P.VIEW)),
     db: AsyncSession = Depends(get_db),
 ) -> EntryDetail:
-    """approve / reject (Admin), verify / hold (Finance). Reject and hold need a comment."""
+    """approve / request_change (Manager), verify (Finance), reject (Super Admin).
+    request_change and reject need a comment."""
     entry = await entry_service.get_entry(db, ctx, entry_type, entry_id)
-    await workflow_service.act(db, ctx, entry_type, entry, action, data.comment)
+    await workflow_service.act(db, ctx, entry_type, entry, action, data.comment, request)
     detail = await entry_query.detail(db, ctx, entry_type, entry)
     await events.entry_changed(
         entry_type, entry, workflow_service.TRANSITIONS[action].event, ctx.user
@@ -226,7 +231,7 @@ async def comment_on_entry(
     db: AsyncSession = Depends(get_db),
 ) -> EntryDetail:
     entry = await entry_service.get_entry(db, ctx, entry_type, entry_id)
-    await workflow_service.comment(db, ctx, entry_type, entry, data.comment)
+    await workflow_service.comment(db, ctx, entry_type, entry, data.comment, request)
     detail = await entry_query.detail(db, ctx, entry_type, entry)
     await events.entry_changed(entry_type, entry, "commented", ctx.user)
     return detail
@@ -234,43 +239,18 @@ async def comment_on_entry(
 
 @router.post(_one + "/escalate", response_model=EntryDetail)
 async def escalate_entry(
+    request: Request,
     entry_type: EntryType,
     data: CommentRequest,
     entry_id: int = _EntryId,
-    ctx: CompanyContext = Depends(require_company_permission(P.VERIFY_ENTRY)),
+    ctx: CompanyContext = Depends(require_company_permission(P.APPROVE_ENTRY, P.VERIFY_ENTRY)),
     db: AsyncSession = Depends(get_db),
 ) -> EntryDetail:
-    """Finance raises a data mismatch with the operations team."""
+    """The Manager sends a pending entry back to the in-charge, or Finance sends an approved
+    one back to the Manager, with a comment. They talk in the comments until the asker
+    approves."""
     entry = await entry_service.get_entry(db, ctx, entry_type, entry_id)
-    await workflow_service.escalate(db, ctx, entry_type, entry, data.comment)
+    await workflow_service.escalate(db, ctx, entry_type, entry, data.comment, request)
     detail = await entry_query.detail(db, ctx, entry_type, entry)
     await events.entry_changed(entry_type, entry, "escalated", ctx.user, "escalated")
     return detail
-
-
-@router.post(_one + "/resolve", response_model=EntryDetail)
-async def resolve_entry(
-    entry_type: EntryType,
-    data: CommentRequest,
-    entry_id: int = _EntryId,
-    ctx: CompanyContext = Depends(require_company_permission(P.VIEW)),
-    db: AsyncSession = Depends(get_db),
-) -> EntryDetail:
-    """The Admin (or whoever may edit) closes Finance's escalation, saying what was done."""
-    entry = await entry_service.get_entry(db, ctx, entry_type, entry_id)
-    await workflow_service.resolve(db, ctx, entry_type, entry, data.comment)
-    detail = await entry_query.detail(db, ctx, entry_type, entry)
-    await events.entry_changed(entry_type, entry, "resolved", ctx.user)
-    return detail
-
-
-@router.delete(_one, status_code=status.HTTP_204_NO_CONTENT)
-async def delete_entry(
-    entry_type: EntryType,
-    entry_id: int = _EntryId,
-    reason: str = Query("", max_length=500),
-    ctx: CompanyContext = Depends(require_company_permission(P.DELETE_ENTRY)),
-    db: AsyncSession = Depends(get_db),
-) -> None:
-    entry = await entry_service.delete(db, ctx, entry_type, entry_id, reason.strip())
-    await events.entry_changed(entry_type, entry, "deleted", ctx.user)

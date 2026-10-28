@@ -64,7 +64,7 @@ export default function InventoryModal({ company, onClose }: { company: Company;
             <InputNumber<number> min={OIL_DENSITY.min} max={OIL_DENSITY.max} step={0.001} precision={3} suffix="kg / L" style={{ width: 220 }} />
           </Form.Item>
         )}
-        <Form.Item label="Admin's physical stock check" name="stock_check_months" rules={[{ required: true }]} extra="How often the Admin should count the stock and check it.">
+        <Form.Item label="Manager's physical stock check" name="stock_check_months" rules={[{ required: true }]} extra="How often the Manager should count the stock and check it.">
           <Segmented
             options={[
               { value: 1, label: 'Every month' },

@@ -26,7 +26,7 @@ Text = Annotated[str, Field(max_length=2000)]
 # Any catalogue item. Which ones a purchase or sale may carry depends on its grade.
 Item = Material | OutputProduct
 
-Action = Literal["approve", "reject", "verify", "hold"]
+Action = Literal["approve", "request_change", "verify", "reject"]
 EARLIEST_DATE = date(2000, 1, 1)
 
 
@@ -190,7 +190,8 @@ class EntryRow(BaseModel):
     entry_date: date
     status: EntryStatus
     grade: Grade  # always A for production
-    escalated: bool  # Finance raised a mismatch with the operations team
+    escalated: bool  # an open escalation (see escalated_to)
+    escalated_to: str | None  # "incharge" (Manager asked) or "manager" (Finance asked)
     party_name: str | None
     item: str  # material for purchases and production, product for sales
     qty: float  # in `unit`; the input weight for production
@@ -255,6 +256,7 @@ class EntryDetail(BaseModel):
     status: EntryStatus
     grade: Grade
     escalated_at: datetime | None = None
+    escalated_to: str | None = None
     notes: str
     created_by_name: str | None
     approved_by_name: str | None
@@ -287,7 +289,7 @@ class EntryDetail(BaseModel):
     wastage_pct: float | None = None
     wastage_flagged: bool = False  # over the month's declared allowance
     wastage_allowance_pct: float | None = None
-    # Over the hard limit: a high alert, and the Admin cannot approve without a debit note.
+    # Over the hard limit: a high alert, and the Manager cannot approve without a debit note.
     debit_note_required: bool = False
     debit_note: "DebitNoteRead | None" = None
     crew: list[CrewMember] = []

@@ -88,7 +88,12 @@ async def test_members_see_only_their_companies(client: AsyncClient) -> None:
     [access] = me["companies"]
     assert access["role"] == "operator"
     assert access["duties"] == ["purchase"]
-    assert sorted(access["permissions"]) == ["comment_entry", "enter_purchase", "view"]
+    assert sorted(access["permissions"]) == [
+        "comment_entry",
+        "enter_purchase",
+        "view",
+        "view_stock",
+    ]
 
 
 async def test_ceo_sees_every_active_company_read_only(client: AsyncClient) -> None:
@@ -118,12 +123,12 @@ async def test_ceo_sees_every_active_company_read_only(client: AsyncClient) -> N
     assert codes == ["A", "Z"]
 
 
-async def test_company_audit_log_needs_company_admin(client: AsyncClient) -> None:
+async def test_company_audit_log_needs_the_manager(client: AsyncClient) -> None:
     admin = (await signup(client))["access_token"]
     a = await create_company(client, admin, code="A")
     member = lambda role: [{"company_id": a["id"], "role": role}]  # noqa: E731
     company_admin = await login_new_user(
-        client, await create_user(client, admin, "adm@example.com", memberships=member("admin"))
+        client, await create_user(client, admin, "mgr@example.com", memberships=member("manager"))
     )
     finance = await login_new_user(
         client, await create_user(client, admin, "fin@example.com", memberships=member("finance"))

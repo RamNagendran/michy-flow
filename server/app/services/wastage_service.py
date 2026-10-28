@@ -1,10 +1,10 @@
 """Wastage control.
 
-- Allowance: the Admin declares the wastage % acceptable for a month, up to the hard limit
+- Allowance: the Manager declares the wastage % acceptable for a month, up to the hard limit
   (WASTAGE_ALERT_PCT). Months without a declaration use the hard limit.
 - A run whose missing weight is over the month's allowance is flagged. Over the hard limit it
   raises a high alert and cannot be approved or verified until a debit note is recorded.
-- Stock checks: every 1 or 3 months the Admin counts the physical stock; each difference from
+- Stock checks: every 1 or 3 months the Manager counts the physical stock; each difference from
   the book stock is recorded and adjusts the stock from then on.
 """
 
@@ -57,7 +57,7 @@ def needs_debit_note(wastage_pct: Decimal) -> bool:
 
 def _require(ctx: CompanyContext) -> None:
     if not ctx.can(P.ADJUST_WASTAGE):
-        raise ForbiddenError("Only the company Admin manages wastage")
+        raise ForbiddenError("Only the Manager manages wastage")
 
 
 def _live_production(company_id: int) -> tuple:
@@ -339,7 +339,7 @@ async def count_pending_notes(db: AsyncSession, company_id: int) -> int:
 
 
 async def record_check(db: AsyncSession, ctx: CompanyContext, data: StockCheckInput) -> StockCheck:
-    """Compare the Admin's physical count with the book stock and record the differences."""
+    """Compare the Manager's physical count with the book stock and record the differences."""
     _require(ctx)
     if data.counted_on > today():
         raise InvalidError("The count date cannot be in the future")

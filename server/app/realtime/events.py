@@ -64,7 +64,7 @@ async def access_changed(account_id: int, user_ids: list[int]) -> None:
 
 
 async def stock_checked(company: Company, actor: User) -> None:
-    """Book stock changed after the Admin's count: everyone viewing stock refreshes."""
+    """Book stock changed after the Manager's count: everyone viewing stock refreshes."""
     await _publish(
         {
             "type": "stock",

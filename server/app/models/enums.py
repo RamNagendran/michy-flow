@@ -12,7 +12,6 @@ class CompanyRole(StrEnum):
     """The role a person holds inside one company (entity)."""
 
     MANAGER = "manager"
-    ADMIN = "admin"
     FINANCE = "finance"
     OPERATOR = "operator"
 
@@ -36,17 +35,18 @@ class EntryType(StrEnum):
 class EntryStatus(StrEnum):
     """Where an entry is in the approval workflow (see services/workflow_service.py).
 
-    - pending   → approved (Admin approves) or rejected (Admin rejects)
-    - approved  → verified (Finance approves) or on_hold (Finance holds)
-    - on_hold   → verified (Finance), approved (Admin edits and resubmits) or rejected (Admin)
-    - verified and rejected are final.
+    - pending           → approved (Manager) or change_requested (Manager asks the Super Admin)
+    - approved          → verified (Finance) or change_requested (Manager)
+    - change_requested  → pending (Super Admin edits it) or rejected (Super Admin)
+    - Only the Super Admin rejects. verified and rejected are final.
+    Escalations are a flag on the entry, not a status (see workflow_service).
     """
 
-    PENDING = "pending"  # entered, waiting for the company Admin
-    APPROVED = "approved"  # Admin approved, waiting for Finance
-    ON_HOLD = "on_hold"  # Finance found a problem
+    PENDING = "pending"  # entered (or edited by the Super Admin), waiting for the Manager
+    APPROVED = "approved"  # Manager approved, waiting for Finance
+    CHANGE_REQUESTED = "change_requested"  # Manager asked the Super Admin to edit or reject
     VERIFIED = "verified"  # Finance approved: final
-    REJECTED = "rejected"  # thrown out; never counts in stock
+    REJECTED = "rejected"  # thrown out by the Super Admin; never counts in stock
 
 
 class EntrySource(StrEnum):

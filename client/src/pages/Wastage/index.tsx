@@ -158,7 +158,7 @@ export default function Wastage() {
         />
       </div>
 
-      <SectionTitle title="Stock checks" hint="stock counted by the Admin · any difference corrects the stock" />
+      <SectionTitle title="Stock checks" hint="stock counted by the Manager · any difference corrects the stock" />
       <div className="surface table-card">
         <Table<StockCheck>
           rowKey="id"

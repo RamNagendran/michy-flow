@@ -7,7 +7,7 @@ from httpx import AsyncClient
 from app.parsing.fields import parse_lines
 from tests.bill_samples import OUR_GSTIN, SELLER_GSTIN
 from tests.conftest import bearer
-from tests.entry_helpers import TODAY, Team, purchase, stock_of, team
+from tests.entry_helpers import TODAY, Team, approve_new, purchase, stock_of, team
 
 
 async def _run(client: AsyncClient, t: Team, material: str, outputs: dict, **extra):  # noqa: ANN001, ANN202
@@ -17,7 +17,8 @@ async def _run(client: AsyncClient, t: Team, material: str, outputs: dict, **ext
         "outputs": [{"product": p, "qty": q} for p, q in outputs.items()],
         **extra,
     }
-    return await client.post(t.url("/production"), json=body, headers=bearer(t.admin))
+    res = await client.post(t.url("/production"), json=body, headers=bearer(t.admin))
+    return await approve_new(client, t, res)
 
 
 async def _sell(client: AsyncClient, t: Team, item: str, qty: str, rate: str, **extra):  # noqa: ANN001, ANN202
@@ -30,7 +31,8 @@ async def _sell(client: AsyncClient, t: Team, item: str, qty: str, rate: str, **
         "invoice_no": f"S-{item}-{qty}",
         **extra,
     }
-    return await client.post(t.url("/sales"), json=body, headers=bearer(t.admin))
+    res = await client.post(t.url("/sales"), json=body, headers=bearer(t.admin))
+    return await approve_new(client, t, res)
 
 
 async def test_pyrolysis_run_works_out_input_with_oil_in_litres(client: AsyncClient) -> None:

@@ -1,15 +1,19 @@
 """The approval workflow shared by purchases, sales and production.
 
-    Operator enters  → pending
-    Admin            → approve (→ approved) or reject (→ rejected)
-    Finance          → verify (→ verified, final) or hold (→ on_hold) with a comment
-    On hold          → Finance verifies, or the Admin rejects or edits it (→ approved again)
+    In-charge enters      → pending (does not count in stock yet)
+    Manager               → approve (→ approved; now it counts in stock)
+                            or escalate to the in-charge (a flag; they talk in the comments)
+                            or ask the Super Admin to change it (→ change_requested)
+    Finance               → approve (→ verified, final)
+                            or escalate to the Manager (a flag; they talk in the comments)
+    Super Admin           → edit a change request (→ pending, back to the Manager) or reject
 
-A production run over the hard wastage limit cannot be approved or verified until the Admin
-records a debit note. Finance can also escalate a mismatch to the operations team (a flag,
-not a status); the Admin resolves it, or an edit clears it.
+An escalation stays open through any number of comments; the side that raised it closes it by
+approving. A production run over the hard wastage limit (older runs only) cannot be approved
+until the Manager records a debit note. Nobody deletes entries.
 
-Every step, edit and comment is written to entry_events, which is the entry's history.
+Every step, edit and comment is written to entry_events (the entry's history) and to the
+company audit log.
 """
 
 from dataclasses import dataclass
@@ -23,11 +27,15 @@ from app.core.clock import now
 from app.core.errors import AppError, ConflictError, ForbiddenError
 from app.models import EntryEvent, Production, Purchase, Sale, User
 from app.models.enums import EntryStatus as S
-from app.models.enums import EntryType, GlobalRole
-from app.services import stock_service, wastage_service
+from app.models.enums import EntryType
+from app.services import audit_service, stock_service, wastage_service
 from app.services.access_service import CompanyContext
 
 Entry = Purchase | Sale | Production
+
+# Who an open escalation is waiting on.
+TO_INCHARGE = "incharge"  # raised by the Manager
+TO_MANAGER = "manager"  # raised by Finance
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,48 +48,46 @@ class Transition:
 
 
 TRANSITIONS: dict[str, Transition] = {
+    # Manager
     "approve": Transition(P.APPROVE_ENTRY, frozenset({S.PENDING}), S.APPROVED, False, "approved"),
+    "request_change": Transition(
+        P.APPROVE_ENTRY,
+        frozenset({S.PENDING, S.APPROVED}),
+        S.CHANGE_REQUESTED,
+        True,
+        "change_requested",
+    ),
+    # Finance
+    "verify": Transition(P.VERIFY_ENTRY, frozenset({S.APPROVED}), S.VERIFIED, False, "verified"),
+    # Super Admin
     "reject": Transition(
-        P.APPROVE_ENTRY, frozenset({S.PENDING, S.APPROVED, S.ON_HOLD}), S.REJECTED, True, "rejected"
+        P.REJECT_ENTRY,
+        frozenset({S.PENDING, S.APPROVED, S.CHANGE_REQUESTED, S.VERIFIED}),
+        S.REJECTED,
+        True,
+        "rejected",
     ),
-    "verify": Transition(
-        P.VERIFY_ENTRY, frozenset({S.APPROVED, S.ON_HOLD}), S.VERIFIED, False, "verified"
-    ),
-    "hold": Transition(P.VERIFY_ENTRY, frozenset({S.APPROVED}), S.ON_HOLD, True, "held"),
 }
 
 # Steps a run over the hard wastage limit cannot take without a debit note.
 _NEEDS_NOTE_FOR = frozenset({S.APPROVED, S.VERIFIED})
 
-# Once verified, only the Super Admin may still change or remove an entry.
-_LOCKED = frozenset({S.VERIFIED})
-
-
-def _is_super_admin(ctx: CompanyContext) -> bool:
-    return ctx.user.global_role == GlobalRole.SUPER_ADMIN
-
 
 def can_edit(ctx: CompanyContext, entry: Entry) -> bool:
-    if not ctx.can(P.EDIT_ENTRY) or entry.status == S.REJECTED:
-        return False
-    return entry.status not in _LOCKED or _is_super_admin(ctx)
+    """Only the Super Admin edits, and never a rejected entry."""
+    return ctx.can(P.EDIT_ENTRY) and entry.status != S.REJECTED
 
 
-def can_delete(ctx: CompanyContext, entry: Entry) -> bool:
-    if not ctx.can(P.DELETE_ENTRY):
-        return False
-    return entry.status not in _LOCKED or _is_super_admin(ctx)
-
-
-_ESCALATABLE = frozenset({S.PENDING, S.APPROVED, S.ON_HOLD})
-
-
-def can_escalate(ctx: CompanyContext, entry: Entry) -> bool:
-    return ctx.can(P.VERIFY_ENTRY) and entry.escalated_at is None and entry.status in _ESCALATABLE
-
-
-def can_resolve(ctx: CompanyContext, entry: Entry) -> bool:
-    return entry.escalated_at is not None and (ctx.can(P.APPROVE_ENTRY) or ctx.can(P.EDIT_ENTRY))
+def escalation_target(ctx: CompanyContext, entry: Entry) -> str | None:
+    """Who this person would escalate to now, if they may: the Manager sends a pending entry
+    back to the in-charge, Finance sends an approved one back to the Manager."""
+    if entry.escalated_at is not None:
+        return None
+    if entry.status == S.PENDING and ctx.can(P.APPROVE_ENTRY):
+        return TO_INCHARGE
+    if entry.status == S.APPROVED and ctx.can(P.VERIFY_ENTRY):
+        return TO_MANAGER
+    return None
 
 
 def allowed_actions(ctx: CompanyContext, entry: Entry) -> list[str]:
@@ -91,39 +97,30 @@ def allowed_actions(ctx: CompanyContext, entry: Entry) -> list[str]:
         for name, t in TRANSITIONS.items()
         if ctx.can(t.permission) and entry.status in t.from_statuses
     ]
-    if can_escalate(ctx, entry):
+    if escalation_target(ctx, entry):
         actions.append("escalate")
-    if can_resolve(ctx, entry):
-        actions.append("resolve")
     if ctx.can(P.COMMENT_ENTRY):
         actions.append("comment")
     if can_edit(ctx, entry):
         actions.append("edit")
-    if can_delete(ctx, entry):
-        actions.append("delete")
     return actions
 
 
-def initial_status(ctx: CompanyContext, needs_debit_note: bool = False) -> S:
-    """Entries made by someone who could approve them start approved; the rest wait. A run
-    that needs a debit note always waits, so it cannot skip that step."""
-    return S.APPROVED if ctx.can(P.APPROVE_ENTRY) and not needs_debit_note else S.PENDING
+def initial_status() -> S:
+    """Every new entry waits for the Manager, whoever entered it."""
+    return S.PENDING
 
 
 def stamp_approval(entry: Entry, actor: User) -> None:
     entry.approved_by_id, entry.approved_at = actor.id, now()
 
 
-def reset_after_edit(ctx: CompanyContext, entry: Entry, needs_debit_note: bool = False) -> None:
-    """An edit sends the entry back through review: to Finance if the editor may approve,
-    otherwise to the Admin. Any earlier verification, and any escalation, no longer applies."""
-    entry.status = initial_status(ctx, needs_debit_note)
+def reset_after_edit(entry: Entry) -> None:
+    """A Super Admin edit sends the entry back to the Manager, then Finance. approved_at is
+    kept, so an entry that already counted in stock keeps counting (with its new values)."""
+    entry.status = S.PENDING
     entry.verified_by_id = entry.verified_at = None
-    entry.escalated_at = None
-    if entry.status == S.APPROVED:
-        stamp_approval(entry, ctx.user)
-    else:
-        entry.approved_by_id = entry.approved_at = None
+    entry.escalated_at = entry.escalated_to = None
 
 
 def add_event(
@@ -135,7 +132,9 @@ def add_event(
     action: str,
     comment: str = "",
     changes: dict | None = None,
+    request: Request | None = None,
 ) -> None:
+    """Write one step to the entry's history and to the company audit log."""
     db.add(
         EntryEvent(
             company_id=entry.company_id,
@@ -146,6 +145,24 @@ def add_event(
             comment=comment,
             changes=changes,
         )
+    )
+    details: dict = {"ref_no": entry.ref_no, "status": entry.status}
+    if comment:
+        details["comment"] = comment
+    if changes:
+        details["changes"] = changes
+    if entry.escalated_to and action == "escalated":
+        details["escalated_to"] = entry.escalated_to
+    audit_service.record(
+        db,
+        account_id=actor.account_id,
+        actor=actor,
+        action=f"entry.{action}",
+        entity_type=entry_type.value,
+        entity_id=entry.id,
+        company_id=entry.company_id,
+        details=details,
+        request=request,
     )
 
 
@@ -170,7 +187,7 @@ async def act(
             code="invalid_status",
         )
     if transition.needs_comment and not comment:
-        raise AppError("Please say why in the comment", code="comment_required")
+        raise AppError("Please write the reason in the comment", code="comment_required")
     if (
         transition.to_status in _NEEDS_NOTE_FOR
         and isinstance(entry, Production)
@@ -184,9 +201,15 @@ async def act(
 
     entry.status = transition.to_status
     if transition.to_status == S.APPROVED:
-        stamp_approval(entry, ctx.user)
+        # The first approval puts it in stock; after a Super Admin edit it is already there.
+        if entry.approved_at is None:
+            stamp_approval(entry, ctx.user)
+        else:
+            entry.approved_by_id = ctx.user.id
     elif transition.to_status == S.VERIFIED:
         entry.verified_by_id, entry.verified_at = ctx.user.id, now()
+    # Approving closes the asker's own escalation; a change request or rejection ends it too.
+    entry.escalated_at = entry.escalated_to = None
     add_event(
         db,
         entry_type=entry_type,
@@ -194,51 +217,62 @@ async def act(
         actor=ctx.user,
         action=transition.event,
         comment=comment,
+        request=request,
     )
-    if transition.to_status == S.REJECTED:
-        # Taking a purchase out could leave processed tyres with no stock behind them.
+    if transition.to_status in (S.APPROVED, S.REJECTED):
+        # Approving a sale must not sell more than is in stock; rejecting a purchase must not
+        # leave processed tyres with no stock behind them.
         await stock_service.assert_stock_not_negative(db, entry.company_id)
     await db.commit()
     return entry
 
 
 async def escalate(
-    db: AsyncSession, ctx: CompanyContext, entry_type: EntryType, entry: Entry, text: str
+    db: AsyncSession,
+    ctx: CompanyContext,
+    entry_type: EntryType,
+    entry: Entry,
+    text: str,
+    request: Request | None = None,
 ) -> None:
-    """Finance raises a data mismatch with the operations team (Admin, Manager and whoever
-    entered it). The entry keeps its status; the flag shows until it is resolved."""
-    if not can_escalate(ctx, entry):
-        raise ForbiddenError("This entry cannot be escalated")
+    """The Manager asks the in-charge, or Finance asks the Manager, with a comment. The entry
+    keeps its status; they talk in the comments until the asker approves."""
+    target = escalation_target(ctx, entry)
+    if target is None:
+        raise ForbiddenError("This entry cannot be escalated now")
     if not text:
-        raise AppError("Describe the mismatch in the comment", code="comment_required")
-    entry.escalated_at = now()
+        raise AppError("Write what is wrong in the comment", code="comment_required")
+    entry.escalated_at, entry.escalated_to = now(), target
     add_event(
-        db, entry_type=entry_type, entry=entry, actor=ctx.user, action="escalated", comment=text
-    )
-    await db.commit()
-
-
-async def resolve(
-    db: AsyncSession, ctx: CompanyContext, entry_type: EntryType, entry: Entry, text: str
-) -> None:
-    if not can_resolve(ctx, entry):
-        raise ForbiddenError("Nothing to resolve")
-    if not text:
-        raise AppError("Say how it was resolved", code="comment_required")
-    entry.escalated_at = None
-    add_event(
-        db, entry_type=entry_type, entry=entry, actor=ctx.user, action="resolved", comment=text
+        db,
+        entry_type=entry_type,
+        entry=entry,
+        actor=ctx.user,
+        action="escalated",
+        comment=text,
+        request=request,
     )
     await db.commit()
 
 
 async def comment(
-    db: AsyncSession, ctx: CompanyContext, entry_type: EntryType, entry: Entry, text: str
+    db: AsyncSession,
+    ctx: CompanyContext,
+    entry_type: EntryType,
+    entry: Entry,
+    text: str,
+    request: Request | None = None,
 ) -> None:
     if not ctx.can(P.COMMENT_ENTRY):
         raise ForbiddenError("Not allowed")
     add_event(
-        db, entry_type=entry_type, entry=entry, actor=ctx.user, action="commented", comment=text
+        db,
+        entry_type=entry_type,
+        entry=entry,
+        actor=ctx.user,
+        action="commented",
+        comment=text,
+        request=request,
     )
     await db.commit()
 

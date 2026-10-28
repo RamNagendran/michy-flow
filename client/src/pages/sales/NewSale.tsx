@@ -28,7 +28,7 @@ export default function NewSale() {
           subtitle={
             step === 'review'
               ? 'Compare each value with the invoice on the left before saving.'
-              : 'Add a sale of rubber, steel or other output. It is taken out of stock at once and goes to the Admin for approval.'
+              : 'Add a sale of rubber, steel or other output. It goes to the Manager for approval. Stock changes when the Manager approves.'
           }
           extra={
             <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/sales')}>

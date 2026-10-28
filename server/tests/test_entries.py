@@ -141,7 +141,7 @@ async def test_entry_list_filters(client: AsyncClient) -> None:
 async def test_summary_counts_pending_but_tracks_verified_money(client: AsyncClient) -> None:
     t = await team(client)
     p1 = (await purchase(client, t, t.admin, qty="1000", n=1)).json()
-    await purchase(client, t, t.operator, qty="500", n=2)
+    await purchase(client, t, t.operator, qty="500", n=2, approve=False)
     await act(client, t, t.finance, p1, "verify")
     res = await client.get(
         t.url(f"/summary?date_from={TODAY}&date_to={TODAY}"), headers=bearer(t.finance)
@@ -154,23 +154,14 @@ async def test_summary_counts_pending_but_tracks_verified_money(client: AsyncCli
     assert s["queue"] == {
         "pending": 1,
         "approved": 0,
-        "on_hold": 0,
-        "escalated": 0,
+        "change_requested": 0,
+        "escalated_to_incharge": 0,
+        "escalated_to_manager": 0,
         "debit_notes_due": 0,
     }
 
 
-async def test_delete_is_soft_and_admin_only(client: AsyncClient) -> None:
-    t = await team(client)
-    entry = (await purchase(client, t, t.operator)).json()
-    url = t.url(f"/entries/purchase/{entry['id']}")
-    assert (await client.delete(url, headers=bearer(t.manager))).status_code == 403
-    assert (await client.delete(url + "?reason=typo", headers=bearer(t.admin))).status_code == 204
-    assert (await client.get(url, headers=bearer(t.admin))).status_code == 404
-    assert (await client.get("/entries", headers=bearer(t.admin))).json()["total"] == 0
-
-
-async def test_parties_are_managed_by_manager_and_admin(client: AsyncClient) -> None:
+async def test_parties_are_managed_by_the_manager(client: AsyncClient) -> None:
     t = await team(client)
     body = {
         "kind": "supplier",

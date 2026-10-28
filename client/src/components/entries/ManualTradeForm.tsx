@@ -88,7 +88,7 @@ export default function ManualTradeForm({ kind, saving, onSaved, back }: { kind:
                 canAddParty ? (
                   <a onClick={() => navigate('/parties')}>Not in the list? Add a {isPurchase ? 'supplier' : 'buyer'}</a>
                 ) : (
-                  `Not in the list? A Manager or Admin can add new ${isPurchase ? 'suppliers' : 'buyers'}.`
+                  `Not in the list? The Manager can add new ${isPurchase ? 'suppliers' : 'buyers'}.`
                 )
               }
             >
@@ -185,7 +185,7 @@ export default function ManualTradeForm({ kind, saving, onSaved, back }: { kind:
               </div>
             )}
             <div className="faint" style={{ fontSize: 12, marginTop: 10 }}>
-              {grade === 'C' ? 'No goods move. This counts only in the Grade C bill-only stock. ' : ''}Stock changes at once. It becomes final after the Admin and Finance check it.
+              {grade === 'C' ? 'No goods move. This counts only in the Grade C bill-only stock. ' : ''}Stock changes when the Manager approves. It becomes final after Finance approves.
             </div>
           </div>
         )}

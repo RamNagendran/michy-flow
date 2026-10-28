@@ -3,9 +3,12 @@
 import type { Unit } from '../data/catalog'
 
 export type EntryType = 'purchase' | 'sale' | 'production'
-export type EntryStatus = 'pending' | 'approved' | 'on_hold' | 'verified' | 'rejected'
+export type EntryStatus = 'pending' | 'approved' | 'change_requested' | 'verified' | 'rejected'
 export type EntrySource = 'manual' | 'ai'
-export type EntryAction = 'approve' | 'reject' | 'verify' | 'hold'
+/** approve / request_change: Manager · verify: Finance · reject: Super Admin. */
+export type EntryAction = 'approve' | 'request_change' | 'verify' | 'reject'
+/** Who an open escalation is waiting on: the in-charge (Manager asked) or the Manager (Finance asked). */
+export type EscalatedTo = 'incharge' | 'manager'
 export type PartyKind = 'supplier' | 'buyer'
 /** A: through the plant · B: re-sold as bought · C: invoice only (see data/grades.ts). */
 export type Grade = 'A' | 'B' | 'C'
@@ -21,8 +24,9 @@ export interface EntryRow {
   status: EntryStatus
   /** Always A for production. */
   grade: Grade
-  /** Finance raised a mismatch with the operations team. */
+  /** An open escalation (see escalated_to). */
   escalated: boolean
+  escalated_to: EscalatedTo | null
   party_name: string | null
   item: string
   /** In `unit`; the input weight for production. */
@@ -79,6 +83,7 @@ export interface EntryDetail {
   status: EntryStatus
   grade: Grade
   escalated_at: string | null
+  escalated_to: EscalatedTo | null
   notes: string
   created_by_name: string | null
   approved_by_name: string | null
@@ -87,7 +92,7 @@ export interface EntryDetail {
   verified_at: string | null
   created_at: string
   updated_at: string
-  /** Buttons the caller may press: approve, reject, verify, hold, comment, edit, delete. */
+  /** Buttons the caller may press: approve, request_change, verify, reject, escalate, comment, edit. */
   actions: string[]
   events: EntryEvent[]
   party_id: number | null
@@ -176,6 +181,7 @@ export interface EntryQuery {
   item?: string
   q?: string
   escalated?: boolean
+  escalated_to?: EscalatedTo
   party_id?: number
   page?: number
   page_size?: number
@@ -205,7 +211,7 @@ export interface StockLine {
   item: string
   grade: Grade
   unit: Unit
-  /** The Admin's stock-check differences (book − counted), already in out / balance. */
+  /** The Manager's stock-check differences (book − counted), already in out / balance. */
   counted_adjustment: number
   /** Every live entry, including ones waiting for approval. */
   provisional: StockFigures
@@ -274,8 +280,12 @@ export interface ProductionTotals {
 export interface QueueCounts {
   pending: number
   approved: number
-  on_hold: number
-  escalated: number
+  /** The Manager asked the Super Admin to edit or reject. */
+  change_requested: number
+  /** The Manager is waiting on an in-charge. */
+  escalated_to_incharge: number
+  /** Finance is waiting on the Manager. */
+  escalated_to_manager: number
   debit_notes_due: number
 }
 

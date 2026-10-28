@@ -3,7 +3,7 @@ import type { CompanyCategory } from '../data/catalog'
 // Mirrors server/app/schemas/user.py, server/app/schemas/company.py and server/app/auth/permissions.py
 
 export type GlobalRole = 'super_admin' | 'ceo'
-export type CompanyRole = 'manager' | 'admin' | 'finance' | 'operator'
+export type CompanyRole = 'manager' | 'finance' | 'operator'
 /** 'shift' = works in the plant on production shifts; enters nothing, only listed in shift crews. */
 export type Duty = 'purchase' | 'sales' | 'production' | 'shift'
 
@@ -18,7 +18,7 @@ export type CompanyPermission =
   | 'enter_sales'
   | 'enter_production'
   | 'edit_entry'
-  | 'delete_entry'
+  | 'reject_entry'
   | 'approve_entry'
   | 'verify_entry'
   | 'manage_parties'
@@ -48,7 +48,7 @@ export interface Company extends CompanyBrief {
   output_items: string[]
   /** kg per litre of oil. */
   oil_density: number
-  /** Months between the Admin's physical stock checks. */
+  /** Months between the Manager's physical stock checks. */
   stock_check_months: 1 | 3
   is_active: boolean
 }

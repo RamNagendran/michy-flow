@@ -38,6 +38,6 @@ class Company(TimestampMixin, Base):
     oil_density: Mapped[Decimal] = mapped_column(
         Numeric(5, 3), default=Decimal("1.040"), server_default="1.040"
     )
-    # Months between the Admin's physical stock checks (1 or 3).
+    # Months between the Manager's physical stock checks (1 or 3).
     stock_check_months: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())

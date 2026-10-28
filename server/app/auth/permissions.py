@@ -29,10 +29,10 @@ class CompanyPermission(StrEnum):
     ENTER_PURCHASE = "enter_purchase"
     ENTER_SALES = "enter_sales"
     ENTER_PRODUCTION = "enter_production"
-    EDIT_ENTRY = "edit_entry"
-    DELETE_ENTRY = "delete_entry"
-    APPROVE_ENTRY = "approve_entry"  # admin review step
-    VERIFY_ENTRY = "verify_entry"  # finance approve / hold / comment
+    EDIT_ENTRY = "edit_entry"  # Super Admin only, after the Manager asks for a change
+    REJECT_ENTRY = "reject_entry"  # Super Admin only
+    APPROVE_ENTRY = "approve_entry"  # Manager: approve, escalate to the in-charge, ask for a change
+    VERIFY_ENTRY = "verify_entry"  # Finance: final approve, escalate to the Manager
     MANAGE_PARTIES = "manage_parties"  # suppliers and buyers
     ADJUST_WASTAGE = "adjust_wastage"
     MANAGE_GRADES = "manage_grades"
@@ -42,7 +42,6 @@ class CompanyPermission(StrEnum):
 
 
 _CP = CompanyPermission
-_ENTER_ALL = frozenset({_CP.ENTER_PURCHASE, _CP.ENTER_SALES, _CP.ENTER_PRODUCTION})
 _SEE_AND_DISCUSS = frozenset({_CP.VIEW, _CP.VIEW_ALL_ENTRIES, _CP.VIEW_STOCK, _CP.COMMENT_ENTRY})
 
 SYSTEM_PERMISSIONS: dict[GlobalRole, frozenset[SystemPermission]] = {
@@ -59,28 +58,24 @@ GLOBAL_COMPANY_PERMISSIONS: dict[GlobalRole, frozenset[CompanyPermission]] = {
 }
 
 COMPANY_ROLE_PERMISSIONS: dict[CompanyRole, frozenset[CompanyPermission]] = {
-    # Oversees the entity: sees every entry but never enters, edits, approves, rejects or
-    # deletes one. Manages suppliers and buyers and sees the oil KPI.
+    # Checks every in-charge entry first: approves, escalates to the in-charge, or asks the
+    # Super Admin to change it. Runs the company: suppliers and buyers, wastage, stock checks.
+    # Never enters, edits or rejects an entry.
     CompanyRole.MANAGER: _SEE_AND_DISCUSS
-    | {_CP.MANAGE_PARTIES, _CP.VIEW_FINANCE, _CP.VIEW_OIL_KPI},
-    # Primary data verifier: approves operator entries, wastage and grade stock.
-    CompanyRole.ADMIN: _ENTER_ALL
-    | _SEE_AND_DISCUSS
     | {
-        _CP.EDIT_ENTRY,
-        _CP.DELETE_ENTRY,
         _CP.APPROVE_ENTRY,
         _CP.MANAGE_PARTIES,
         _CP.ADJUST_WASTAGE,
         _CP.MANAGE_GRADES,
         _CP.VIEW_FINANCE,
+        _CP.VIEW_OIL_KPI,
         _CP.VIEW_AUDIT,
     },
-    # Cross-verifies and approves or holds. Cannot edit raw data.
+    # Final approval after the Manager, or escalates back to the Manager. Cannot edit.
     CompanyRole.FINANCE: _SEE_AND_DISCUSS | {_CP.VERIFY_ENTRY, _CP.VIEW_FINANCE},
-    # Input only, and sees only their own entries of the kinds they may enter. They can reply
-    # when Finance raises a query. Which inputs they may make depends on the duties ticked.
-    CompanyRole.OPERATOR: frozenset({_CP.VIEW, _CP.COMMENT_ENTRY}),
+    # In-charges: enter the kinds ticked for them, see their own entries and the stock, and
+    # talk in the comments when the Manager escalates.
+    CompanyRole.OPERATOR: frozenset({_CP.VIEW, _CP.VIEW_STOCK, _CP.COMMENT_ENTRY}),
 }
 
 # Duty.SHIFT grants no permission; it only puts the person in the shift crew list.

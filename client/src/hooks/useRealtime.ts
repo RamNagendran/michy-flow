@@ -71,16 +71,20 @@ export function useRealtime(enabled: boolean) {
       const mine = e.created_by_id === me.id
       if (e.alert === 'wastage_high' && (can('adjust_wastage', e.company_id) || can('view_oil_kpi', e.company_id))) {
         notify.alert(`High wastage on ${what}`, `More than 2% (entered by ${e.actor_name}). Make a debit note first, then it can be approved.`)
-      } else if (e.alert === 'escalated' && (mine || can('approve_entry', e.company_id) || can('edit_entry', e.company_id))) {
-        notify.warning(`${what} has a problem`, `${e.actor_name} (Finance) found a mismatch. Open it to see the comment.`)
-      } else if (e.action === 'created' && e.status === 'pending' && can('approve_entry', e.company_id)) {
+      } else if (e.alert === 'escalated' && e.status === 'pending' && mine) {
+        notify.warning(`${what}: Manager has a question`, `${e.actor_name} sent it back to you. Open it and reply in the comments.`)
+      } else if (e.alert === 'escalated' && e.status === 'approved' && can('approve_entry', e.company_id)) {
+        notify.warning(`${what}: Finance has a question`, `${e.actor_name} sent it back to you. Open it and reply in the comments.`)
+      } else if (e.action === 'change_requested' && can('edit_entry', e.company_id)) {
+        notify.warning(`${what} needs a change`, `${e.actor_name} (Manager) asked you to change or reject it.`)
+      } else if (e.action === 'created' && can('approve_entry', e.company_id)) {
         notify.info(`New ${what}`, `From ${e.actor_name}. Please approve it.`)
-      } else if (e.action === 'created' && e.status === 'approved' && can('verify_entry', e.company_id)) {
-        notify.info(`New ${what}`, `From ${e.actor_name}. Please check it.`)
       } else if (e.action === 'approved' && can('verify_entry', e.company_id)) {
-        notify.info(`${what} approved`, `By ${e.actor_name}. Please check it.`)
-      } else if (mine && ['held', 'rejected', 'verified', 'approved', 'commented', 'edited'].includes(e.action ?? '')) {
-        const verb = { held: 'was put on hold', rejected: 'was rejected', verified: 'was checked by Finance', approved: 'was approved', commented: 'has a new comment', edited: 'was edited' }[e.action!]
+        notify.info(`${what} approved by the Manager`, `By ${e.actor_name}. Please give the final approval.`)
+      } else if (e.action === 'edited' && can('approve_entry', e.company_id)) {
+        notify.info(`${what} was changed`, `${e.actor_name} (Super Admin) changed it. Please approve it again.`)
+      } else if (mine && ['rejected', 'verified', 'approved', 'commented', 'edited'].includes(e.action ?? '')) {
+        const verb = { rejected: 'was rejected', verified: 'is final', approved: 'was approved by the Manager', commented: 'has a new comment', edited: 'was changed by the Super Admin' }[e.action!]
         notify.info(`Your ${what} ${verb}`, `By ${e.actor_name}`)
       }
     }

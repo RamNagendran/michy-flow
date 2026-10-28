@@ -7,9 +7,9 @@ import type { EntryStatus } from '../../types/entries'
 export const statusColor: Record<EntryStatus, string> = {
   pending: '#fab219',
   approved: '#2a78d6',
-  on_hold: '#d03b3b',
+  change_requested: '#d03b3b',
   verified: '#0ca30c',
   rejected: '#a1a1aa',
 }
 
-export const STATUS_ORDER: EntryStatus[] = ['pending', 'approved', 'on_hold', 'verified', 'rejected']
+export const STATUS_ORDER: EntryStatus[] = ['pending', 'approved', 'change_requested', 'verified', 'rejected']

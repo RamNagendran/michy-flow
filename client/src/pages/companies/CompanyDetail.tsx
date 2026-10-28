@@ -121,7 +121,7 @@ export default function CompanyDetail() {
           <Stat label={`Purchased · ${periodLabels[period].toLowerCase()}`} value={formatINRShort(t.purchases.amount)} sub={`${formatTonnes(t.purchases.qty_kg)} · ${t.purchases.count} bills`} />
           <Stat label="Processed" value={formatTonnes(t.production.input_kg)} sub={`${formatTonnes(t.production.output_kg)} out · ${formatPercent(t.production.input_kg ? (t.production.wastage_kg / t.production.input_kg) * 100 : 0)} wastage`} />
           <Stat label="Sold" value={formatINRShort(t.sales.amount)} sub={`${formatTonnes(t.sales.qty_kg)} · ${t.sales.count} invoices`} />
-          <Stat label="Not final yet" value={t.queue.pending + t.queue.approved + t.queue.on_hold} sub={`${t.queue.pending} Admin · ${t.queue.approved} Finance · ${t.queue.on_hold} on hold`} />
+          <Stat label="Not final yet" value={t.queue.pending + t.queue.approved + t.queue.change_requested} sub={`${t.queue.pending} Manager · ${t.queue.approved} Finance · ${t.queue.change_requested} Super Admin`} />
         </div>
       )}
 

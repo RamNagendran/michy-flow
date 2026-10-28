@@ -1,4 +1,4 @@
-"""Wastage control: monthly allowances, debit notes for runs over the limit, and the Admin's
+"""Wastage control: monthly allowances, debit notes for runs over the limit, and the Manager's
 physical stock checks."""
 
 from datetime import date, datetime
@@ -22,7 +22,7 @@ from app.models.entries import KG, MONEY, QTY
 
 
 class WastageAllowance(TimestampMixin, Base):
-    """The wastage % the Admin declares acceptable for one month (up to the hard limit)."""
+    """The wastage % the Manager declares acceptable for one month (up to the hard limit)."""
 
     __tablename__ = "wastage_allowances"
     __table_args__ = (
@@ -63,7 +63,7 @@ class DebitNote(Base):
 
 
 class StockCheck(Base):
-    """One physical count by the Admin. Each line's difference adjusts the book stock."""
+    """One physical count by the Manager. Each line's difference adjusts the book stock."""
 
     __tablename__ = "stock_checks"
 

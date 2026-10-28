@@ -56,7 +56,7 @@ async def test_runs_within_the_limit_need_no_note(client: AsyncClient) -> None:
     await purchase(client, t, t.admin, "1000")
     run = (await production(client, t, t.admin, {"rubber": "900"})).json()
     assert run["wastage_pct"] == 2.0
-    assert run["debit_note_required"] is False and run["status"] == "approved"
+    assert run["debit_note_required"] is False
     assert (await _note(client, t, run, t.admin)).status_code == 409
 
 
@@ -91,8 +91,8 @@ async def test_stock_check_adjusts_the_book_stock(client: AsyncClient) -> None:
         "lines": [{"section": "raw", "item": "truck", "counted_qty": "950"}],
     }
     url = t.url("/stock-checks")
-    assert (await client.post(url, json=body, headers=bearer(t.manager))).status_code == 403
-    res = await client.post(url, json=body, headers=bearer(t.admin))
+    assert (await client.post(url, json=body, headers=bearer(t.finance))).status_code == 403
+    res = await client.post(url, json=body, headers=bearer(t.manager))
     assert res.status_code == 201, res.text
 
     line = await stock_of(client, t, "truck")
@@ -105,27 +105,6 @@ async def test_stock_check_adjusts_the_book_stock(client: AsyncClient) -> None:
     assert (await client.post(url, json=unknown, headers=bearer(t.admin))).status_code == 422
 
 
-async def test_finance_escalates_and_the_admin_resolves(client: AsyncClient) -> None:
-    t = await team(client)
-    entry = (await purchase(client, t, t.operator, "1000")).json()
-    one = t.url(f"/entries/purchase/{entry['id']}")
-    note = {"comment": "Weighbridge slip says 980 kg"}
-    assert (
-        await client.post(f"{one}/escalate", json=note, headers=bearer(t.operator))
-    ).status_code == 403
-    raised = await client.post(f"{one}/escalate", json=note, headers=bearer(t.finance))
-    assert raised.status_code == 200 and raised.json()["escalated_at"]
-    assert "resolve" in (await client.get(one, headers=bearer(t.admin))).json()["actions"]
-
-    listed = (await client.get("/entries?escalated=true", headers=bearer(t.admin))).json()
-    assert [r["ref_no"] for r in listed["items"]] == [entry["ref_no"]]
-    done = await client.post(
-        f"{one}/resolve", json={"comment": "Corrected"}, headers=bearer(t.admin)
-    )
-    assert done.status_code == 200 and done.json()["escalated_at"] is None
-    assert done.json()["events"][-1]["action"] == "resolved"
-
-
 async def test_super_admin_configures_items_and_density(client: AsyncClient) -> None:
     t = await team(client, "pyrolysis")
     config = {
@@ -135,7 +114,7 @@ async def test_super_admin_configures_items_and_density(client: AsyncClient) -> 
         "stock_check_months": 3,
     }
     url = t.url("/config")
-    assert (await client.put(url, json=config, headers=bearer(t.admin))).status_code == 403
+    assert (await client.put(url, json=config, headers=bearer(t.manager))).status_code == 403
     bad = {**config, "oil_density": "0.920"}
     assert (await client.put(url, json=bad, headers=bearer(t.super_admin))).status_code == 422
     res = await client.put(url, json=config, headers=bearer(t.super_admin))

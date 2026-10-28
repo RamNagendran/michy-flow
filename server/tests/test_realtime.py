@@ -105,21 +105,25 @@ def captured(monkeypatch: pytest.MonkeyPatch) -> list[dict]:
 async def test_saves_publish_events_after_commit(client: AsyncClient, captured: list[dict]) -> None:
     t = await team(client)
     captured.clear()
-    entry = (await purchase(client, t, t.operator)).json()
-    await act(client, t, t.admin, entry, "approve")
+    entry = (await purchase(client, t, t.operator, approve=False)).json()
+    await act(client, t, t.manager, entry, "approve")
     await client.post(
         t.url(f"/entries/purchase/{entry['id']}/comments"),
         json={"comment": "ok?"},
         headers=bearer(t.finance),
     )
-    await act(client, t, t.finance, entry, "hold", "Rate?")
+    await client.post(
+        t.url(f"/entries/purchase/{entry['id']}/escalate"),
+        json={"comment": "Rate?"},
+        headers=bearer(t.finance),
+    )
 
     entry_events = [(e["action"], e["status"]) for e in captured if e["type"] == "entry"]
     assert entry_events == [
         ("created", "pending"),
         ("approved", "approved"),
         ("commented", "approved"),
-        ("held", "on_hold"),
+        ("escalated", "approved"),
     ]
     first = next(e for e in captured if e["type"] == "entry")
     assert first["ref_no"] == entry["ref_no"] and first["actor_name"] == "Ops"

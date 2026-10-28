@@ -14,7 +14,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.permissions import CompanyPermission as P
 from app.auth.permissions import visible_entry_types
-from app.core.clock import now
 from app.core.errors import ConflictError, ForbiddenError, InvalidError, NotFoundError
 from app.models import Production, ProductionOutput, Purchase, Sale, grades
 from app.models.catalog import process_of, to_kg
@@ -176,11 +175,6 @@ def calculated_input(output_kg: Decimal) -> Decimal:
     return total.quantize(Decimal(1), rounding=ROUND_HALF_UP)
 
 
-def _needs_note(fields: dict[str, Any]) -> bool:
-    """A production run over the hard wastage limit, which must wait for a debit note."""
-    return "wastage_pct" in fields and wastage_service.needs_debit_note(fields["wastage_pct"])
-
-
 def _outputs(data: ProductionInput) -> dict[str, Decimal]:
     """{product: qty in its unit}, leaving out zeros."""
     return {o.product: o.qty for o in data.outputs if o.qty > 0}
@@ -234,7 +228,7 @@ async def create(
     entry = kind.model(
         company_id=ctx.company.id,
         ref_no=await next_ref(db, ctx, kind.prefix),
-        status=workflow_service.initial_status(ctx, _needs_note(fields)),
+        status=workflow_service.initial_status(),
         created_by_id=ctx.user.id,
         **fields,
     )
@@ -244,8 +238,6 @@ async def create(
     elif isinstance(data, PurchaseInput | SaleInput):
         # Made from an uploaded bill means "read from the bill"; otherwise as sent.
         entry.source = EntrySource.AI if data.document_id else data.source
-    if entry.status == "approved":
-        workflow_service.stamp_approval(entry, ctx.user)
     db.add(entry)
     await _flush(db, kind)
     if isinstance(data, PurchaseInput | SaleInput) and data.document_id:
@@ -253,7 +245,8 @@ async def create(
     workflow_service.add_event(
         db, entry_type=entry_type, entry=entry, actor=ctx.user, action="created"
     )
-    await stock_service.assert_stock_not_negative(db, ctx.company.id)
+    # It does not count in stock until the Manager approves, but it must fit in stock now.
+    await stock_service.assert_stock_not_negative(db, ctx.company.id, (kind.model, entry.id))
     await db.commit()
     return entry
 
@@ -278,7 +271,7 @@ async def update(
     kind = KINDS[entry_type]
     entry = await get_entry(db, ctx, entry_type, entry_id)
     if not workflow_service.can_edit(ctx, entry):
-        raise ForbiddenError("This entry can no longer be edited")
+        raise ForbiddenError("Only the Super Admin can edit entries")
     await stock_service.lock_company(db, ctx.company.id)
     fields = await _fields(db, ctx, entry_type, data, entry)
     changes = {
@@ -299,7 +292,7 @@ async def update(
         return entry
     for key, value in fields.items():
         setattr(entry, key, value)
-    workflow_service.reset_after_edit(ctx, entry, _needs_note(fields))
+    workflow_service.reset_after_edit(entry)
     await _flush(db, kind)
     workflow_service.add_event(
         db,
@@ -310,23 +303,7 @@ async def update(
         comment=data.comment,
         changes=changes,
     )
-    await stock_service.assert_stock_not_negative(db, ctx.company.id)
-    await db.commit()
-    return entry
-
-
-async def delete(
-    db: AsyncSession, ctx: CompanyContext, entry_type: EntryType, entry_id: int, reason: str
-) -> Entry:
-    """Soft delete: the row stays for the audit trail but stops counting anywhere."""
-    entry = await get_entry(db, ctx, entry_type, entry_id)
-    if not workflow_service.can_delete(ctx, entry):
-        raise ForbiddenError("This entry cannot be deleted")
-    await stock_service.lock_company(db, ctx.company.id)
-    entry.deleted_at = now()
-    workflow_service.add_event(
-        db, entry_type=entry_type, entry=entry, actor=ctx.user, action="deleted", comment=reason
-    )
-    await stock_service.assert_stock_not_negative(db, ctx.company.id)
+    also = None if entry.approved_at else (kind.model, entry.id)
+    await stock_service.assert_stock_not_negative(db, ctx.company.id, also)
     await db.commit()
     return entry

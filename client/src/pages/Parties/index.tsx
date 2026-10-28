@@ -63,7 +63,7 @@ export default function Parties() {
     <div className="page">
       <PageHeader
         title="Suppliers & buyers"
-        subtitle="Each company has its own list. Managers and Admins can add or edit. Everyone can pick from it when entering bills."
+        subtitle="Each company has its own list. The Manager can add or edit. Everyone can pick from it when entering bills."
         extra={
           canManage && (
             <Button type="primary" size="large" icon={<PlusOutlined />} onClick={() => setEditing('new')}>

@@ -81,8 +81,9 @@ export function combineSummaries(list: CompanySummary[]): CompanySummary {
     queue: {
       pending: sum((s) => s.queue.pending),
       approved: sum((s) => s.queue.approved),
-      on_hold: sum((s) => s.queue.on_hold),
-      escalated: sum((s) => s.queue.escalated),
+      change_requested: sum((s) => s.queue.change_requested),
+      escalated_to_incharge: sum((s) => s.queue.escalated_to_incharge),
+      escalated_to_manager: sum((s) => s.queue.escalated_to_manager),
       debit_notes_due: sum((s) => s.queue.debit_notes_due),
     },
   }

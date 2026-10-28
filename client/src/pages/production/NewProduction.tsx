@@ -318,7 +318,7 @@ export default function NewProduction() {
             )}
             {returnedTooMuch && <Alert type="error" showIcon style={{ marginTop: 16 }} title={`Returned to stock must be less than ${formatKg(b.calculatedKg)}.`} />}
             {overStock && (
-              <Alert type="error" showIcon style={{ marginTop: 16 }} title={`Only ${formatKg(available)} of Grade A ${itemName(material!).toLowerCase()} is in stock.`} description="Check the weights, enter the missing purchase, or ask the Admin to change a Grade B purchase to Grade A." />
+              <Alert type="error" showIcon style={{ marginTop: 16 }} title={`Only ${formatKg(available)} of Grade A ${itemName(material!).toLowerCase()} is in stock.`} description="Check the weights, enter the missing purchase, or ask the Manager to get a Grade B purchase changed to Grade A." />
             )}
           </>
         )}
@@ -350,7 +350,7 @@ export default function NewProduction() {
                 ))}
               </div>
               <div>
-                <Alert type="info" showIcon title={`${formatKg(stockOutKg)} of ${itemName(material).toLowerCase()} is taken out of stock when you save`} description="The products are added to stock. It becomes final after the Admin and Finance check it." />
+                <Alert type="info" showIcon title={`${formatKg(stockOutKg)} of ${itemName(material).toLowerCase()} will be taken out of stock`} description="It goes to the Manager first. Stock changes when the Manager approves. It becomes final after Finance approves." />
                 <div style={{ marginTop: 12 }}>
                   <div style={{ fontWeight: 700, marginBottom: 6 }}>Notes (optional)</div>
                   <Input.TextArea rows={3} value={notes} maxLength={2000} onChange={(e) => setNotes(e.target.value)} placeholder="e.g. Reactor 2 down for an hour" />

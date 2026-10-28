@@ -6,11 +6,11 @@ import type { EntryStatus, EntryType } from '../../types/entries'
 import { statusMeta } from '../../utils/entryStatus'
 import { formatINRShort } from '../../utils/format'
 
-const ORDER: EntryStatus[] = ['pending', 'approved', 'on_hold', 'verified', 'rejected']
-const COLORS: Record<EntryStatus, string> = { pending: '#D98A0B', approved: '#2F6FEB', on_hold: '#D4380D', verified: '#1F9D6B', rejected: '#C9CED6' }
+const ORDER: EntryStatus[] = ['pending', 'approved', 'change_requested', 'verified', 'rejected']
+const COLORS: Record<EntryStatus, string> = { pending: '#D98A0B', approved: '#2F6FEB', change_requested: '#D4380D', verified: '#1F9D6B', rejected: '#C9CED6' }
 
 /**
- * Where this period's entries stand: pending, approved, on hold, verified, rejected. Operators
+ * Where this period's entries stand: with the Manager, with Finance, with the Super Admin, final, rejected. Operators
  * (e.g. the purchase in-charge) see their own entries; everyone else sees the whole company.
  */
 export default function StatusBoard({ type, companies }: { type: EntryType; companies: Company[] }) {
@@ -18,7 +18,7 @@ export default function StatusBoard({ type, companies }: { type: EntryType; comp
   const summary = useStatusSummary({ type: [type], company_id: companies.map((c) => c.id), date_from: range[0], date_to: range[1] }, companies.length > 0)
   const rows = ORDER.map((s) => summary.data?.find((r) => r.status === s) ?? { status: s, count: 0, amount: 0 })
   const total = rows.reduce((n, r) => n + r.count, 0)
-  const open = rows.filter((r) => r.status === 'pending' || r.status === 'approved' || r.status === 'on_hold').reduce((n, r) => n + r.count, 0)
+  const open = rows.filter((r) => r.status === 'pending' || r.status === 'approved' || r.status === 'change_requested').reduce((n, r) => n + r.count, 0)
 
   return (
     <div className={`surface chart-card fade-in ${summary.isPlaceholderData ? 'refreshing' : 'settled'}`} style={{ marginBottom: 20 }}>

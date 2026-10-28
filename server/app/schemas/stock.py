@@ -17,7 +17,7 @@ class StockLine(BaseModel):
     item: str
     grade: Grade
     unit: str  # "kg" or "L"
-    # Total of the Admin's stock-check differences (book − counted), already in out / balance.
+    # Total of the Manager's stock-check differences (book − counted), already in out / balance.
     counted_adjustment: float = 0
     # Every live entry, including ones still waiting for approval.
     provisional: StockFigures
@@ -34,7 +34,7 @@ class CompanyStock(BaseModel):
     output: list[StockLine]  # Grade A products: in from production, out by Grade A sales
     resale: list[StockLine]  # Grade B raw material: bought and re-sold as it is
     books: list[StockLine]  # Grade C book stock (no goods move): only items that moved
-    # The Admin's physical stock check, every 1 or 3 months.
+    # The Manager's physical stock check, every 1 or 3 months.
     check_every_months: int
     last_check_on: date | None
     next_check_due: date
@@ -82,8 +82,9 @@ class QueueCounts(BaseModel):
 
     pending: int
     approved: int
-    on_hold: int
-    escalated: int  # Finance raised a mismatch that is not resolved yet
+    change_requested: int  # the Manager asked the Super Admin to edit or reject
+    escalated_to_incharge: int  # the Manager is waiting on an in-charge
+    escalated_to_manager: int  # Finance is waiting on the Manager
     debit_notes_due: int  # runs over the hard wastage limit without a debit note
 
 

@@ -63,8 +63,10 @@ class WorkflowMixin(TimestampMixin):
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     verified_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    # Set when Finance escalates a mismatch to the operations team; cleared when resolved.
+    # An open escalation: the Manager asked the in-charge ("incharge"), or Finance asked the
+    # Manager ("manager"). They talk in the comments; the asker's approval closes it.
     escalated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    escalated_to: Mapped[str | None] = mapped_column(String(20))
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     @declared_attr.directive

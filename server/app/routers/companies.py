@@ -93,7 +93,7 @@ async def company_audit_logs(
     ctx: CompanyContext = Depends(require_company_permission(CompanyPermission.VIEW_AUDIT)),
     db: AsyncSession = Depends(get_db),
 ) -> Paginated[AuditLogRead]:
-    """The company Admin's view of who did what in their company."""
+    """The Manager's view of who did what in their company."""
     return await audit_service.list_logs(
         db,
         account_id=ctx.user.account_id,

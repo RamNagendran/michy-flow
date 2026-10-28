@@ -11,7 +11,7 @@ interface Values {
   note: string
 }
 
-/** The Admin declares the wastage % acceptable for a month (up to the 2% limit). */
+/** The Manager declares the wastage % acceptable for a month (up to the 2% limit). */
 export default function AllowanceModal({ companyId, open, current, onClose }: { companyId: number; open: boolean; current?: number; onClose: () => void }) {
   const [form] = Form.useForm<Values>()
   const save = useDeclareAllowance()

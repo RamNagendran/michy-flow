@@ -6,7 +6,7 @@ import type { Dayjs } from 'dayjs'
 import { itemName, WASTAGE_ALERT_PCT } from '../../data/catalog'
 import { useEntries } from '../../hooks/queries/entries'
 import type { Company } from '../../types/auth'
-import type { EntryRow, EntryStatus, EntryType, Grade } from '../../types/entries'
+import type { EntryRow, EntryStatus, EntryType, EscalatedTo, Grade } from '../../types/entries'
 import { formatDate, formatINR, formatKg, formatPercent, formatQty, formatRateIn } from '../../utils/format'
 import { seriesColors } from '../../styles/theme'
 import { GradeTag, SourceTag, StatusTag } from '../ui'
@@ -137,12 +137,14 @@ interface Props {
   partyId?: number
   /** Only this item. */
   item?: string
-  /** Only entries Finance escalated to the operations team. */
+  /** Only entries with (true) or without (false) an open escalation. */
   escalated?: boolean
+  /** Only entries escalated to this side. */
+  escalatedTo?: EscalatedTo
 }
 
 /** Entries from the server with search, filters and paging. Click a row for the full entry. */
-export default function EntryTable({ types, companies, statuses, pageSize = 15, compact, partyId, item, escalated }: Props) {
+export default function EntryTable({ types, companies, statuses, pageSize = 15, compact, partyId, item, escalated, escalatedTo }: Props) {
   const [page, setPage] = useState(1)
   const [q, setQ] = useState('')
   const [status, setStatus] = useState<EntryStatus>()
@@ -160,13 +162,14 @@ export default function EntryTable({ types, companies, statuses, pageSize = 15, 
       party_id: partyId,
       item,
       escalated,
+      escalated_to: escalatedTo,
       q: q.trim() || undefined,
       date_from: range?.[0]?.format('YYYY-MM-DD'),
       date_to: range?.[1]?.format('YYYY-MM-DD'),
       page,
       page_size: pageSize,
     }),
-    [types, companies, companyId, statuses, status, grade, q, range, page, pageSize, partyId, item, escalated],
+    [types, companies, companyId, statuses, status, grade, q, range, page, pageSize, partyId, item, escalated, escalatedTo],
   )
   const entries = useEntries(query, companies.length > 0)
   const reset = <T,>(set: (v: T) => void) => (v: T) => {

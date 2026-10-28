@@ -28,10 +28,7 @@ export default function SavedEntry({ entry, again }: { entry: EntryDetail; again
           ['Quantity × rate', `${formatQty(entry.qty, entry.unit)} × ${formatRateIn(entry.rate ?? 0, entry.unit)}`],
           ['Value', formatINR(entry.amount ?? 0)],
         ]
-  const next =
-    entry.status === 'approved'
-      ? 'You can approve entries yourself, so it went straight to Finance for verification.'
-      : 'The company Admin checks it next, then Finance verifies it.'
+  const next = 'The Manager checks it next. Then Finance gives the final approval.'
   return (
     <SavedResult
       title={`${what[entry.type]} saved`}
@@ -43,9 +40,9 @@ export default function SavedEntry({ entry, again }: { entry: EntryDetail; again
       refId={entry.ref_no}
       lines={lines}
       effects={[
-        <>Counted in stock straight away</>,
-        <>Becomes final when Finance verifies it</>,
-        ...(entry.wastage_flagged ? [<>Wastage is above 2% — the Admin is alerted</>] : []),
+        <>Goes into stock when the Manager approves it</>,
+        <>Becomes final when Finance approves it</>,
+        ...(entry.wastage_flagged ? [<>Wastage is above 2%. The Manager is told.</>] : []),
       ]}
       actions={[
         { label: `Record another`, onClick: again, primary: true },

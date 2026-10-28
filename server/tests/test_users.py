@@ -35,12 +35,12 @@ async def test_new_user_must_change_temporary_password(client: AsyncClient) -> N
 
 async def test_access_must_be_global_or_company(client: AsyncClient) -> None:
     admin, a, _ = await _setup(client)
-    both = {"global_role": "ceo", "memberships": [{"company_id": a["id"], "role": "admin"}]}
+    both = {"global_role": "ceo", "memberships": [{"company_id": a["id"], "role": "manager"}]}
     cases = [
         {},  # neither
         both,
         {"memberships": [{"company_id": a["id"], "role": "operator", "duties": []}]},
-        {"memberships": [{"company_id": a["id"], "role": "admin"}] * 2},
+        {"memberships": [{"company_id": a["id"], "role": "manager"}] * 2},
         {"memberships": [{"company_id": a["id"], "role": "owner"}]},
     ]
     for access in cases:
@@ -58,7 +58,7 @@ async def test_cannot_grant_companies_of_another_account(client: AsyncClient) ->
         json={
             "email": "x@example.com",
             "full_name": "X",
-            "memberships": [{"company_id": foreign["id"], "role": "admin"}],
+            "memberships": [{"company_id": foreign["id"], "role": "manager"}],
         },
         headers=bearer(admin),
     )
@@ -102,7 +102,7 @@ async def test_multi_company_membership_with_different_roles(client: AsyncClient
         "verify_entry",
         "view_finance",
     }
-    assert perms["B"] == {"view", "comment_entry", "enter_sales"}
+    assert perms["B"] == {"view", "view_stock", "comment_entry", "enter_sales"}
 
 
 async def test_changing_access_takes_effect_immediately(client: AsyncClient) -> None:
@@ -115,7 +115,7 @@ async def test_changing_access_takes_effect_immediately(client: AsyncClient) -> 
 
     res = await client.put(
         f"/users/{user_id}/access",
-        json={"memberships": [{"company_id": b["id"], "role": "admin"}]},
+        json={"memberships": [{"company_id": b["id"], "role": "manager"}]},
         headers=bearer(admin),
     )
     assert res.status_code == 200
@@ -186,7 +186,10 @@ async def test_only_super_admin_manages_users(client: AsyncClient) -> None:
     company_admin = await login_new_user(
         client,
         await create_user(
-            client, admin, "adm@example.com", memberships=[{"company_id": a["id"], "role": "admin"}]
+            client,
+            admin,
+            "adm@example.com",
+            memberships=[{"company_id": a["id"], "role": "manager"}],
         ),
     )
     assert (await client.get("/users", headers=bearer(company_admin))).status_code == 403
@@ -209,3 +212,17 @@ async def test_user_actions_are_audited(client: AsyncClient) -> None:
     assert logs["items"][0]["actor_name"] == "Priya Sundar"
     # Temporary passwords are never written to the log.
     assert created["temporary_password"] not in str(logs)
+
+
+async def test_the_admin_role_cannot_be_given(client: AsyncClient) -> None:
+    admin, a, _ = await _setup(client)
+    res = await client.post(
+        "/users",
+        json={
+            "email": "x@example.com",
+            "full_name": "X",
+            "memberships": [{"company_id": a["id"], "role": "admin"}],
+        },
+        headers=bearer(admin),
+    )
+    assert res.status_code == 422

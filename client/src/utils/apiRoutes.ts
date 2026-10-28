@@ -34,7 +34,6 @@ export const API_ROUTES = {
     action: (companyId: number, type: string, id: number, action: string) => `/companies/${companyId}/entries/${type}/${id}/actions/${action}`,
     comments: (companyId: number, type: string, id: number) => `/companies/${companyId}/entries/${type}/${id}/comments`,
     escalate: (companyId: number, type: string, id: number) => `/companies/${companyId}/entries/${type}/${id}/escalate`,
-    resolve: (companyId: number, type: string, id: number) => `/companies/${companyId}/entries/${type}/${id}/resolve`,
     statusSummary: '/entries/status-summary',
   },
   reports: {

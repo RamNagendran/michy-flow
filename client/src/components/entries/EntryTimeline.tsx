@@ -8,15 +8,17 @@ import type { EntryDetail, EntryEvent } from '../../types/entries'
 
 const eventMeta: Record<string, { label: string; color: string }> = {
   created: { label: 'entered it', color: '#2F6FEB' },
-  approved: { label: 'approved it (Admin)', color: '#1f9d6b' },
-  verified: { label: 'checked it (Finance)', color: '#137a52' },
-  held: { label: 'put it on hold', color: '#D4380D' },
-  rejected: { label: 'rejected it', color: '#8a919e' },
-  edited: { label: 'edited it', color: '#7A5AF8' },
-  deleted: { label: 'deleted it', color: '#8a919e' },
+  approved: { label: 'approved it (Manager)', color: '#1f9d6b' },
+  verified: { label: 'gave the final approval (Finance)', color: '#137a52' },
+  escalated: { label: 'escalated it', color: '#D4380D' },
+  change_requested: { label: 'asked the Super Admin to change it', color: '#D4380D' },
+  rejected: { label: 'rejected it (Super Admin)', color: '#8a919e' },
+  edited: { label: 'changed it (Super Admin)', color: '#7A5AF8' },
   commented: { label: 'commented', color: '#d98a0b' },
-  escalated: { label: 'escalated it to operations (Finance)', color: '#D4380D' },
-  resolved: { label: 'resolved the escalation', color: '#1f9d6b' },
+  // Older entries only.
+  held: { label: 'put it on hold', color: '#D4380D' },
+  deleted: { label: 'deleted it', color: '#8a919e' },
+  resolved: { label: 'closed the escalation', color: '#1f9d6b' },
   debit_note: { label: 'recorded a debit note', color: '#0F9D8A' },
 }
 

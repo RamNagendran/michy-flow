@@ -48,9 +48,8 @@ export const globalRoleLabel: Record<GlobalRole, string> = { super_admin: 'Super
 
 export const companyRoleLabel: Record<CompanyRole, string> = {
   manager: 'Manager',
-  admin: 'Admin',
   finance: 'Finance',
-  operator: 'Operator',
+  operator: 'In-charge',
 }
 
 export const dutyLabel: Record<Duty, string> = { purchase: 'Purchase', sales: 'Sales', production: 'Production', shift: 'Shift worker' }
@@ -59,7 +58,6 @@ export const roleColor: Record<GlobalRole | CompanyRole, string> = {
   super_admin: '#D82E54',
   ceo: '#191919',
   manager: '#7A5AF8',
-  admin: '#B8213F',
   finance: '#0E9384',
   operator: '#2F6FEB',
 }
@@ -67,33 +65,32 @@ export const roleColor: Record<GlobalRole | CompanyRole, string> = {
 export const roleDescription: Record<GlobalRole | CompanyRole, string> = {
   super_admin: 'Manages everything: companies, users, item lists and oil factor.',
   ceo: 'Can see all companies. Cannot change anything.',
-  manager: 'Runs one company. Sees all entries, but cannot add or change them. Manages suppliers and buyers.',
-  admin: 'Checks and approves entries. Handles wastage and grade A/B/C stock.',
-  finance: 'Checks entries again, asks about mismatches, approves or puts on hold.',
-  operator: 'Only enters purchases, sales or production, as ticked for them. Shift workers are listed when production is entered.',
+  manager: 'Runs one company. Checks every entry first: approves it, escalates it to the in-charge, or asks the Super Admin to change it. Handles suppliers, buyers, wastage and stock checks.',
+  finance: 'Gives the final approval after the Manager, or escalates it back to the Manager.',
+  operator: 'In-charge. Enters purchases, sales or production, as ticked for them. Sees their own entries and the stock. Shift workers are listed when production is entered.',
 }
 
 export type MatrixColumn = GlobalRole | CompanyRole
 
-export const MATRIX_COLUMNS: MatrixColumn[] = ['super_admin', 'ceo', 'manager', 'admin', 'finance', 'operator']
+export const MATRIX_COLUMNS: MatrixColumn[] = ['super_admin', 'ceo', 'manager', 'finance', 'operator']
 
 /** `true` = allowed, `'duty'` = only for the duties ticked for that operator. */
 export const ROLE_MATRIX: [string, Partial<Record<MatrixColumn, true | 'duty'>>][] = [
-  ['See company data', { super_admin: true, ceo: true, manager: true, admin: true, finance: true, operator: 'duty' }],
-  ['See stock screens', { super_admin: true, ceo: true, manager: true, admin: true, finance: true }],
+  ['See company data', { super_admin: true, ceo: true, manager: true, finance: true, operator: 'duty' }],
+  ['See stock', { super_admin: true, ceo: true, manager: true, finance: true, operator: true }],
   ['See every company', { super_admin: true, ceo: true }],
-  ['See all entries (operators see only their own)', { super_admin: true, ceo: true, manager: true, admin: true, finance: true }],
-  ['Comment on entries and reply to questions', { super_admin: true, manager: true, admin: true, finance: true, operator: true }],
-  ['Enter purchases, sales, production', { super_admin: true, admin: true, operator: 'duty' }],
-  ['Edit an entry', { super_admin: true, admin: true }],
-  ['Delete an entry', { super_admin: true, admin: true }],
-  ['Approve operator entries', { super_admin: true, admin: true }],
-  ['Finance check: approve or put on hold', { super_admin: true, finance: true }],
-  ['Add and edit suppliers and buyers', { super_admin: true, manager: true, admin: true }],
-  ['Set monthly wastage limit (1–2%)', { super_admin: true, admin: true }],
-  ['Manage grade A / B / C stock', { super_admin: true, admin: true }],
-  ['See finance and reports', { super_admin: true, ceo: true, manager: true, admin: true, finance: true }],
+  ['See all entries (in-charges see only their own)', { super_admin: true, ceo: true, manager: true, finance: true }],
+  ['Comment on entries', { super_admin: true, manager: true, finance: true, operator: true }],
+  ['Enter purchases, sales, production', { super_admin: true, operator: 'duty' }],
+  ['Approve first, or escalate to the in-charge', { super_admin: true, manager: true }],
+  ['Ask the Super Admin to change an entry', { super_admin: true, manager: true }],
+  ['Final approval, or escalate to the Manager', { super_admin: true, finance: true }],
+  ['Change or reject an entry', { super_admin: true }],
+  ['Add and edit suppliers and buyers', { super_admin: true, manager: true }],
+  ['Set monthly wastage limit and count stock', { super_admin: true, manager: true }],
+  ['Manage grade A / B / C stock', { super_admin: true, manager: true }],
+  ['See finance and reports', { super_admin: true, ceo: true, manager: true, finance: true }],
   ['See oil production KPI', { super_admin: true, ceo: true, manager: true }],
-  ['See the audit log', { super_admin: true, admin: true }],
+  ['See the audit log', { super_admin: true, manager: true }],
   ['Manage companies, users and item lists', { super_admin: true }],
 ]

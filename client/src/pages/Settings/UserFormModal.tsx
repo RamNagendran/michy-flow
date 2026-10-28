@@ -86,7 +86,7 @@ export default function UserFormModal({ user, companies, onClose, onCreated }: P
           <Segmented<Level>
             block
             options={[
-              { value: 'company', label: 'Company level (Manager, Admin, Finance, Operator)' },
+              { value: 'company', label: 'Company level (Manager, Finance, In-charge)' },
               { value: 'global', label: 'Global (Super Admin, CEO)' },
             ]}
           />
