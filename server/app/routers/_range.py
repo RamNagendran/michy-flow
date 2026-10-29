@@ -7,8 +7,9 @@ from fastapi import Query
 
 from app.core.errors import InvalidError
 
-# Day points for up to four months, weeks for a little over a year, months beyond that.
-_MAX_DAYS = {"day": 120, "week": 400, "month": 1100}
+# Day points for up to four months, weeks for a little over a year, months for three years,
+# years for ten.
+_MAX_DAYS = {"day": 120, "week": 400, "month": 1100, "year": 3660}
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,13 +20,17 @@ class Range:
 
 
 def _auto_bucket(days: int) -> str:
-    return "day" if days <= 45 else "week" if days <= 200 else "month"
+    if days <= 45:
+        return "day"
+    if days <= 200:
+        return "week"
+    return "month" if days <= _MAX_DAYS["month"] else "year"
 
 
 def report_range(
     date_from: date = Query(...),
     date_to: date = Query(...),
-    bucket: str | None = Query(None, pattern="^(day|week|month)$"),
+    bucket: str | None = Query(None, pattern="^(day|week|month|year)$"),
 ) -> Range:
     """Validated range. Without a bucket, one is picked so charts have a sensible point count."""
     if date_to < date_from:

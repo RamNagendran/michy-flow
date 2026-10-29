@@ -42,7 +42,7 @@ export default function ShiftCrew({ companyId, crew, onCrew, hours, onHours }: P
       </div>
       <div>
         <div style={{ fontWeight: 700, marginBottom: 6 }}>{requiredMark('Running hours', { required: false })}</div>
-        <InputNumber<number> size="large" value={hours} onChange={onHours} min={0.25} max={24} step={0.5} precision={2} suffix="h" placeholder={`of ${SHIFT_HOURS}`} style={{ width: '100%' }} />
+        <InputNumber<number> size="large" value={hours} onChange={onHours} min={0.25} max={24} step={0.5} precision={2} suffix="hours" placeholder={`of ${SHIFT_HOURS}`} style={{ width: '100%' }} />
         <div className="faint" style={{ fontSize: 12.5, marginTop: 4 }}>
           {efficiency === null ? `How long the plant ran, out of a ${SHIFT_HOURS}-hour shift` : `${formatPercent(efficiency, 0)} of the shift`}
         </div>

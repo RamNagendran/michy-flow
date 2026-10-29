@@ -13,7 +13,7 @@ import { useAuth } from '../../hooks/useAuth'
 import { usePeriod } from '../../hooks/usePeriod'
 import { seriesColors } from '../../styles/theme'
 import type { StockLine } from '../../types/entries'
-import { formatINRShort, formatPercent, formatQty, formatTonnes } from '../../utils/format'
+import { formatINRShort, formatPercent, formatQty, formatKg } from '../../utils/format'
 import { periodLabels } from '../../utils/period'
 import { roleColor } from '../../utils/permissions'
 import { accessRoleLabel } from '../../utils/user'
@@ -32,8 +32,8 @@ function StockCards({ lines, empty }: { lines: StockLine[]; empty: string }) {
             <StockFigure line={l} />
           </div>
           <div className="num muted" style={{ fontSize: 12.5, marginTop: 6, display: 'flex', justifyContent: 'space-between' }}>
-            <span>In {l.unit === 'L' ? formatQty(l.provisional.in_qty, 'L') : formatTonnes(l.provisional.in_qty)}</span>
-            <span>Out {l.unit === 'L' ? formatQty(l.provisional.out_qty, 'L') : formatTonnes(l.provisional.out_qty)}</span>
+            <span>In {l.unit === 'L' ? formatQty(l.provisional.in_qty, 'L') : formatKg(l.provisional.in_qty)}</span>
+            <span>Out {l.unit === 'L' ? formatQty(l.provisional.out_qty, 'L') : formatKg(l.provisional.out_qty)}</span>
           </div>
         </div>
       ))}
@@ -118,9 +118,9 @@ export default function CompanyDetail() {
 
       {t && (
         <div className="grid grid-4" style={{ marginBottom: 8 }}>
-          <Stat label={`Purchased · ${periodLabels[period].toLowerCase()}`} value={formatINRShort(t.purchases.amount)} sub={`${formatTonnes(t.purchases.qty_kg)} · ${t.purchases.count} bills`} />
-          <Stat label="Processed" value={formatTonnes(t.production.input_kg)} sub={`${formatTonnes(t.production.output_kg)} out · ${formatPercent(t.production.input_kg ? (t.production.wastage_kg / t.production.input_kg) * 100 : 0)} wastage`} />
-          <Stat label="Sold" value={formatINRShort(t.sales.amount)} sub={`${formatTonnes(t.sales.qty_kg)} · ${t.sales.count} invoices`} />
+          <Stat label={`Purchased · ${periodLabels[period].toLowerCase()}`} value={formatINRShort(t.purchases.amount)} sub={`${formatKg(t.purchases.qty_kg)} · ${t.purchases.count} bills`} />
+          <Stat label="Processed" value={formatKg(t.production.input_kg)} sub={`${formatKg(t.production.output_kg)} out · ${formatPercent(t.production.input_kg ? (t.production.wastage_kg / t.production.input_kg) * 100 : 0)} wastage`} />
+          <Stat label="Sold" value={formatINRShort(t.sales.amount)} sub={`${formatKg(t.sales.qty_kg)} · ${t.sales.count} invoices`} />
           <Stat label="Not final yet" value={t.queue.pending + t.queue.approved + t.queue.change_requested} sub={`${t.queue.pending} Manager · ${t.queue.approved} Finance · ${t.queue.change_requested} Super Admin`} />
         </div>
       )}

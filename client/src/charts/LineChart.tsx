@@ -32,7 +32,7 @@ export default function LineChart({ height = 220, ...spec }: LineChartProps) {
     const fields = spec.series.map((s) => s.field)
     const data = withFormatted(spec.data, fields, spec.format)
     const chart = root.container.children.push(
-      am5xy.XYChart.new(root, { panX: false, panY: false, wheelX: 'none', wheelY: 'none', layout: root.verticalLayout, paddingLeft: 0, paddingRight: 4, paddingTop: 4, paddingBottom: 0 }),
+      am5xy.XYChart.new(root, { panX: false, panY: false, wheelX: 'none', wheelY: 'none', layout: root.verticalLayout, paddingLeft: 0, paddingRight: 10, paddingTop: 8, paddingBottom: 0 }),
     )
     chart.zoomOutButton.set('forceHidden', true)
 
@@ -83,6 +83,8 @@ export default function LineChart({ height = 220, ...spec }: LineChartProps) {
           stroke: color,
           fill: color,
           connect: true,
+          // The first and last points sit on the plot edge; unmasked, they are drawn whole.
+          maskBullets: false,
           ...(i === 0 ? { tooltip: am5.Tooltip.new(root, { labelText: `[fontSize:11px ${ink.muted}]{categoryX}[/]\n${rows}`, pointerOrientation: 'horizontal' }) } : {}),
         }),
       )

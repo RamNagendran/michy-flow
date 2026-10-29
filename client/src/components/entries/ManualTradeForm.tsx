@@ -8,7 +8,7 @@ import { gradeInfo, itemAllowed, itemsFor, stockSection } from '../../data/grade
 import { useParties } from '../../hooks/queries/parties'
 import { useStocks } from '../../hooks/queries/stock'
 import { useAccess } from '../../hooks/useAccess'
-import { formatINR, formatQty, formatRateIn, qtyInputProps } from '../../utils/format'
+import { formatINR, formatQty, formatRateIn, perUnit, qtyInputProps } from '../../utils/format'
 import type { EntryDraft } from '../../types/documents'
 import type { Grade } from '../../types/entries'
 import GradePicker from './GradePicker'
@@ -144,7 +144,7 @@ export default function ManualTradeForm({ kind, saving, onSaved, back }: { kind:
               <InputNumber<number> style={{ width: '100%' }} placeholder="e.g. 8,460" {...qtyInputProps(unit)} />
             </Form.Item>
             <Form.Item label={`Rate per ${unit === 'L' ? 'litre' : 'kg'}`} name="rate" rules={[{ required: true, type: 'number', min: 0, message: 'Enter the rate' }]}>
-              <InputNumber style={{ width: '100%' }} min={0} step={0.1} precision={2} prefix="₹" suffix={`/${unit}`} placeholder="e.g. 14.20" />
+              <InputNumber style={{ width: '100%' }} min={0} step={0.1} precision={2} prefix="₹" suffix={perUnit(unit)} placeholder="e.g. 14.20" />
             </Form.Item>
           </div>
         </div>

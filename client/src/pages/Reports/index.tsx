@@ -9,7 +9,7 @@ import { useAccess } from '../../hooks/useAccess'
 import { usePeriod } from '../../hooks/usePeriod'
 import { useReportCompany } from '../../hooks/useReportCompany'
 import type { TrendPoint } from '../../types/reports'
-import { formatINRShort, formatPercent, formatTonnes } from '../../utils/format'
+import { formatINRShort, formatPercent, formatKg } from '../../utils/format'
 import ProductionEfficiency from './ProductionEfficiency'
 
 function Tile({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: string }) {
@@ -58,11 +58,11 @@ export default function Reports() {
       <div className="grid grid-4 stagger">
         <Tile label="Sales" value={formatINRShort(t.sales)} />
         <Tile label="Purchases" value={formatINRShort(t.purchases)} />
-        <Tile label="Processed" value={formatTonnes(t.processed)} sub={`${formatTonnes(t.output)} came out`} />
+        <Tile label="Processed" value={formatKg(t.processed)} sub={`${formatKg(t.output)} came out`} />
         <Tile
           label="Wastage"
           value={formatPercent(t.wastagePct, 2)}
-          sub={`${formatTonnes(t.wastage)} missing · limit ${WASTAGE_ALERT_PCT}%`}
+          sub={`${formatKg(t.wastage)} missing · limit ${WASTAGE_ALERT_PCT}%`}
           tone={t.wastagePct > WASTAGE_ALERT_PCT ? '#D4380D' : undefined}
         />
       </div>
@@ -74,7 +74,6 @@ export default function Reports() {
 
       {oilIds.length > 0 && (
         <>
-          <SectionTitle title="Oil KPI" hint="CEO and Managers only" />
           <OilKpiPanel kpi={oil.kpi} bucket={trends.bucket} loading={oil.isLoading} refreshing={oil.isRefreshing} />
         </>
       )}

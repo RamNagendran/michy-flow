@@ -1,6 +1,6 @@
 import EntryListPage from '../../components/entries/EntryListPage'
-import { itemName, unitOf } from '../../data/catalog'
-import { formatKg, formatPercent, formatQty, formatTonnes } from '../../utils/format'
+import { itemName, toKg, unitOf } from '../../data/catalog'
+import { formatKg, formatPercent, formatQty } from '../../utils/format'
 
 export default function ProductionList() {
   return (
@@ -16,8 +16,8 @@ export default function ProductionList() {
         // The two biggest products by weight in the period, in their own units.
         const top = [...p.by_item].filter((i) => i.item !== 'waste').sort((a, b) => b.qty - a.qty).slice(0, 2)
         return [
-          { label: 'Processed', value: formatTonnes(p.processed_kg), sub: `${p.count} runs${p.returned_kg ? ` · ${formatKg(p.returned_kg)} returned` : ''}` },
-          ...top.map((i) => ({ label: `${itemName(i.item)} produced`, value: unitOf(i.item) === 'L' ? formatQty(i.qty, 'L') : formatTonnes(i.qty), sub: formatQty(i.qty, unitOf(i.item)) })),
+          { label: 'Processed', value: formatKg(p.processed_kg), sub: `${p.count} runs${p.returned_kg ? ` · ${formatKg(p.returned_kg)} returned` : ''}` },
+          ...top.map((i) => ({ label: `${itemName(i.item)} produced`, value: unitOf(i.item) === 'L' ? formatQty(i.qty, 'L') : formatKg(i.qty), sub: unitOf(i.item) === 'L' ? `${formatKg(toKg(i.item, i.qty))} by weight` : 'this period' })),
           ...Array.from({ length: 2 - top.length }, (_, n) => ({ label: n ? 'Second product' : 'Products', value: '—', sub: 'nothing produced' })),
           {
             label: 'Missing (wastage)',

@@ -21,7 +21,7 @@ from app.auth.permissions import CompanyPermission as P
 from app.core.clock import now
 from app.core.errors import ConflictError, ForbiddenError, InvalidError
 from app.models import DebitNote, Party, Purchase, User
-from app.models.catalog import unit_of
+from app.models.catalog import LITRE, unit_of
 from app.models.enums import EntryStatus, EntryType
 from app.schemas.entries import DebitNoteInput, DebitNoteRead
 from app.services import workflow_service
@@ -219,7 +219,7 @@ async def raise_note(
     unit = unit_of(purchase.material)
     extra = []
     if data.qty is not None:
-        extra.append(f"{data.qty.normalize():,f} {unit}")
+        extra.append(f"{data.qty.normalize():,f} {'litres' if unit == LITRE else 'kg'}")
     if data.amount is not None:
         extra.append(f"₹{data.amount:,.2f}")
     workflow_service.add_event(

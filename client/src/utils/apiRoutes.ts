@@ -41,6 +41,7 @@ export const API_ROUTES = {
     oilKpi: (companyId: number) => `/companies/${companyId}/oil-kpi`,
     prices: (companyId: number) => `/companies/${companyId}/prices`,
     production: (companyId: number) => `/companies/${companyId}/production-report`,
+    tradeAnalysis: (companyId: number) => `/companies/${companyId}/trade-analysis`,
   },
   wastage: {
     months: (companyId: number) => `/companies/${companyId}/wastage`,

@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react'
-import { Tag, Tooltip } from 'antd'
+import { Button, Popover, Tag, Tooltip } from 'antd'
 import {
   EditOutlined,
   InfoCircleOutlined,
+  QuestionCircleOutlined,
   ThunderboltFilled,
 } from '@ant-design/icons'
-import { formatKg, formatTonnes } from '../utils/format'
+import { formatKg } from '../utils/format'
 import { seriesColors } from '../styles/theme'
 import { itemName, type MaterialId, type OutputId } from '../data/catalog'
 import type { EntrySource, EntryStatus, EntryType, Grade } from '../types/entries'
@@ -60,6 +61,26 @@ export function SectionTitle({ title, hint, extra }: { title: ReactNode; hint?: 
   )
 }
 
+/**
+ * A small "How it works" button. Hover (or tap) opens a panel with the full explanation, so
+ * cards stay short and the details are one move away.
+ */
+export function HintButton({ title, children, label = 'How it works' }: { title: ReactNode; children: ReactNode; label?: string }) {
+  return (
+    <Popover
+      trigger={['hover', 'click']}
+      placement="bottomLeft"
+      title={<span style={{ fontSize: 15 }}>{title}</span>}
+      content={<div className="hint-panel">{children}</div>}
+      mouseEnterDelay={0.15}
+    >
+      <Button size="small" type="text" icon={<QuestionCircleOutlined />} className="hint-button" aria-label={label}>
+        {label}
+      </Button>
+    </Popover>
+  )
+}
+
 export function Help({ text }: { text: ReactNode }) {
   return (
     <Tooltip title={text}>
@@ -74,9 +95,6 @@ export function Qty({ kg, block, strong }: { kg: number; block?: boolean; strong
   return (
     <span className="num" style={{ display: block ? 'block' : 'inline' }}>
       <span style={{ fontWeight: strong ? 800 : 600, color: strong ? '#191919' : undefined }}>{formatKg(kg)}</span>
-      <span className="faint" style={{ fontSize: '0.86em', marginLeft: block ? 0 : 6, display: block ? 'block' : 'inline' }}>
-        {formatTonnes(kg)}
-      </span>
     </span>
   )
 }

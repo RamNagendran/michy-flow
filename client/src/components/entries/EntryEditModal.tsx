@@ -6,7 +6,7 @@ import { useParties } from '../../hooks/queries/parties'
 import { useUpdateEntry } from '../../hooks/queries/entries'
 import { errorMessage } from '../../services/apiError'
 import type { EntryDetail, Grade } from '../../types/entries'
-import { formatKg, kgInputProps, qtyInputProps } from '../../utils/format'
+import { formatKg, kgInputProps, perUnit, qtyInputProps, unitWord } from '../../utils/format'
 import { calculatedInput } from '../../utils/production'
 import { useAccess } from '../../hooks/useAccess'
 import GradePicker from './GradePicker'
@@ -136,7 +136,7 @@ export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail;
               <InputNumber<number> style={{ width: '100%' }} placeholder={String(leastInput)} {...kgInputProps} />
             </Form.Item>
           ) : (
-            <Form.Item label={`Quantity (${unit})`} name="qty" rules={[{ required: true, type: 'number', min: 0.001 }]}>
+            <Form.Item label={`Quantity (${unitWord(unit)})`} name="qty" rules={[{ required: true, type: 'number', min: 0.001 }]}>
               <InputNumber<number> style={{ width: '100%' }} {...qtyInputProps(unit)} />
             </Form.Item>
           )}
@@ -146,7 +146,7 @@ export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail;
             </Form.Item>
           ) : (
             <Form.Item label={`Rate per ${unit === "L" ? "litre" : "kg"}`} name="rate" rules={[{ required: true, type: 'number', min: 0 }]}>
-              <InputNumber style={{ width: '100%' }} prefix="₹" suffix={`/${unit}`} min={0} step={0.1} precision={2} />
+              <InputNumber style={{ width: '100%' }} prefix="₹" suffix={perUnit(unit)} min={0} step={0.1} precision={2} />
             </Form.Item>
           )}
         </div>
@@ -162,7 +162,7 @@ export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail;
               <InputNumber<number> style={{ width: '100%' }} placeholder="0" {...kgInputProps} />
             </Form.Item>
             {process.outputs.map((o) => (
-              <Form.Item key={o.id} label={`${o.name} (${o.unit})`} name={['outputs', o.id]}>
+              <Form.Item key={o.id} label={`${o.name} (${unitWord(o.unit)})`} name={['outputs', o.id]}>
                 <InputNumber<number> style={{ width: '100%' }} {...qtyInputProps(o.unit)} />
               </Form.Item>
             ))}

@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import BaseModel
 
-Bucket = Literal["day", "week", "month"]
+Bucket = Literal["day", "week", "month", "year"]
 
 
 class TrendPoint(BaseModel):
@@ -102,3 +102,114 @@ class ProductionReport(BaseModel):
     shift_hours: float
     by_shift: list[ShiftRow]
     by_operator: list[OperatorRow]
+
+
+# ---------------------------------------------------------------------------
+# Trade analysis (purchases or sales)
+#
+# Every row holds sums (bills, quantity, amount) and the lowest and highest single rate, never
+# an average: averages are amount ÷ quantity, worked out by the reader, so rows from several
+# companies can be added together without weighting mistakes.
+# ---------------------------------------------------------------------------
+
+
+class TradeTotals(BaseModel):
+    bills: int
+    qty_kg: float
+    qty_l: float
+    amount: float
+    parties: int
+
+
+class TradePeriod(BaseModel):
+    """One period, all items together. Empty periods are included as zeros."""
+
+    period: date
+    bills: int
+    qty_kg: float
+    qty_l: float
+    amount: float
+
+
+class TradeItem(BaseModel):
+    item: str
+    unit: str
+    bills: int
+    qty: float  # in the item's own unit
+    amount: float
+    min_rate: float
+    max_rate: float
+
+
+class TradeItemPeriod(TradeItem):
+    period: date
+
+
+class TradeParty(BaseModel):
+    party_id: int
+    name: str
+    gstin: str | None
+    city: str
+    bills: int
+    qty_kg: float
+    qty_l: float
+    amount: float
+    # Rates only when one item is chosen: across items they would mix tyres and steel.
+    min_rate: float | None
+    max_rate: float | None
+    last_rate: float | None
+    first_date: date
+    last_date: date
+
+
+class TradePartyPeriod(BaseModel):
+    period: date
+    party_id: int
+    bills: int
+    qty: float  # in the chosen item's unit; kg + litres are never mixed (see qty_kg/qty_l)
+    qty_kg: float
+    qty_l: float
+    amount: float
+    min_rate: float | None
+    max_rate: float | None
+
+
+class TradeGrade(BaseModel):
+    grade: str
+    bills: int
+    qty_kg: float
+    qty_l: float
+    amount: float
+
+
+class TradeBill(BaseModel):
+    """One bill of the chosen item, for the rate-by-bill chart."""
+
+    entry_date: date
+    party_id: int
+    ref_no: str
+    qty: float
+    rate: float
+    amount: float
+
+
+class TradeAnalysis(BaseModel):
+    side: Literal["purchase", "sale"]
+    item: str | None
+    unit: str | None  # the chosen item's unit
+    date_from: date
+    date_to: date
+    bucket: Bucket
+    totals: TradeTotals
+    # The same number of days just before date_from, for "vs previous period".
+    previous: TradeTotals
+    previous_from: date
+    previous_to: date
+    series: list[TradePeriod]
+    items: list[TradeItem]  # biggest amount first
+    item_series: list[TradeItemPeriod]  # only periods with bills
+    parties: list[TradeParty]  # biggest amount first
+    party_series: list[TradePartyPeriod]  # only periods with bills
+    grades: list[TradeGrade]  # A, B, C, always all three
+    bills: list[TradeBill]  # only with an item chosen; the latest BILL_LIMIT
+    bills_truncated: bool

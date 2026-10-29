@@ -1,6 +1,6 @@
 import { gradeInfo, type TradeKind } from '../../data/grades'
 import type { GradeTotal } from '../../types/entries'
-import { formatINRShort, formatQty, formatTonnes } from '../../utils/format'
+import { formatINRShort, formatQty, formatKg } from '../../utils/format'
 
 /** Period totals split into Grade A, B and C. */
 export default function GradeSplit({ kind, totals }: { kind: TradeKind; totals: GradeTotal[] }) {
@@ -17,7 +17,7 @@ export default function GradeSplit({ kind, totals }: { kind: TradeKind; totals: 
               {formatINRShort(t.amount)}
             </div>
             <div className="faint" style={{ fontSize: 12.5 }}>
-              {t.grade === 'C' ? `${t.count} entries · no goods moved` : `${formatTonnes(t.qty_kg)}${t.qty_l ? ` + ${formatQty(t.qty_l, "L")}` : ""} · ${t.count} ${kind === 'purchase' ? 'bills' : 'invoices'}`} · {g[kind].toLowerCase()}
+              {t.grade === 'C' ? `${t.count} entries · no goods moved` : `${formatKg(t.qty_kg)}${t.qty_l ? ` + ${formatQty(t.qty_l, "L")}` : ""} · ${t.count} ${kind === 'purchase' ? 'bills' : 'invoices'}`} · {g[kind].toLowerCase()}
             </div>
           </div>
         )

@@ -2,7 +2,7 @@
 
 import type { Unit } from '../data/catalog'
 
-export type Bucket = 'day' | 'week' | 'month'
+export type Bucket = 'day' | 'week' | 'month' | 'year'
 
 export interface TrendPoint {
   period: string
@@ -143,4 +143,107 @@ export interface StockCheck {
   counted_by_name: string | null
   created_at: string
   lines: CountLine[]
+}
+
+// Trade analysis (purchases or sales). Rows hold sums and the lowest / highest single rate;
+// an average rate is always amount ÷ quantity, so companies can be added together.
+
+export type TradeSide = 'purchase' | 'sale'
+
+export interface TradeTotals {
+  bills: number
+  qty_kg: number
+  qty_l: number
+  amount: number
+  parties: number
+}
+
+export interface TradePeriod {
+  period: string
+  bills: number
+  qty_kg: number
+  qty_l: number
+  amount: number
+}
+
+export interface TradeItem {
+  item: string
+  unit: Unit
+  bills: number
+  /** In the item's own unit. */
+  qty: number
+  amount: number
+  min_rate: number
+  max_rate: number
+}
+
+export interface TradeItemPeriod extends TradeItem {
+  period: string
+}
+
+export interface TradeParty {
+  party_id: number
+  name: string
+  gstin: string | null
+  city: string
+  bills: number
+  qty_kg: number
+  qty_l: number
+  amount: number
+  /** Only with one item chosen. */
+  min_rate: number | null
+  max_rate: number | null
+  last_rate: number | null
+  first_date: string
+  last_date: string
+}
+
+export interface TradePartyPeriod {
+  period: string
+  party_id: number
+  bills: number
+  qty: number
+  qty_kg: number
+  qty_l: number
+  amount: number
+  min_rate: number | null
+  max_rate: number | null
+}
+
+export interface TradeGrade {
+  grade: 'A' | 'B' | 'C'
+  bills: number
+  qty_kg: number
+  qty_l: number
+  amount: number
+}
+
+export interface TradeBill {
+  entry_date: string
+  party_id: number
+  ref_no: string
+  qty: number
+  rate: number
+  amount: number
+}
+
+export interface TradeAnalysis {
+  side: TradeSide
+  item: string | null
+  unit: Unit | null
+  date_from: string
+  date_to: string
+  bucket: Bucket
+  totals: TradeTotals
+  previous: TradeTotals
+  previous_from: string
+  previous_to: string
+  series: TradePeriod[]
+  items: TradeItem[]
+  item_series: TradeItemPeriod[]
+  parties: TradeParty[]
+  party_series: TradePartyPeriod[]
+  grades: TradeGrade[]
+  bills: TradeBill[]
+  bills_truncated: boolean
 }

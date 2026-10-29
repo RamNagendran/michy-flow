@@ -61,7 +61,7 @@ export default function InventoryModal({ company, onClose }: { company: Company;
             rules={[{ required: true, type: 'number', min: OIL_DENSITY.min, max: OIL_DENSITY.max, message: `Between ${OIL_DENSITY.min} and ${OIL_DENSITY.max}` }]}
             extra={`Oil is entered in litres. The app changes it to kg: 1,000 L = ${formatKg(1000 * (density || 0))}.`}
           >
-            <InputNumber<number> min={OIL_DENSITY.min} max={OIL_DENSITY.max} step={0.001} precision={3} suffix="kg / L" style={{ width: 220 }} />
+            <InputNumber<number> min={OIL_DENSITY.min} max={OIL_DENSITY.max} step={0.001} precision={3} suffix="kg per litre" style={{ width: 220 }} />
           </Form.Item>
         )}
         <Form.Item label="Manager's physical stock check" name="stock_check_months" rules={[{ required: true }]} extra="How often the Manager should count the stock and check it.">

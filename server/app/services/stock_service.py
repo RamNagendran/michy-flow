@@ -219,7 +219,8 @@ async def assert_stock_not_negative(
         if line.provisional.balance < 0:
             raise ConflictError(
                 f"Not enough Grade {line.grade} {line.item} in stock: this would leave "
-                f"{line.provisional.balance:,.3f} {line.unit}.{_SHORT_HINT[line.grade]}",
+                f"{line.provisional.balance:,.3f} {'litres' if line.unit == LITRE else 'kg'}."
+                f"{_SHORT_HINT[line.grade]}",
                 code="insufficient_stock",
             )
 

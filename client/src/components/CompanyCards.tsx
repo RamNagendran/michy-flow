@@ -5,7 +5,7 @@ import { seriesColors } from '../styles/theme'
 import { itemName, processOf } from '../data/catalog'
 import type { CompanyRef } from '../types/auth'
 import type { CompanySummary, StockLine } from '../types/entries'
-import { formatKg, formatQty, formatTonnes } from '../utils/format'
+import { formatKg, formatQty } from '../utils/format'
 import { activeLines, totalOf } from '../utils/stock'
 import { StockBar } from './ui'
 
@@ -98,7 +98,7 @@ export function CompanyCard({ company, raw, output, summary }: CardProps) {
               {label}
             </div>
             <div className="num strong" style={{ fontSize: 17 }}>
-              {kg === undefined ? '—' : formatTonnes(kg)}
+              {kg === undefined ? '—' : formatKg(kg)}
             </div>
           </div>
         ))}
@@ -136,12 +136,9 @@ export function CompaniesTotalCard({ count, raw, output, producedKg }: { count: 
         <span className="num strong" style={{ fontSize: 24, letterSpacing: '-0.02em' }}>
           {formatKg(rawSum)}
         </span>
-        <span className="faint num" style={{ fontWeight: 600 }}>
-          {formatTonnes(rawSum)}
-        </span>
       </div>
       <div className="faint" style={{ fontSize: 12.5, marginBottom: 12 }}>
-        Grade A raw material in stock{producedKg !== undefined && ` · ${formatTonnes(producedKg)} produced this period`}
+        Grade A raw material in stock{producedKg !== undefined && ` · ${formatKg(producedKg)} produced this period`}
       </div>
       <StockBar parts={rawLines.map((l) => ({ key: itemName(l.item), value: l.provisional.balance, color: color(l.item) }))} />
       <Rows lines={rawLines} />

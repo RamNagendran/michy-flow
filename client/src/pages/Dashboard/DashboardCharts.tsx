@@ -1,36 +1,27 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import {
-  BarChart,
-  ChartFrame,
-  ColumnChart,
-  DonutChart,
-  flowColors,
-  gradeColor,
-  HeatmapChart,
-  PRODUCT_ORDER,
-  productColor,
-  StackedBarChart,
-  StackedColumnChart,
-} from '../../charts'
-import { companyItems, itemName, itemsOfCompanies, toKg } from '../../data/catalog'
+import { ChartFrame, ColumnChart, DonutChart, flowColors, gradeColor, PRODUCT_ORDER, productColor, StackedBarChart, StackedColumnChart } from '../../charts'
+import { SectionTitle } from '../../components/ui'
+import { itemName, itemsOfCompanies, toKg } from '../../data/catalog'
 import { useTrends } from '../../hooks/queries/reports'
 import { useAccess } from '../../hooks/useAccess'
 import { useCompanyData } from '../../hooks/useCompanyData'
-import { formatINRShort, formatTonnes } from '../../utils/format'
-import { periodLabel, periodLabels } from '../../utils/period'
+import type { Bucket } from '../../types/reports'
+import { formatINRShort, formatPercent, formatKg } from '../../utils/format'
+import { bucketLabels, periodLabel, periodLabels } from '../../utils/period'
 
 const byProductOrder = (a: string, b: string) => PRODUCT_ORDER.indexOf(a as never) - PRODUCT_ORDER.indexOf(b as never)
 
-/** The chart half of the company dashboard. Everything follows the period and company picked in the header. */
-export default function DashboardCharts() {
+/** Production and money flow. Dates and company come from the top bar; the grouping ("Chart by") from the analysis filter bar above. */
+export default function DashboardCharts({ bucket }: { bucket: Bucket }) {
   const navigate = useNavigate()
   const { can, setActive } = useAccess()
-  const { scope, period, range, stocks, summaries, total: t, isLoading } = useCompanyData()
+  const { scope, period, range, summaries, total: t, isLoading } = useCompanyData()
   const several = scope.length > 1
   const periodText = periodLabels[period]
   const trendIds = useMemo(() => scope.filter((c) => can('view_all_entries', c.id)).map((c) => c.id), [scope, can])
-  const trends = useTrends(trendIds, range)
+  const trends = useTrends(trendIds, range, bucket)
+  const every = bucketLabels[bucket].toLowerCase()
 
   // Money and processing over time.
   const timeline = trends.series.map((p) => ({ ...p, label: periodLabel(p.period, trends.bucket) }))
@@ -53,11 +44,6 @@ export default function DashboardCharts() {
     { step: 'Sold', kg: t?.sales.qty_kg ?? 0, to: '/sales' },
   ]
 
-  const salesByProduct = (t?.sales.by_item ?? [])
-    .filter((i) => i.amount > 0)
-    .map((i) => ({ product: itemName(i.item), amount: i.amount }))
-    .sort((a, b) => b.amount - a.amount)
-
   const gradeAmounts = (grades: { grade: string; amount: number }[]) => Object.fromEntries(grades.map((g) => [g.grade, g.amount])) as Record<'A' | 'B' | 'C', number>
   const gradeRows = t
     ? [
@@ -69,25 +55,18 @@ export default function DashboardCharts() {
 
   const companyRows = scope.map((c) => ({ id: c.id, company: c.code, name: c.name, purchases: summaries.get(c.id)?.purchases.amount ?? 0, sales: summaries.get(c.id)?.sales.amount ?? 0 }))
 
-  // Raw material in stock: a company × material grid when there are several, else one bar per material.
-  const materials = itemsOfCompanies(scope, 'inputs').map((m) => m.id)
-  const rawCells = scope.flatMap((c) =>
-    companyItems(c).inputs.map((m) => ({ x: itemName(m.id), y: c.name, value: Math.max(stocks.get(c.id)?.raw.find((l) => l.item === m.id)?.provisional.balance ?? 0, 0), id: c.id })),
-  )
-  const single = scope[0]
-  const rawBars = !several && single ? companyItems(single).inputs.map((m) => ({ material: itemName(m.id), kg: Math.max(stocks.get(single.id)?.raw.find((l) => l.item === m.id)?.provisional.balance ?? 0, 0) })) : []
-  const productBars =
-    !several && single
-      ? companyItems(single)
-          .products.map((p) => ({ product: itemName(p.id), kg: Math.max(toKg(p.id, stocks.get(single.id)?.output.find((l) => l.item === p.id)?.provisional.balance ?? 0), 0) }))
-      : []
+  const wastagePct = t?.production.processed_kg ? (t.production.wastage_kg / t.production.processed_kg) * 100 : 0
 
   return (
     <>
+      <SectionTitle
+        title="Production and money flow"
+        hint={`${periodText.toLowerCase()} · wastage ${formatPercent(wastagePct)} of the weight processed`}
+      />
       <div className="viz-grid wide-left">
         <ChartFrame
           title="Purchases vs sales"
-          sub={`${periodText} · by ${trends.bucket}`}
+          sub={`${periodText} · ${every}`}
           loading={trends.isLoading}
           refreshing={trends.isRefreshing}
           empty={noTrend}
@@ -109,9 +88,9 @@ export default function DashboardCharts() {
           sub={`${periodText} · share by weight`}
           loading={isLoading}
           empty={!produced.length}
-          table={{ columns: ['Product', 'Weight'], rows: produced.map((p) => [p.label, formatTonnes(p.value)]) }}
+          table={{ columns: ['Product', 'Weight'], rows: produced.map((p) => [p.label, formatKg(p.value)]) }}
         >
-          <DonutChart slices={produced} format={formatTonnes} centerValue={formatTonnes(t?.production.output_kg ?? 0)} centerLabel="total output" height={220} />
+          <DonutChart slices={produced} format={formatKg} centerValue={formatKg(t?.production.output_kg ?? 0)} centerLabel="total output" height={220} />
         </ChartFrame>
       </div>
 
@@ -121,24 +100,24 @@ export default function DashboardCharts() {
           sub={`${periodText} · click a step for details`}
           loading={isLoading}
           empty={flow.every((f) => !f.kg)}
-          table={{ columns: ['Step', 'Weight'], rows: flow.map((f) => [f.step, formatTonnes(f.kg)]) }}
+          table={{ columns: ['Step', 'Weight'], rows: flow.map((f) => [f.step, formatKg(f.kg)]) }}
         >
           <ColumnChart
             data={flow}
             categoryField="step"
             series={[{ field: 'kg', name: 'Weight', color: '#2a78d6' }]}
-            format={formatTonnes}
+            format={formatKg}
             valueLabels
             onSelect={(row) => navigate(String(flow.find((f) => f.step === row.step)?.to ?? '/'))}
           />
         </ChartFrame>
         <ChartFrame
           title="Output vs wastage"
-          sub={`${periodText} · weight processed, split`}
+          sub={`${periodText} · ${every} · weight processed, split`}
           loading={trends.isLoading}
           refreshing={trends.isRefreshing}
           empty={noProcessing}
-          table={{ columns: ['Period', 'Output', 'Wastage'], rows: timeline.map((p) => [p.label, formatTonnes(p.output_kg), formatTonnes(p.wastage_kg)]) }}
+          table={{ columns: ['Period', 'Output', 'Wastage'], rows: timeline.map((p) => [p.label, formatKg(p.output_kg), formatKg(p.wastage_kg)]) }}
         >
           <StackedColumnChart
             data={timeline}
@@ -147,28 +126,15 @@ export default function DashboardCharts() {
               { field: 'output_kg', name: 'Output', color: flowColors.output },
               { field: 'wastage_kg', name: 'Wastage', color: flowColors.wastage },
             ]}
-            format={formatTonnes}
+            format={formatKg}
             scrollFrom="end"
           />
         </ChartFrame>
-        <ChartFrame
-          title="Sales by product"
-          sub={`${periodText} · invoice value`}
-          loading={isLoading}
-          empty={!salesByProduct.length}
-          table={{ columns: ['Product', 'Sales'], rows: salesByProduct.map((r) => [r.product, formatINRShort(r.amount)]) }}
-        >
-          <BarChart data={salesByProduct} categoryField="product" series={[{ field: 'amount', name: 'Sales', color: flowColors.sales }]} format={formatINRShort} />
-        </ChartFrame>
-      </div>
-
-      <div className="viz-grid cols-2">
         <ChartFrame
           title="Grade A / B / C share"
           sub={`${periodText} · A: plant · B: sold again · C: bill only`}
           loading={isLoading}
           empty={noGrades}
-          height={150}
           table={{
             columns: ['', 'Grade A', 'Grade B', 'Grade C'],
             rows: gradeRows.map((r) => [r.flow, formatINRShort(Number(r.A ?? 0)), formatINRShort(Number(r.B ?? 0)), formatINRShort(Number(r.C ?? 0))]),
@@ -180,15 +146,18 @@ export default function DashboardCharts() {
             percent
             series={(['A', 'B', 'C'] as const).map((g) => ({ field: g, name: `Grade ${g}`, color: gradeColor[g] }))}
             format={formatINRShort}
-            height={150}
+            height={200}
           />
         </ChartFrame>
-        {several ? (
+      </div>
+
+      {several && (
+        <div className="viz-grid">
           <ChartFrame
             title="Companies compared"
             sub={`${periodText} · click a company to open it`}
             loading={isLoading}
-            height={150}
+            height={200}
             empty={companyRows.every((r) => !r.purchases && !r.sales)}
             table={{ columns: ['Company', 'Purchases', 'Sales'], rows: companyRows.map((r) => [r.name, formatINRShort(r.purchases), formatINRShort(r.sales)]) }}
           >
@@ -200,52 +169,12 @@ export default function DashboardCharts() {
                 { field: 'sales', name: 'Sales', color: flowColors.sales },
               ]}
               format={formatINRShort}
-              height={150}
+              height={200}
               onSelect={(row) => setActive(Number(row.id))}
             />
           </ChartFrame>
-        ) : (
-          <ChartFrame
-            title="Products in stock"
-            sub="Right now · by weight"
-            loading={isLoading}
-            height={150}
-            empty={productBars.every((r) => !r.kg)}
-            table={{ columns: ['Product', 'Weight'], rows: productBars.map((r) => [r.product, formatTonnes(r.kg)]) }}
-          >
-            <BarChart data={productBars} categoryField="product" series={[{ field: 'kg', name: 'In stock', color: flowColors.output }]} format={formatTonnes} height={150} />
-          </ChartFrame>
-        )}
-      </div>
-
-      <div className="viz-grid">
-        {several ? (
-          <ChartFrame
-            title="Raw material in stock"
-            sub="Stock now · darker colour = more stock · click a box to open the company"
-            loading={isLoading}
-            height={Math.min(scope.length * 34 + 64, 300)}
-            empty={rawCells.every((c) => !c.value)}
-            table={{
-              columns: ['Company', ...materials.map(itemName)],
-              rows: scope.map((c) => [c.name, ...materials.map((m) => formatTonnes(rawCells.find((x) => x.y === c.name && x.x === itemName(m))?.value ?? 0))]),
-            }}
-          >
-            <HeatmapChart cells={rawCells} columns={materials.map(itemName)} rows={scope.map((c) => c.name)} format={formatTonnes} onSelect={(cell) => navigate(`/companies/${cell.id}`)} />
-          </ChartFrame>
-        ) : (
-          <ChartFrame
-            title="Raw material in stock"
-            sub="Right now · tyres and scrap waiting to be processed"
-            loading={isLoading}
-            height={180}
-            empty={rawBars.every((r) => !r.kg)}
-            table={{ columns: ['Material', 'Weight'], rows: rawBars.map((r) => [r.material, formatTonnes(r.kg)]) }}
-          >
-            <BarChart data={rawBars} categoryField="material" series={[{ field: 'kg', name: 'In stock', color: '#2a78d6' }]} format={formatTonnes} height={180} />
-          </ChartFrame>
-        )}
-      </div>
+        </div>
+      )}
     </>
   )
 }

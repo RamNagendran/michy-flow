@@ -1,23 +1,25 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Alert, Button, Empty, Timeline } from 'antd'
-import { InboxOutlined, RightOutlined, RiseOutlined, ShopOutlined, ShoppingCartOutlined } from '@ant-design/icons'
+import { ExperimentOutlined, RightOutlined, RiseOutlined, ShopOutlined, ShoppingCartOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import { totalOf } from '../../utils/stock'
 import { KpiCard, PageHeader, SectionTitle } from '../../components/ui'
 import { statusMeta } from '../../utils/entryStatus'
 import { companyItems, itemName } from '../../data/catalog'
 import OilKpiPanel from '../../components/charts/OilKpiPanel'
-import { useOilKpi } from '../../hooks/queries/reports'
+import { useOilKpi, useTradeAnalysis } from '../../hooks/queries/reports'
 import { useEntries } from '../../hooks/queries/entries'
 import { useAccess } from '../../hooks/useAccess'
 import { useAuth } from '../../hooks/useAuth'
+import { useChartGrouping } from '../../hooks/useChartGrouping'
 import { useCompanyData } from '../../hooks/useCompanyData'
 import { brand, seriesColors } from '../../styles/theme'
-import { formatDateShort, formatINRShort, formatPercent, formatTonnes, formatQty } from '../../utils/format'
+import { formatDateShort, formatINRShort, formatPercent, formatKg, formatQty } from '../../utils/format'
 import { bucketFor, periodLabels, rangeSubtitle } from '../../utils/period'
 import { firstName } from '../../utils/user'
 import DashboardCharts from './DashboardCharts'
+import StockNow from './StockNow'
+import TradeAnalysis from './TradeAnalysis'
 
 function RecentEntries({ companyIds }: { companyIds: number[] }) {
   const navigate = useNavigate()
@@ -66,14 +68,19 @@ export default function Dashboard() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const { active, activeAccess, canAnywhere, can } = useAccess()
-  const { scope, period, range, raw, total: t } = useCompanyData()
+  const { scope, period, range, total: t } = useCompanyData()
   const several = scope.length > 1
   const viewing = active === 'all' ? `all ${scope.length} companies` : activeAccess?.company.name
-  const rawKg = totalOf(raw)
-  const rawFinal = totalOf(raw, 'confirmed')
+  // The header period's buying and selling, for stock values and "vs before" (the analysis below starts from the same figures).
+  const financeIds = useMemo(() => scope.filter((c) => can('view_finance', c.id)).map((c) => c.id), [scope, can])
+  const tradeBase = { range, bucket: bucketFor(range), grades: ['A' as const, 'B' as const] }
+  const bought = useTradeAnalysis(financeIds, { ...tradeBase, side: 'purchase' }).view
+  const sold = useTradeAnalysis(financeIds, { ...tradeBase, side: 'sale' }).view
+  const change = (now: number, before: number | undefined) => (before ? ` · ${now >= before ? '▲' : '▼'} ${formatPercent(Math.abs(((now - before) / before) * 100))} vs before` : '')
   // CEO and Managers see the oil KPI for companies that make oil.
   const oilIds = useMemo(() => scope.filter((c) => can('view_oil_kpi', c.id) && companyItems(c).outputs.some((o) => o.id === 'oil')).map((c) => c.id), [scope, can])
   const oil = useOilKpi(oilIds, range)
+  const grouping = useChartGrouping()
   const hour = dayjs().hour()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
@@ -112,9 +119,12 @@ export default function Dashboard() {
         />
       )}
 
+      <StockNow purchases={bought} sales={sold} />
+
+      <SectionTitle title="Money this period" hint={`${periodLabels[period].toLowerCase()} · ${rangeSubtitle(range)}`} />
       <div className="grid grid-4">
-        <KpiCard label="Spent on purchases" value={formatINRShort(t?.purchases.amount ?? 0)} sub={`${formatINRShort(t?.purchases.verified_amount ?? 0)} checked by Finance`} icon={<ShoppingCartOutlined />} tone={{ bg: '#eef4fb', fg: seriesColors.purchase }} onClick={() => navigate('/purchases')} />
-        <KpiCard label="Received from sales" value={formatINRShort(t?.sales.amount ?? 0)} sub={`${formatINRShort(t?.sales.verified_amount ?? 0)} checked by Finance`} icon={<ShopOutlined />} tone={{ bg: brand.primarySoft, fg: brand.primary }} onClick={() => navigate('/sales')} />
+        <KpiCard label="Spent on purchases" value={formatINRShort(t?.purchases.amount ?? 0)} sub={`${formatINRShort(t?.purchases.verified_amount ?? 0)} checked by Finance${bought ? change(bought.totals.amount, bought.previous.amount) : ''}`} icon={<ShoppingCartOutlined />} tone={{ bg: '#eef4fb', fg: seriesColors.purchase }} onClick={() => navigate('/purchases')} />
+        <KpiCard label="Received from sales" value={formatINRShort(t?.sales.amount ?? 0)} sub={`${formatINRShort(t?.sales.verified_amount ?? 0)} checked by Finance${sold ? change(sold.totals.amount, sold.previous.amount) : ''}`} icon={<ShopOutlined />} tone={{ bg: brand.primarySoft, fg: brand.primary }} onClick={() => navigate('/sales')} />
         <KpiCard
           label="Basic difference"
           value={formatINRShort(margin)}
@@ -124,17 +134,26 @@ export default function Dashboard() {
           help="Sales money minus purchase money. Labour, power and transport costs are not included."
           onClick={() => navigate('/finance')}
         />
-        <KpiCard label="Raw material in stock" value={formatTonnes(rawKg)} sub={`${formatTonnes(rawFinal)} checked by Finance`} icon={<InboxOutlined />} tone={{ bg: '#f1f2f5', fg: '#3a3f47' }} help="Stock as of now. The period you pick does not change this." onClick={() => navigate('/stock')} />
+        <KpiCard
+          label="Produced"
+          value={formatKg(t?.production.output_kg ?? 0)}
+          sub={`from ${formatKg(t?.production.processed_kg ?? 0)} processed · ${t?.production.count ?? 0} runs`}
+          icon={<ExperimentOutlined />}
+          tone={{ bg: '#f1f2f5', fg: '#3a3f47' }}
+          onClick={() => navigate('/production')}
+        />
       </div>
 
       {oilIds.length > 0 && (
         <>
-          <SectionTitle title="Oil KPI" hint="oil made ÷ weight processed · green: 40% or more · red: below 39%" />
           <OilKpiPanel kpi={oil.kpi} bucket={bucketFor(range)} loading={oil.isLoading} refreshing={oil.isRefreshing} />
         </>
       )}
 
-      <DashboardCharts />
+      {/* One filter bar sticks over both: the analysis and the production charts share "Chart by". */}
+      <TradeAnalysis grouping={grouping}>
+        <DashboardCharts bucket={grouping.bucket} />
+      </TradeAnalysis>
 
       <div style={{ marginTop: 12 }}>
         <RecentEntries companyIds={scope.map((c) => c.id)} />

@@ -26,14 +26,14 @@ export const ANIMATION_MS = 450
 
 export const xTick = (bucket: Bucket) => (v: string) => periodLabel(v, bucket)
 
-/** ₹12.4L style for axes, where space is tight. */
+/** ₹12.4 lakh style for axes: one decimal, but the unit still in full words. */
 export function shortMoney(v: number) {
   const a = Math.abs(v)
-  if (a >= 1e7) return `₹${(v / 1e7).toFixed(1)}Cr`
-  if (a >= 1e5) return `₹${(v / 1e5).toFixed(1)}L`
-  if (a >= 1e3) return `₹${(v / 1e3).toFixed(0)}k`
+  if (a >= 1e7) return `₹${(v / 1e7).toFixed(1)} crore`
+  if (a >= 1e5) return `₹${(v / 1e5).toFixed(1)} lakh`
+  if (a >= 1e3) return `₹${(v / 1e3).toFixed(0)} thousand`
   return `₹${v.toFixed(0)}`
 }
 
-/** 12.4t / 840kg for weight axes. */
-export const shortKg = (v: number) => (Math.abs(v) >= 1000 ? `${(v / 1000).toFixed(v >= 10000 ? 0 : 1)}t` : `${v.toFixed(0)}kg`)
+/** 12,400 kg for weight axes: always kg, never tonnes. */
+export const shortKg = (v: number) => `${Math.round(v).toLocaleString('en-IN')} kg`

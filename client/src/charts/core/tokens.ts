@@ -41,3 +41,11 @@ export const entryTypeColor = { purchase: '#2F6FEB', production: '#B8860B', sale
 
 /** Single-hue blue ramp for magnitude (heatmaps): near-zero recedes toward the surface. */
 export const sequentialBlue = ['#cde2fb', '#9ec5f4', '#6da7ec', '#3987e5', '#2a78d6', '#1c5cab', '#104281']
+
+/**
+ * Suppliers and buyers, in a fixed order (the biggest first). Validated as a set (light mode,
+ * adjacent pairs pass CVD ΔE ≥ 8); three sit under 3:1 against the surface, so every chart that
+ * uses them also has a legend and a table view. More than six → the rest fold into "Others".
+ */
+export const partyColors = ['#2a78d6', '#eb6834', '#1baf7a', '#eda100', '#e87ba4', '#008300'] as const
+export const OTHERS_COLOR = '#A1A1AA'

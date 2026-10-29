@@ -8,7 +8,7 @@ import DebitNoteModal from '../debitNotes/DebitNoteModal'
 import { DebitNoteGroup, OpenDebitNotes } from '../debitNotes/DebitNoteList'
 import { useAdjustDebitNotes } from '../../hooks/queries/debitNotes'
 import type { EntryAction, EntryDetail, EntryType } from '../../types/entries'
-import { formatDate, formatINR, formatKg, formatKgFine, formatPercent, formatTonnes, formatQty, formatRateIn } from '../../utils/format'
+import { formatDate, formatINR, formatKg, formatKgFine, formatPercent, formatQty, formatRateIn } from '../../utils/format'
 import { GradeTag, StatusTag } from '../ui'
 import { statusMeta } from '../../utils/entryStatus'
 import BillFileModal from '../bill/BillFileModal'
@@ -50,7 +50,7 @@ function Facts({ e }: { e: EntryDetail }) {
     ...(e.vehicle_nos?.length ? ([['Vehicle numbers', e.vehicle_nos.join(', ')]] as [string, string][]) : []),
     ['Grade', <span key="g"><GradeTag grade={e.grade} type={e.type} /> {e.type === 'production' ? 'Production' : gradeInfo(e.grade)[e.type]}</span>],
     [e.type === 'production' ? 'Raw material' : 'Item', itemName(e.item)],
-    [e.type === 'production' ? 'Taken from stock' : 'Quantity', e.unit === 'kg' ? `${formatKg(e.qty)} (${formatTonnes(e.qty)})` : formatQty(e.qty, e.unit)],
+    [e.type === 'production' ? 'Taken from stock' : 'Quantity', formatQty(e.qty, e.unit)],
     ...(e.rate !== null ? ([['Rate', formatRateIn(e.rate, e.unit)]] as [string, string][]) : []),
     ...(e.shift ? ([['Shift', `Shift ${e.shift}`]] as [string, string][]) : []),
     ...(e.crew.length ? ([['Crew', e.crew.map((c) => c.name).join(', ')]] as [string, string][]) : []),

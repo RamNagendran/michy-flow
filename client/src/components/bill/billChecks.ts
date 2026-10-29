@@ -2,7 +2,7 @@ import dayjs from 'dayjs'
 import type { BillDocument, ParsedBill } from '../../types/documents'
 import type { Party } from '../../types/entries'
 import type { Unit } from '../../data/catalog'
-import { formatINR, formatQty } from '../../utils/format'
+import { billUnitWord, formatINR, formatQty, formatRateIn, unitWord } from '../../utils/format'
 
 export interface Check {
   key: string
@@ -78,7 +78,7 @@ export function billChecks(bill: ParsedBill, v: Values): Check[] {
       key: 'math',
       ok: close(amount, bill.taxable_amount.value),
       title: 'Quantity × rate matches the bill amount',
-      detail: `${formatQty(v.qty, v.unit)} × ₹${v.rate.toFixed(2)} = ${formatINR(amount, true)} · bill shows ${formatINR(bill.taxable_amount.value, true)}`,
+      detail: `${formatQty(v.qty, v.unit)} × ${formatRateIn(v.rate, v.unit)} = ${formatINR(amount, true)} · bill shows ${formatINR(bill.taxable_amount.value, true)}`,
     })
   }
   if (bill.taxable_amount && bill.total) {
@@ -96,7 +96,7 @@ export function billChecks(bill: ParsedBill, v: Values): Check[] {
       key: 'unit',
       ok: bill.unit === v.unit,
       title: 'Unit matches the item',
-      detail: bill.unit === v.unit ? `Bill is in ${bill.unit_on_bill}` : `The bill is in ${bill.unit_on_bill}, but this item is kept in ${v.unit} — check the item`,
+      detail: bill.unit === v.unit ? `Bill is in ${billUnitWord(bill.unit_on_bill)}` : `The bill is in ${billUnitWord(bill.unit_on_bill)}, but this item is kept in ${unitWord(v.unit)}. Please check the item.`,
     })
   }
   // Names on bills vary ("Sri Balaji Tyres" vs "SRI BALAJI TYRES PVT LTD"), so a different name is

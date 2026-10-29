@@ -8,7 +8,7 @@ import { CompanyBadge } from '../../components/CompanyCards'
 import { totalOf } from '../../utils/stock'
 import { useStocks } from '../../hooks/queries/stock'
 import type { CompanySelection } from '../../statemanager/slices/uiSlice'
-import { formatTonnes } from '../../utils/format'
+import { formatKg } from '../../utils/format'
 import { companyRoleLabel } from '../../utils/permissions'
 import { accessRoleLabel, firstName } from '../../utils/user'
 
@@ -98,7 +98,7 @@ export default function CeoWelcome() {
                   name={company.name}
                   detail={[
                     !user?.global_role && role ? companyRoleLabel[role] : company.city,
-                    raw && `${formatTonnes(totalOf(raw))} raw material in stock`,
+                    raw && `${formatKg(totalOf(raw))} raw material in stock`,
                   ]
                     .filter(Boolean)
                     .join(' · ')}

@@ -208,7 +208,7 @@ export default function NewProduction() {
                   </div>
                   <InputNumber<number> size="large" value={out[o.id as OutputId] ?? null} onChange={(v) => setOut((s) => ({ ...s, [o.id]: v }))} style={{ width: '100%', marginTop: 10 }} placeholder="0" {...qtyInputProps(o.unit)} />
                   <div className="faint" style={{ fontSize: 12.5, marginTop: 4 }}>
-                    {o.unit === 'L' ? `≈ ${formatKg(toKg(o.id, out[o.id as OutputId] ?? 0, density))} by weight at ${density} kg/L` : o.stocked ? 'Goes into stock' : 'Recorded, not stocked'}
+                    {o.unit === 'L' ? `≈ ${formatKg(toKg(o.id, out[o.id as OutputId] ?? 0, density))} by weight at ${density} kg per litre` : o.stocked ? 'Goes into stock' : 'Recorded, not stocked'}
                   </div>
                 </div>
               ))}

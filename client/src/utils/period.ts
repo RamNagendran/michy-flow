@@ -38,11 +38,12 @@ export const periodSubtitle = (period: Period, custom?: DateRange | null) => ran
 
 /**
  * How finely to group a range so charts stay readable: days for about six weeks, weeks for
- * about six months, months beyond. Price history is smoother, so it never goes to days.
- * Must stay within the server's limits (server/app/routers/_range.py).
+ * about six months, months up to three years, years beyond. Price history is smoother, so it
+ * never goes to days. Must stay within the server's limits (server/app/routers/_range.py).
  */
 export function bucketFor([from, to]: DateRange, prices = false): Bucket {
   const days = dayjs(to).diff(dayjs(from), 'day')
+  if (days > 1100) return 'year'
   if (prices) return days <= 62 ? 'week' : 'month'
   return days <= 45 ? 'day' : days <= 200 ? 'week' : 'month'
 }
@@ -50,5 +51,16 @@ export function bucketFor([from, to]: DateRange, prices = false): Bucket {
 /** Axis label for a period start. */
 export function periodLabel(period: string, bucket: Bucket) {
   const d = dayjs(period)
-  return bucket === 'month' ? d.format('MMM YY') : d.format('D MMM')
+  return bucket === 'year' ? d.format('YYYY') : bucket === 'month' ? d.format('MMM YY') : d.format('D MMM')
+}
+
+export const bucketLabels: Record<Bucket, string> = { day: 'Daily', week: 'Weekly', month: 'Monthly', year: 'Yearly' }
+
+/** Longest range the server accepts for each grouping (server/app/routers/_range.py). */
+export const BUCKET_MAX_DAYS: Record<Bucket, number> = { day: 120, week: 400, month: 1100, year: 3660 }
+
+/** Groupings that fit a range: never more points than the server allows. */
+export const bucketsFor = ([from, to]: DateRange): Bucket[] => {
+  const days = dayjs(to).diff(dayjs(from), 'day')
+  return (['day', 'week', 'month', 'year'] as const).filter((b) => days <= BUCKET_MAX_DAYS[b])
 }

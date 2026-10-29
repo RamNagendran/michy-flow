@@ -11,7 +11,7 @@ import { useAccess } from '../../hooks/useAccess'
 import { usePeriod } from '../../hooks/usePeriod'
 import { seriesColors } from '../../styles/theme'
 import type { MoneyTotals } from '../../types/entries'
-import { formatINR, formatINRShort, formatPercent, formatTonnes } from '../../utils/format'
+import { formatINR, formatINRShort, formatPercent, formatKg } from '../../utils/format'
 import { periodLabels } from '../../utils/period'
 
 function ByItemChart({ title, totals, items }: { title: string; totals: MoneyTotals | undefined; items: { id: string; name: string }[] }) {
@@ -96,9 +96,9 @@ export default function Finance() {
           dataSource={t ? t.purchases.by_grade.map((p, i) => ({ grade: p.grade, bought: p, sold: t.sales.by_grade[i] })) : []}
           columns={[
             { title: 'Grade', render: (_, r) => <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><GradeTag grade={r.grade} /><b>{gradeInfo(r.grade).short}</b></span> },
-            { title: 'Bought', align: 'right', render: (_, r) => <span className="num">{formatTonnes(r.bought.qty_kg)} · {r.bought.count} bills</span> },
+            { title: 'Bought', align: 'right', render: (_, r) => <span className="num">{formatKg(r.bought.qty_kg)} · {r.bought.count} bills</span> },
             { title: 'Spent', align: 'right', render: (_, r) => <span className="num strong">{formatINR(r.bought.amount)}</span> },
-            { title: 'Sold', align: 'right', render: (_, r) => <span className="num">{formatTonnes(r.sold.qty_kg)} · {r.sold.count} invoices</span> },
+            { title: 'Sold', align: 'right', render: (_, r) => <span className="num">{formatKg(r.sold.qty_kg)} · {r.sold.count} invoices</span> },
             { title: 'Received', align: 'right', render: (_, r) => <span className="num strong">{formatINR(r.sold.amount)}</span> },
             {
               title: 'Basic difference',
@@ -121,9 +121,9 @@ export default function Finance() {
           dataSource={companies.filter((c) => byCompany.has(c.id)).map((c) => ({ ...c, s: byCompany.get(c.id)! }))}
           columns={[
             { title: 'Company', dataIndex: 'name', render: (v) => <b>{v}</b> },
-            { title: 'Bought (kg)', align: 'right', render: (_, c) => <span className="num">{formatTonnes(c.s.purchases.qty_kg)}</span> },
+            { title: 'Bought (kg)', align: 'right', render: (_, c) => <span className="num">{formatKg(c.s.purchases.qty_kg)}</span> },
             { title: 'Spent', align: 'right', render: (_, c) => <span className="num strong">{formatINR(c.s.purchases.amount)}</span> },
-            { title: 'Sold', align: 'right', render: (_, c) => <span className="num">{formatTonnes(c.s.sales.qty_kg)}</span> },
+            { title: 'Sold', align: 'right', render: (_, c) => <span className="num">{formatKg(c.s.sales.qty_kg)}</span> },
             { title: 'Received', align: 'right', render: (_, c) => <span className="num strong">{formatINR(c.s.sales.amount)}</span> },
             {
               title: 'Basic difference',

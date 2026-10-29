@@ -12,7 +12,7 @@ import type { BillDocument, EntryDraft, ParsedValue } from '../../types/document
 import { isValidGstin, normaliseGstin } from '../../utils/gstin'
 import type { Grade } from '../../types/entries'
 import GradePicker from '../entries/GradePicker'
-import { formatINR, qtyInputProps } from '../../utils/format'
+import { billUnitWord, formatINR, perUnit, qtyInputProps, unitWord } from '../../utils/format'
 import { today } from '../../utils/period'
 import BillPreview from './BillPreview'
 import { billChecks } from './billChecks'
@@ -138,7 +138,7 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
   const progress = Math.round(((checks.length - blocking.length) / checks.length) * 50 + (verifiedCount / 3) * 50)
   // The bill was in tonnes or kilolitres and has been converted.
   const converted = p.unit_on_bill === 'MT' || p.unit_on_bill === 'KL'
-  const unitWord = itemUnit === 'L' ? 'litre' : 'kg'
+  const oneUnit = itemUnit === 'L' ? 'litre' : 'kg'
 
   return (
     <div className="grid fade-in" style={{ gridTemplateColumns: 'minmax(0, 1.05fr) minmax(0, 1fr)', gap: 24, alignItems: 'start' }}>
@@ -277,11 +277,11 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
               />
             </XField>
             <div className="grid grid-2" style={{ gap: 12 }}>
-              <XField label={`Quantity (${itemUnit})`} read={p.qty} note={converted && p.qty_on_bill ? `Bill says ${p.qty_on_bill.value} ${p.unit_on_bill} → converted to ${p.unit}` : undefined} verify={tick('qty')}>
+              <XField label={`Quantity (${unitWord(itemUnit)})`} read={p.qty} note={converted && p.qty_on_bill ? `Bill says ${p.qty_on_bill.value} ${billUnitWord(p.unit_on_bill)} → changed to ${unitWord(itemUnit)}` : undefined} verify={tick('qty')}>
                 <InputNumber<number> value={qty} onChange={(v) => setQty(v ?? 0)} style={{ width: '100%' }} {...qtyInputProps(itemUnit)} />
               </XField>
-              <XField label={`Rate per ${unitWord}`} read={p.rate} note={converted && p.rate_on_bill ? `Bill says ₹${p.rate_on_bill.value.toLocaleString('en-IN')} per ${p.unit_on_bill}` : undefined} verify={tick('rate')}>
-                <InputNumber value={rate} onChange={(v) => setRate(v ?? 0)} style={{ width: '100%' }} prefix="₹" suffix={`/${itemUnit}`} min={0} step={0.1} precision={4} />
+              <XField label={`Rate per ${oneUnit}`} read={p.rate} note={converted && p.rate_on_bill ? `Bill says ₹${p.rate_on_bill.value.toLocaleString('en-IN')} per ${p.unit_on_bill === 'MT' ? 'tonne' : p.unit_on_bill === 'KL' ? 'kilolitre' : oneUnit}` : undefined} verify={tick('rate')}>
+                <InputNumber value={rate} onChange={(v) => setRate(v ?? 0)} style={{ width: '100%' }} prefix="₹" suffix={perUnit(itemUnit)} min={0} step={0.1} precision={4} />
               </XField>
             </div>
             <div className="summary-line" style={{ background: '#f7f8fa', borderRadius: 10, padding: '10px 14px' }}>

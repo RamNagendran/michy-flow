@@ -9,7 +9,7 @@ import { useNotify } from './useNotify'
 const kindLabel = { purchase: 'purchase', sale: 'sale', production: 'production entry' } as const
 
 /** Per-company queries worked out from entries; keyed [name, companyId, ...]. */
-const COMPANY_KEYS = ['stock', 'summary', 'trends', 'oil-kpi', 'prices', 'production-report', 'wastage', 'debit-notes'] as const
+const COMPANY_KEYS = ['stock', 'summary', 'trends', 'oil-kpi', 'prices', 'trade-analysis', 'production-report', 'wastage', 'debit-notes'] as const
 
 /** Waits this long and refetches once, however many events arrive (e.g. a bulk approval). */
 const BATCH_MS = 300

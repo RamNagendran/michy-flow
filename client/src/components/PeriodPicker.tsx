@@ -8,8 +8,8 @@ import { rangeSubtitle, type Period } from '../utils/period'
 const PRESETS: Period[] = ['month', 'quarter', 'fy']
 // Short labels keep the header on one line; the tooltip gives the exact dates.
 const SHORT: Record<Exclude<Period, 'custom'>, string> = { month: 'Month', quarter: 'Quarter', fy: 'Year' }
-// The longest custom range the reports accept (server/app/routers/_range.py, monthly points).
-const MAX_DAYS = 1100
+// The longest custom range the reports accept (server/app/routers/_range.py, yearly points).
+const MAX_DAYS = 3660
 
 /** Month / quarter / year, or a custom range, for every report page. */
 export default function PeriodPicker() {
@@ -40,8 +40,12 @@ export default function PeriodPicker() {
                       disabledDate={(d, info) => d.isAfter(dayjs(), 'day') || (!!info.from && Math.abs(d.diff(info.from, 'day')) > MAX_DAYS)}
                       presets={[
                         { label: 'Last 30 days', value: [dayjs().subtract(29, 'day'), dayjs()] },
+                        { label: 'Last 3 months', value: [dayjs().subtract(3, 'month'), dayjs()] },
                         { label: 'Last 6 months', value: [dayjs().subtract(6, 'month'), dayjs()] },
+                        { label: 'Last 12 months', value: [dayjs().subtract(12, 'month'), dayjs()] },
                         { label: 'Last calendar year', value: [dayjs().subtract(1, 'year').startOf('year'), dayjs().subtract(1, 'year').endOf('year')] },
+                        { label: 'Last 3 years', value: [dayjs().subtract(3, 'year'), dayjs()] },
+                        { label: 'Last 5 years', value: [dayjs().subtract(5, 'year'), dayjs()] },
                       ]}
                       onChange={(v) => {
                         if (v?.[0] && v[1]) {
