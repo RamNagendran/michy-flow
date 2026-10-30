@@ -191,7 +191,7 @@ async def get_entry(
     db: AsyncSession = Depends(get_db),
 ) -> EntryDetail:
     entry = await entry_service.get_entry(db, ctx, entry_type, entry_id)
-    return await entry_query.detail(db, ctx, entry_type, entry)
+    return await entry_query.detail(db, ctx, entry_type, entry, just_loaded=True)
 
 
 @router.post(_one + "/actions/{action}", response_model=EntryDetail)

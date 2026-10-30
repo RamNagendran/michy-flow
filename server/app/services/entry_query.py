@@ -196,10 +196,12 @@ async def list_entries(
     db: AsyncSession, user: User, f: EntryFilters, page: int, page_size: int
 ) -> Paginated[EntryRow]:
     rows, where = await _filtered(db, user, f)
-    total = await db.scalar(select(func.count()).select_from(rows).where(*where)) or 0
     creator = aliased(User)
+    # The total comes with the page (a window count), saving a second round trip.
     result = await db.execute(
-        select(rows, Company.code, Company.name, creator.full_name)
+        select(
+            rows, Company.code, Company.name, creator.full_name, func.count().over().label("total")
+        )
         .join(Company, Company.id == rows.c.company_id)
         .outerjoin(creator, creator.id == rows.c.created_by_id)
         .where(*where)
@@ -207,6 +209,13 @@ async def list_entries(
         .offset((page - 1) * page_size)
         .limit(page_size)
     )
+    found = result.all()
+    if found:
+        total = found[0].total
+    elif page == 1:
+        total = 0
+    else:  # past the last page: the window had no rows to count
+        total = await db.scalar(select(func.count()).select_from(rows).where(*where)) or 0
     items = [
         EntryRow(
             **{k: v for k, v in r._mapping.items() if k in EntryRow.model_fields},
@@ -215,7 +224,7 @@ async def list_entries(
             company_name=r.name,
             created_by_name=r.full_name,
         )
-        for r in result
+        for r in found
     ]
     return Paginated(items=items, total=total, page=page, page_size=page_size)
 
@@ -246,9 +255,18 @@ async def _production_extras(db: AsyncSession, run: Production) -> dict:
 
 
 async def detail(
-    db: AsyncSession, ctx: CompanyContext, entry_type: EntryType, entry: Entry
+    db: AsyncSession,
+    ctx: CompanyContext,
+    entry_type: EntryType,
+    entry: Entry,
+    *,
+    just_loaded: bool = False,
 ) -> EntryDetail:
-    await db.refresh(entry)
+    """`just_loaded`: the entry was read in this request and not changed, so it (and a
+    production run's outputs) need no reload. After a change, server-set values such as
+    updated_at must be read back."""
+    if not just_loaded:
+        await db.refresh(entry)
     names = await _names(db, {entry.created_by_id, entry.approved_by_id, entry.verified_by_id})
     events = [
         EventRead(
@@ -283,7 +301,8 @@ async def detail(
         "events": events,
     }
     if isinstance(entry, Production):
-        await db.refresh(entry, ["outputs"])
+        if not just_loaded:
+            await db.refresh(entry, ["outputs"])
         return EntryDetail(
             **base,
             item=entry.material,

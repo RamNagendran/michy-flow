@@ -166,15 +166,17 @@ def open_count_column(purchase: type[Purchase]):  # noqa: ANN201
     return case((done, 0), else_=count)
 
 
-async def count_open(db: AsyncSession, company_id: int) -> int:
+def open_count_query(company_id: int) -> Select:
+    """How many notes are open in the company (raised on live purchases)."""
     return (
-        await db.scalar(
-            select(func.count(DebitNote.id))
-            .join(_source, _source.id == DebitNote.purchase_id)
-            .where(DebitNote.company_id == company_id, *_open(), *_live(_source))
-        )
-        or 0
+        select(func.count(DebitNote.id))
+        .join(_source, _source.id == DebitNote.purchase_id)
+        .where(DebitNote.company_id == company_id, *_open(), *_live(_source))
     )
+
+
+async def count_open(db: AsyncSession, company_id: int) -> int:
+    return await db.scalar(open_count_query(company_id)) or 0
 
 
 async def _next_no(db: AsyncSession, ctx: CompanyContext) -> str:

@@ -1,4 +1,4 @@
-import { queryClient } from '../lib/queryClient'
+import { queryClient, queryPersister } from '../lib/queryClient'
 import { loggedOut } from '../statemanager/slices/authSlice'
 import { store } from '../statemanager/store'
 
@@ -9,6 +9,8 @@ export const LOGOUT_SIGNAL_KEY = 'michy-flow:logout'
 export function endSession({ broadcast = true }: { broadcast?: boolean } = {}) {
   store.dispatch(loggedOut())
   queryClient.clear()
+  // Nothing from this session may show for the next person to sign in on this browser.
+  void queryPersister.removeClient()
   if (broadcast) {
     try {
       localStorage.setItem(LOGOUT_SIGNAL_KEY, String(Date.now()))

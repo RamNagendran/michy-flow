@@ -2,7 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { Provider } from 'react-redux'
 import { PersistGate } from 'redux-persist/integration/react'
-import { QueryClientProvider } from '@tanstack/react-query'
+import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client'
 import { App as AntApp, ConfigProvider } from 'antd'
 import enGB from 'antd/locale/en_GB'
 import dayjs from 'dayjs'
@@ -12,7 +12,7 @@ import App from './App.tsx'
 import ErrorBoundary from './components/ErrorBoundary'
 import PageLoader from './components/PageLoader'
 import { NotificationProvider } from './contexts/NotificationContext'
-import { queryClient } from './lib/queryClient'
+import { persistOptions, queryClient } from './lib/queryClient'
 import { persistor, store } from './statemanager/store'
 import { theme } from './styles/theme'
 
@@ -26,11 +26,11 @@ createRoot(document.getElementById('root')!).render(
         <ErrorBoundary>
           <Provider store={store}>
             <PersistGate loading={<PageLoader fullscreen />} persistor={persistor}>
-              <QueryClientProvider client={queryClient}>
+              <PersistQueryClientProvider client={queryClient} persistOptions={persistOptions}>
                 <NotificationProvider>
                   <App />
                 </NotificationProvider>
-              </QueryClientProvider>
+              </PersistQueryClientProvider>
             </PersistGate>
           </Provider>
         </ErrorBoundary>

@@ -14,7 +14,7 @@ from collections import defaultdict
 from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import Select, case, func, or_, select, text
+from sqlalchemy import Select, String, case, cast, func, literal, null, or_, select, text, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.clock import add_months, today
@@ -79,15 +79,13 @@ Key = tuple[str, str]  # (grade, item)
 Sums = dict[Key, tuple[Decimal, Decimal]]
 
 
-async def _sum_by_key(db: AsyncSession, query: Select, grade: str | None = None) -> Sums:
-    """Rows of ([grade,] item, status, qty) → {(grade, item): (provisional, confirmed)}.
-    `grade` fixes the grade for queries without one (production is always Grade A)."""
+def _fold(rows: list) -> Sums:
+    """Rows of (grade, item, status, qty) → {(grade, item): (provisional, confirmed)}."""
     totals: dict[Key, list[Decimal]] = defaultdict(lambda: [Decimal(0), Decimal(0)])
-    for *key, status, kg in await db.execute(query):
-        k = (grade, key[0]) if grade else (key[0], key[1])
-        totals[k][0] += kg
+    for grade, item, status, qty in rows:
+        totals[(grade, item)][0] += qty
         if status == EntryStatus.VERIFIED:
-            totals[k][1] += kg
+            totals[(grade, item)][1] += qty
     return {k: (v[0], v[1]) for k, v in totals.items()}
 
 
@@ -125,19 +123,6 @@ def _lines(
     return lines
 
 
-async def _counted(db: AsyncSession, company_id: int) -> dict[str, dict[str, Decimal]]:
-    """{section: {item: total difference}} from every stock check."""
-    rows = await db.execute(
-        select(StockCheckLine.section, StockCheckLine.item, func.sum(StockCheckLine.difference))
-        .where(StockCheckLine.company_id == company_id)
-        .group_by(StockCheckLine.section, StockCheckLine.item)
-    )
-    out: dict[str, dict[str, Decimal]] = defaultdict(dict)
-    for section, item, diff in rows:
-        out[section][item] = diff
-    return out
-
-
 async def _check_schedule(db: AsyncSession, company: Company) -> dict:
     """When the Manager last counted the stock, and when the next count is due."""
     last = await db.scalar(
@@ -160,35 +145,65 @@ async def company_stock(
     assert company is not None
     process = process_of(company)
 
-    def grouped(model, cols, qty_col, *joins) -> Select:  # noqa: ANN001
-        query = select(*cols, model.status, func.sum(qty_col))
+    def grouped(kind: str, model, grade, item, qty_col, *joins) -> Select:  # noqa: ANN001
+        """(kind, grade, item, status, qty) per item and status. Production has no grade
+        column: it is always Grade A."""
+        group = (item,) if isinstance(grade, str) else (grade, item)
+        query = select(
+            literal(kind, String).label("kind"),
+            literal(grade, String) if isinstance(grade, str) else grade,
+            item,
+            cast(model.status, String),
+            func.sum(qty_col),
+        )
         for target, on in joins:
             query = query.join(target, on)
         return query.where(model.company_id == company_id, *_in_stock(model, also)).group_by(
-            *cols, model.status
+            *group, model.status
         )
 
-    bought = await _sum_by_key(
-        db, grouped(Purchase, (Purchase.grade, Purchase.material), Purchase.qty)
+    # Every movement and every stock-check difference in one round trip. Stock-check lines
+    # carry their section ("raw", "output", "resale") in the grade column and no status.
+    rows = await db.execute(
+        union_all(
+            grouped("bought", Purchase, Purchase.grade, Purchase.material, Purchase.qty),
+            grouped("sold", Sale, Sale.grade, Sale.product, Sale.qty),
+            # What production used is what went in less what was put back.
+            grouped(
+                "used",
+                Production,
+                Grade.A.value,
+                Production.material,
+                Production.input_kg - Production.returned_kg,
+            ),
+            grouped(
+                "produced",
+                Production,
+                Grade.A.value,
+                ProductionOutput.product,
+                ProductionOutput.qty,
+                (ProductionOutput, ProductionOutput.production_id == Production.id),
+            ),
+            select(
+                literal("counted", String),
+                cast(StockCheckLine.section, String),
+                StockCheckLine.item,
+                cast(null(), String),
+                func.sum(StockCheckLine.difference),
+            )
+            .where(StockCheckLine.company_id == company_id)
+            .group_by(StockCheckLine.section, StockCheckLine.item),
+        )
     )
-    sold = await _sum_by_key(db, grouped(Sale, (Sale.grade, Sale.product), Sale.qty))
-    # What production used is what went in less what was put back.
-    used = await _sum_by_key(
-        db,
-        grouped(Production, (Production.material,), Production.input_kg - Production.returned_kg),
-        Grade.A,
+    by_kind: dict[str, list] = defaultdict(list)
+    for kind, *row in rows:
+        by_kind[kind].append(row)
+    bought, sold, used, produced = (
+        _fold(by_kind[k]) for k in ("bought", "sold", "used", "produced")
     )
-    produced = await _sum_by_key(
-        db,
-        grouped(
-            Production,
-            (ProductionOutput.product,),
-            ProductionOutput.qty,
-            (ProductionOutput, ProductionOutput.production_id == Production.id),
-        ),
-        Grade.A,
-    )
-    counted = await _counted(db, company_id)
+    counted: dict[str, dict[str, Decimal]] = defaultdict(dict)
+    for section, item, _, diff in by_kind["counted"]:
+        counted[section][item] = diff
     return CompanyStock(
         company_id=company_id,
         raw=_lines(Grade.A, process.inputs, bought, used, counted.get("raw")),
@@ -247,9 +262,11 @@ class _Tally:
             self.kg += qty
 
 
-async def _money_totals(db: AsyncSession, model, item_col, cid, d_from, d_to) -> MoneyTotals:  # noqa: ANN001
-    rows = await db.execute(
+def _money_rows(side: str, model, item_col, cid: int, d_from: date, d_to: date) -> Select:  # noqa: ANN001
+    """(side, grade, item, count, qty, amount, verified amount) per grade and item."""
+    return (
         select(
+            literal(side, String),
             model.grade,
             item_col,
             func.count(),
@@ -260,6 +277,9 @@ async def _money_totals(db: AsyncSession, model, item_col, cid, d_from, d_to) ->
         .where(model.company_id == cid, model.entry_date.between(d_from, d_to), *_live(model))
         .group_by(model.grade, item_col)
     )
+
+
+def _money_totals(rows: list) -> MoneyTotals:
     by_item: dict[str, _Tally] = defaultdict(_Tally)
     by_grade: dict[str, _Tally] = {g.value: _Tally() for g in Grade}
     total, verified = _Tally(), Decimal(0)
@@ -323,21 +343,35 @@ async def _production_totals(
     )
 
 
+# Marks the open-debit-note count among the status rows in _queue.
+_DEBIT_ROW = "_debit_notes"
+
+
 async def _queue(db: AsyncSession, cid: int) -> QueueCounts:
     from app.services import (
         debit_note_service,
     )  # local: it imports entry_service, which imports this module
 
+    # Entries per status and escalation in all three kinds, and the open debit notes (as a
+    # row of its own), in one round trip.
+    per_kind = [
+        select(cast(model.status, String), cast(model.escalated_to, String), func.count())
+        .where(model.company_id == cid, model.deleted_at.is_(None))
+        .group_by(model.status, model.escalated_to)
+        for model in (Purchase, Sale, Production)
+    ]
+    debit = debit_note_service.open_count_query(cid)
+    rows = await db.execute(
+        union_all(
+            *per_kind,
+            select(literal(_DEBIT_ROW, String), cast(null(), String), debit.scalar_subquery()),
+        )
+    )
     counts: dict[str, int] = defaultdict(int)
     escalated: dict[str | None, int] = defaultdict(int)
-    for model in (Purchase, Sale, Production):
-        rows = await db.execute(
-            select(model.status, model.escalated_to, func.count())
-            .where(model.company_id == cid, model.deleted_at.is_(None))
-            .group_by(model.status, model.escalated_to)
-        )
-        for status, to, n in rows:
-            counts[status] += n
+    for status, to, n in rows:
+        counts[status] += n
+        if status != _DEBIT_ROW:
             escalated[to] += n
     return QueueCounts(
         pending=counts[EntryStatus.PENDING],
@@ -345,17 +379,25 @@ async def _queue(db: AsyncSession, cid: int) -> QueueCounts:
         change_requested=counts[EntryStatus.CHANGE_REQUESTED],
         escalated_to_incharge=escalated["incharge"],
         escalated_to_manager=escalated["manager"],
-        open_debit_notes=await debit_note_service.count_open(db, cid),
+        open_debit_notes=counts[_DEBIT_ROW],
     )
 
 
 async def company_summary(db: AsyncSession, cid: int, d_from: date, d_to: date) -> CompanySummary:
+    money: dict[str, list] = defaultdict(list)
+    for side, *row in await db.execute(
+        union_all(
+            _money_rows("purchases", Purchase, Purchase.material, cid, d_from, d_to),
+            _money_rows("sales", Sale, Sale.product, cid, d_from, d_to),
+        )
+    ):
+        money[side].append(row)
     return CompanySummary(
         company_id=cid,
         date_from=d_from,
         date_to=d_to,
-        purchases=await _money_totals(db, Purchase, Purchase.material, cid, d_from, d_to),
+        purchases=_money_totals(money["purchases"]),
         production=await _production_totals(db, cid, d_from, d_to),
-        sales=await _money_totals(db, Sale, Sale.product, cid, d_from, d_to),
+        sales=_money_totals(money["sales"]),
         queue=await _queue(db, cid),
     )

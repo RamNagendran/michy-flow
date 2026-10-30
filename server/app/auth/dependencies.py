@@ -3,6 +3,7 @@ from collections.abc import Awaitable, Callable
 from fastapi import Depends, HTTPException, Path, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 from app.auth.permissions import CompanyPermission, SystemPermission, system_permissions
 from app.core.db import get_db
@@ -32,7 +33,8 @@ async def get_user_allow_password_change(
         payload = decode_token(credentials.credentials, "access")
     except InvalidTokenError as exc:
         raise _UNAUTHORIZED from exc
-    user = await db.get(User, payload["user_id"])
+    # Memberships (and their companies) in the same query: every request needs them.
+    user = await db.get(User, payload["user_id"], options=[joinedload(User.memberships)])
     if (
         not user
         or not user.is_active

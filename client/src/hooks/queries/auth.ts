@@ -27,6 +27,8 @@ function useStartSession() {
   const qc = useQueryClient()
   return (data: TokenResponse) => {
     markActivity()
+    // A new sign-in starts from an empty cache: nothing saved from an earlier session shows.
+    qc.clear()
     dispatch(sessionStarted(data))
     qc.setQueryData(authKeys.me(), data.user)
   }
