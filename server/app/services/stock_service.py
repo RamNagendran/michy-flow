@@ -28,6 +28,7 @@ from app.models import (
     Sale,
     StockCheck,
     StockCheckLine,
+    WastageAdjustment,
 )
 from app.models.catalog import LITRE, STOCKED_ITEMS, process_of, unit_of
 from app.models.enums import EntryStatus, Grade
@@ -95,13 +96,15 @@ def _lines(
     ins: Sums,
     outs: Sums,
     counted: dict[str, Decimal] | None = None,
+    wasted: dict[str, Decimal] | None = None,
 ) -> list[StockLine]:
     """One line per item: the company's configured items, plus any other item that has moved
     in this grade (so nothing in stock is ever hidden). Weighed waste is never stocked.
     `counted` holds stock-check differences (book − counted) for this section, which the Manager
-    verified, so they apply to both figures."""
-    counted = counted or {}
-    moved = {item for g, item in (*ins, *outs) if g == grade} | counted.keys()
+    verified, so they apply to both figures. `wasted` holds raw stock moved by the Super Admin's
+    approved wastage changes (positive: taken out), which apply to both figures too."""
+    counted, wasted = counted or {}, wasted or {}
+    moved = {item for g, item in (*ins, *outs) if g == grade} | counted.keys() | wasted.keys()
     shown = set(wanted) | moved
     zero = (Decimal(0), Decimal(0))
     lines = []
@@ -109,13 +112,15 @@ def _lines(
         if item not in shown:
             continue
         (pi, ci), (po, co) = ins.get((grade, item), zero), outs.get((grade, item), zero)
-        adj = counted.get(item, Decimal(0))
+        count_adj, waste_adj = counted.get(item, Decimal(0)), wasted.get(item, Decimal(0))
+        adj = count_adj + waste_adj
         lines.append(
             StockLine(
                 item=item,
                 grade=grade,
                 unit=unit_of(item),
-                counted_adjustment=adj,
+                counted_adjustment=count_adj,
+                wastage_adjustment=waste_adj,
                 provisional=StockFigures(in_qty=pi, out_qty=po + adj, balance=pi - po - adj),
                 confirmed=StockFigures(in_qty=ci, out_qty=co + adj, balance=ci - co - adj),
             )
@@ -162,8 +167,9 @@ async def company_stock(
             *group, model.status
         )
 
-    # Every movement and every stock-check difference in one round trip. Stock-check lines
-    # carry their section ("raw", "output", "resale") in the grade column and no status.
+    # Every movement, stock-check difference and approved wastage change in one round trip.
+    # Stock-check lines carry their section ("raw", "output", "resale") in the grade column and
+    # no status; wastage changes are always Grade A raw material.
     rows = await db.execute(
         union_all(
             grouped("bought", Purchase, Purchase.grade, Purchase.material, Purchase.qty),
@@ -193,6 +199,15 @@ async def company_stock(
             )
             .where(StockCheckLine.company_id == company_id)
             .group_by(StockCheckLine.section, StockCheckLine.item),
+            select(
+                literal("wasted", String),
+                literal("raw", String),
+                WastageAdjustment.item,
+                cast(null(), String),
+                func.sum(WastageAdjustment.qty),
+            )
+            .where(WastageAdjustment.company_id == company_id)
+            .group_by(WastageAdjustment.item),
         )
     )
     by_kind: dict[str, list] = defaultdict(list)
@@ -204,9 +219,10 @@ async def company_stock(
     counted: dict[str, dict[str, Decimal]] = defaultdict(dict)
     for section, item, _, diff in by_kind["counted"]:
         counted[section][item] = diff
+    wasted = {item: qty for _, item, _, qty in by_kind["wasted"]}
     return CompanyStock(
         company_id=company_id,
-        raw=_lines(Grade.A, process.inputs, bought, used, counted.get("raw")),
+        raw=_lines(Grade.A, process.inputs, bought, used, counted.get("raw"), wasted),
         output=_lines(Grade.A, process.products, produced, sold, counted.get("output")),
         resale=_lines(Grade.B, process.inputs, bought, sold, counted.get("resale")),
         books=_lines(Grade.C, (), bought, sold),

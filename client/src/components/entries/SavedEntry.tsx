@@ -42,7 +42,6 @@ export default function SavedEntry({ entry, again }: { entry: EntryDetail; again
       effects={[
         <>Goes into stock when the Manager approves it</>,
         <>Becomes final when Finance approves it</>,
-        ...(entry.wastage_flagged ? [<>Wastage is above 2%. The Manager is told.</>] : []),
       ]}
       actions={[
         { label: `Record another`, onClick: again, primary: true },

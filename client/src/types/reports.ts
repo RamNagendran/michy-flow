@@ -102,26 +102,58 @@ export interface ProductionReport {
   by_operator: OperatorRow[]
 }
 
+/** open: month still running · pending: with the Super Admin · escalated: with the Manager · approved: final, month locked */
+export type WastageStatus = 'open' | 'pending' | 'escalated' | 'approved'
+
+/** How a changed month moves one raw material's stock. Positive qty is taken out of stock. */
+export interface StockShare {
+  item: string
+  processed_kg: number
+  share_pct: number
+  qty: number
+  stock_now: number | null
+  stock_after: number | null
+}
+
 export interface WastageMonth {
   month: string
-  allowance_pct: number
-  declared: boolean
+  status: WastageStatus
   runs: number
   processed_kg: number
   output_kg: number
+  /** What the production entries add up to (2% of each run's output). */
+  calculated_kg: number
+  /** The month's figure: the Super Admin's own if they changed it. */
   wastage_kg: number
   wastage_pct: number
-  over_allowance: boolean
-  flagged_runs: number
-  high_runs: number
+  changed: boolean
+  adjustments: StockShare[]
+  escalated_at: string | null
+  approved_by_name: string | null
+  approved_at: string | null
+  updated_at: string | null
 }
 
-export interface Allowance {
-  month: string
-  pct: number
-  note: string
-  declared_by_name: string | null
-  updated_at: string
+export type WastageAction = 'approve' | 'change' | 'escalate' | 'resend' | 'comment'
+
+export interface WastageEvent {
+  id: number
+  action: 'sent' | 'escalated' | 'resent' | 'commented' | 'changed' | 'approved'
+  comment: string
+  changes: { wastage_kg?: string | [string, string]; production_kg?: string; stock_kg?: Record<string, string> } | null
+  actor_name: string | null
+  created_at: string
+}
+
+export interface WastageMonthDetail extends WastageMonth {
+  actions: WastageAction[]
+  events: WastageEvent[]
+}
+
+export interface WastageQueue {
+  company_id: number
+  to_approve: number
+  escalated: number
 }
 
 export type CountSection = 'raw' | 'output' | 'resale'

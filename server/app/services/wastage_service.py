@@ -1,35 +1,26 @@
-"""Wastage control.
+"""Wastage control: the fixed wastage rate and the Manager's stock checks.
 
-- Allowance: the Manager declares the wastage % acceptable for a month, up to the hard limit
-  (WASTAGE_ALERT_PCT). Months without a declaration use the hard limit.
-- A run whose missing weight is over the month's allowance is flagged.
+- Every production run counts WASTAGE_ALERT_PCT of its output as wastage (entry_service).
+  Each month's total goes to the Super Admin for approval (wastage_month_service).
 - Stock checks: every 1 or 3 months the Manager counts the physical stock; each difference from
   the book stock is recorded and adjusts the stock from then on.
 """
 
-from collections import defaultdict
-from collections.abc import Iterable
-from datetime import date
 from decimal import Decimal
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.permissions import CompanyPermission as P
-from app.core.clock import add_months, month_start, today
+from app.core.clock import today
 from app.core.config import settings
 from app.core.errors import ForbiddenError, InvalidError
-from app.core.periods import truncate
-from app.models import Production, StockCheck, StockCheckLine, User, WastageAllowance
+from app.models import StockCheck, StockCheckLine, User
 from app.models.catalog import unit_of
-from app.models.enums import EntryStatus
 from app.schemas.wastage import (
-    AllowanceInput,
-    AllowanceRead,
     CountLineRead,
     StockCheckInput,
     StockCheckRead,
-    WastageMonth,
 )
 from app.services import stock_service
 from app.services.access_service import CompanyContext
@@ -41,150 +32,6 @@ _GRADE_OF_SECTION = {"raw": "A", "output": "A", "resale": "B"}
 def _require(ctx: CompanyContext) -> None:
     if not ctx.can(P.ADJUST_WASTAGE):
         raise ForbiddenError("Only the Manager manages wastage")
-
-
-def _live_production(company_id: int) -> tuple:
-    return (
-        Production.company_id == company_id,
-        Production.deleted_at.is_(None),
-        Production.status != EntryStatus.REJECTED,
-    )
-
-
-# ---------------------------------------------------------------------------
-# Allowances
-# ---------------------------------------------------------------------------
-
-
-async def allowances(
-    db: AsyncSession, company_id: int, months: Iterable[date]
-) -> dict[date, Decimal]:
-    """{month: declared %} for the months asked about that have a declaration. One query."""
-    wanted = {month_start(m) for m in months}
-    if not wanted:
-        return {}
-    rows = await db.execute(
-        select(WastageAllowance.month, WastageAllowance.pct).where(
-            WastageAllowance.company_id == company_id, WastageAllowance.month.in_(wanted)
-        )
-    )
-    return dict(rows.all())
-
-
-async def allowance_for(db: AsyncSession, company_id: int, day: date) -> Decimal:
-    return (await allowances(db, company_id, [day])).get(month_start(day), HARD_LIMIT)
-
-
-async def declare(db: AsyncSession, ctx: CompanyContext, data: AllowanceInput) -> None:
-    _require(ctx)
-    month = month_start(data.month)
-    if month > add_months(month_start(today()), 1):
-        raise InvalidError("Declare the allowance at most one month ahead")
-    current = await db.scalar(
-        select(WastageAllowance).where(
-            WastageAllowance.company_id == ctx.company.id, WastageAllowance.month == month
-        )
-    )
-    if current:
-        current.pct, current.note, current.declared_by_id = data.pct, data.note, ctx.user.id
-    else:
-        db.add(
-            WastageAllowance(
-                company_id=ctx.company.id,
-                month=month,
-                pct=data.pct,
-                note=data.note,
-                declared_by_id=ctx.user.id,
-            )
-        )
-    await db.commit()
-
-
-async def list_allowances(db: AsyncSession, company_id: int) -> list[AllowanceRead]:
-    rows = await db.execute(
-        select(WastageAllowance, User.full_name)
-        .outerjoin(User, User.id == WastageAllowance.declared_by_id)
-        .where(WastageAllowance.company_id == company_id)
-        .order_by(WastageAllowance.month.desc())
-        .limit(36)
-    )
-    return [
-        AllowanceRead(
-            month=a.month, pct=a.pct, note=a.note, declared_by_name=name, updated_at=a.updated_at
-        )
-        for a, name in rows
-    ]
-
-
-# ---------------------------------------------------------------------------
-# Monthly report
-# ---------------------------------------------------------------------------
-
-
-async def monthly(
-    db: AsyncSession, company_id: int, d_from: date, d_to: date
-) -> list[WastageMonth]:
-    """Each month in the range with production, against its allowance. The per-run flags need
-    each month's allowance, so runs are grouped by month and percentage band in SQL and the
-    bands are compared in Python (a few rows per month)."""
-    month = truncate(Production.entry_date, "month")
-    rows = (
-        await db.execute(
-            select(
-                month,
-                Production.wastage_pct,
-                func.count(),
-                func.sum(Production.input_kg - Production.returned_kg),
-                func.sum(Production.output_kg),
-                func.sum(Production.wastage_kg),
-            )
-            .where(*_live_production(company_id), Production.entry_date.between(d_from, d_to))
-            .group_by(month, Production.wastage_pct)
-        )
-    ).all()
-    declared = await allowances(db, company_id, (r[0] for r in rows))
-    acc: dict[date, dict] = defaultdict(
-        lambda: {
-            "runs": 0,
-            "p": Decimal(0),
-            "o": Decimal(0),
-            "w": Decimal(0),
-            "f": 0,
-            "h": 0,
-        }
-    )
-    for key, pct, n, processed, output, wastage in rows:
-        allowance = declared.get(key, HARD_LIMIT)
-        a = acc[key]
-        a["runs"] += n
-        a["p"] += processed
-        a["o"] += output
-        a["w"] += wastage
-        if pct > allowance:
-            a["f"] += n
-        if pct > HARD_LIMIT:
-            a["h"] += n
-    out = []
-    for key in sorted(acc):
-        a = acc[key]
-        allowance = declared.get(key, HARD_LIMIT)
-        pct = a["w"] / a["p"] * 100 if a["p"] else Decimal(0)
-        out.append(
-            WastageMonth(
-                month=key,
-                allowance_pct=allowance,
-                declared=key in declared,
-                runs=a["runs"],
-                processed_kg=a["p"],
-                output_kg=a["o"],
-                wastage_kg=a["w"],
-                wastage_pct=round(pct, 3),
-                over_allowance=pct > allowance,
-                flagged_runs=a["f"],
-                high_runs=a["h"],
-            )
-        )
-    return out
 
 
 # ---------------------------------------------------------------------------

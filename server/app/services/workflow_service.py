@@ -27,7 +27,7 @@ from app.core.errors import AppError, ForbiddenError
 from app.models import EntryEvent, Production, Purchase, Sale, User
 from app.models.enums import EntryStatus as S
 from app.models.enums import EntryType
-from app.services import audit_service, stock_service
+from app.services import audit_service, stock_service, wastage_month_service
 from app.services.access_service import CompanyContext
 
 Entry = Purchase | Sale | Production
@@ -184,6 +184,9 @@ async def act(
         )
     if transition.needs_comment and not comment:
         raise AppError("Please write the reason in the comment", code="comment_required")
+    if transition.to_status == S.REJECTED and isinstance(entry, Production):
+        # Rejecting a run would change an approved month's wastage.
+        await wastage_month_service.assert_month_open(db, entry.company_id, entry.entry_date)
 
     entry.status = transition.to_status
     if transition.to_status == S.APPROVED:

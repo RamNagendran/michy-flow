@@ -1,24 +1,23 @@
-import { Bar, CartesianGrid, Cell, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { WASTAGE_ALERT_PCT } from '../../data/catalog'
+import { Bar, CartesianGrid, Cell, ComposedChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { WastageMonth } from '../../types/reports'
-import { formatPercent } from '../../utils/format'
+import { formatKgFine } from '../../utils/format'
 import { periodLabel } from '../../utils/period'
 import ChartTooltip from '../ChartTooltip'
 import ChartCard from './ChartCard'
 import { ANIMATION_MS, axisProps, gridProps, reportColors as c } from './chartKit'
 
-const barColor = (m: WastageMonth) => (m.wastage_pct > WASTAGE_ALERT_PCT ? c.danger : m.over_allowance ? c.wastage : c.output)
+const barColor = (m: WastageMonth) => (m.status === 'approved' ? c.output : m.status === 'open' ? c.average : c.wastage)
 
-/** Each month's wastage % against the Manager's declared allowance and the hard limit. */
+/** Each month's wastage in kg, coloured by where it is in the Super Admin's approval. */
 export default function WastageChart({ months, loading, refreshing }: { months: WastageMonth[]; loading?: boolean; refreshing?: boolean }) {
   return (
     <ChartCard
       title="Monthly wastage"
-      sub="Green: within allowed wastage · Amber: above it · Red: above 2%"
+      sub="Wastage in kg for each month"
       legend={[
-        { label: 'Wastage %', color: c.output },
-        { label: 'Allowance', color: c.average },
-        { label: `${WASTAGE_ALERT_PCT}% limit`, color: c.danger, dashed: true },
+        { label: 'Approved', color: c.output },
+        { label: 'Waiting', color: c.wastage },
+        { label: 'This month', color: c.average },
       ]}
       loading={loading}
       refreshing={refreshing}
@@ -29,15 +28,13 @@ export default function WastageChart({ months, loading, refreshing }: { months: 
         <ComposedChart data={months} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <CartesianGrid {...gridProps} />
           <XAxis dataKey="month" tickFormatter={(v) => periodLabel(v, 'month')} {...axisProps} />
-          <YAxis tickFormatter={(v) => `${v}%`} {...axisProps} width={44} domain={[0, (max: number) => Math.max(WASTAGE_ALERT_PCT + 1, Math.ceil(max))]} />
-          <Tooltip cursor={{ fill: 'rgba(16,24,40,0.04)' }} content={<ChartTooltip format={(v) => formatPercent(v, 2)} labelFormat={(v) => periodLabel(v, 'month')} />} />
-          <ReferenceLine y={WASTAGE_ALERT_PCT} stroke={c.danger} strokeDasharray="5 4" />
-          <Bar dataKey="wastage_pct" name="Wastage" radius={[6, 6, 0, 0]} maxBarSize={44} animationDuration={ANIMATION_MS}>
+          <YAxis tickFormatter={(v) => `${v}`} {...axisProps} width={52} />
+          <Tooltip cursor={{ fill: 'rgba(16,24,40,0.04)' }} content={<ChartTooltip format={(v) => formatKgFine(v)} labelFormat={(v) => periodLabel(v, 'month')} />} />
+          <Bar dataKey="wastage_kg" name="Wastage" radius={[6, 6, 0, 0]} maxBarSize={44} animationDuration={ANIMATION_MS}>
             {months.map((m) => (
               <Cell key={m.month} fill={barColor(m)} />
             ))}
           </Bar>
-          <Line type="stepAfter" dataKey="allowance_pct" name="Allowance" stroke={c.average} strokeWidth={2} dot={false} animationDuration={ANIMATION_MS} />
         </ComposedChart>
       </ResponsiveContainer>
     </ChartCard>

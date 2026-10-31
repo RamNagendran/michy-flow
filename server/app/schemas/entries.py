@@ -365,8 +365,6 @@ class EntryDetail(BaseModel):
     output_kg: float | None = None
     wastage_kg: float | None = None
     wastage_pct: float | None = None
-    wastage_flagged: bool = False  # over the month's declared allowance
-    wastage_allowance_pct: float | None = None
     crew: list[CrewMember] = []
     running_hours: float | None = None
     efficiency_pct: float | None = None  # running hours / shift hours

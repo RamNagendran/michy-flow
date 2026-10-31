@@ -46,7 +46,7 @@ async def test_pyrolysis_run_works_out_input_with_oil_in_litres(client: AsyncCli
     # 4000 L of oil at the default 1.04 kg/L = 4160 kg, so 8980 kg came out.
     assert run["output_kg"] == 8980 and run["wastage_kg"] == 179.6  # 2% of 8980
     assert run["calculated_input_kg"] == 9160 and run["processed_kg"] == 9160
-    assert run["wastage_flagged"] is False
+    assert "wastage_flagged" not in run
     oil = next(o for o in run["outputs"] if o["product"] == "oil")
     assert (oil["qty"], oil["unit"], oil["qty_kg"]) == (4000, "L", 4160)
 

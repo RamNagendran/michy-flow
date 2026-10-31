@@ -29,8 +29,8 @@ class Settings(BaseSettings):
     AUTO_MIGRATE: bool = True
     # Business time zone: decides what "today" is for entry dates.
     TIMEZONE: str = "Asia/Kolkata"
-    # Hard wastage limit (% of the processed weight). Over it a run raises a high alert and
-    # needs a debit note; it is also the most a Manager may declare as a monthly allowance.
+    # Fixed wastage rate: every production run counts this % of its output as wastage. Each
+    # month's total then goes to the Super Admin for approval.
     WASTAGE_ALERT_PCT: float = 2.0
     # Planned hours in one of the three daily shifts, for production efficiency.
     SHIFT_HOURS: float = 8.0

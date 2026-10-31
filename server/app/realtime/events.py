@@ -4,6 +4,7 @@ A failure here is logged and swallowed: live updates must never break a save.
 """
 
 import logging
+from datetime import date
 from typing import Any
 
 from app.models import Company, Party, User
@@ -70,5 +71,21 @@ async def stock_checked(company: Company, actor: User) -> None:
             "account_id": company.account_id,
             "company_id": company.id,
             "actor_id": actor.id,
+        }
+    )
+
+
+async def wastage_changed(company: Company, month: date, action: str, actor: User) -> None:
+    """A month's wastage moved on: escalated, sent back, changed, commented or approved.
+    An approval can move raw stock, so stock screens refresh too."""
+    await _publish(
+        {
+            "type": "wastage",
+            "action": action,
+            "account_id": company.account_id,
+            "company_id": company.id,
+            "month": month.isoformat(),
+            "actor_id": actor.id,
+            "actor_name": actor.full_name,
         }
     )

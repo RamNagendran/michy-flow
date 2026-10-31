@@ -23,6 +23,7 @@ export type CompanyPermission =
   | 'verify_entry'
   | 'manage_parties'
   | 'adjust_wastage'
+  | 'approve_wastage'
   | 'manage_grades'
   | 'view_finance'
   | 'view_oil_kpi'

@@ -36,7 +36,7 @@ from app.schemas.entries import (
     OutputRead,
     StatusCount,
 )
-from app.services import crew_service, debit_note_service, wastage_service, workflow_service
+from app.services import crew_service, debit_note_service, workflow_service
 from app.services.access_service import CompanyContext, accessible_companies, permissions_in
 from app.services.workflow_service import Entry
 
@@ -237,14 +237,11 @@ async def _names(db: AsyncSession, ids: set[int | None]) -> dict[int, str]:
 
 
 async def _production_extras(db: AsyncSession, run: Production) -> dict:
-    """Wastage against the month's allowance, the crew and efficiency."""
-    allowance = await wastage_service.allowance_for(db, run.company_id, run.entry_date)
+    """The crew and efficiency."""
     crew = await crew_service.names(db, run.crew_ids)
     processed = run.input_kg - run.returned_kg
     hours = run.running_hours
     return {
-        "wastage_allowance_pct": allowance,
-        "wastage_flagged": run.wastage_pct > allowance,
         "crew": [CrewMember(id=i, name=crew[i]) for i in run.crew_ids if i in crew],
         "running_hours": hours,
         "efficiency_pct": round(hours / Decimal(str(settings.SHIFT_HOURS)) * 100, 1)

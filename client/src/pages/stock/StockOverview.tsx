@@ -10,7 +10,7 @@ import type { StockLine, StockSection } from '../../types/entries'
 import { formatINRShort, formatKg, formatQty } from '../../utils/format'
 import { periodLabels } from '../../utils/period'
 
-const zero: StockLine = { item: '', grade: 'A', unit: 'kg', counted_adjustment: 0, provisional: { in_qty: 0, out_qty: 0, balance: 0 }, confirmed: { in_qty: 0, out_qty: 0, balance: 0 } }
+const zero: StockLine = { item: '', grade: 'A', unit: 'kg', counted_adjustment: 0, wastage_adjustment: 0, provisional: { in_qty: 0, out_qty: 0, balance: 0 }, confirmed: { in_qty: 0, out_qty: 0, balance: 0 } }
 const dot = (item: string) => <span className="legend-dot" style={{ background: seriesColors[item as keyof typeof seriesColors] }} />
 
 /** Items down the side, companies across the top, each cell "in stock (finalised)". */

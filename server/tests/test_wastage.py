@@ -1,5 +1,5 @@
-"""Wastage limits, monthly allowances, stock checks, escalation, configuration
-and shift crews."""
+"""Wastage limits, stock checks, configuration and shift crews. The monthly wastage approval
+is in test_wastage_months.py."""
 
 from httpx import AsyncClient
 
@@ -28,29 +28,6 @@ async def test_old_runs_over_the_limit_are_approved_without_a_debit_note(
     assert (
         await client.get(t.url("/debit-notes/pending"), headers=bearer(t.manager))
     ).status_code in (404, 405, 422)
-
-
-async def test_monthly_allowance_flags_runs_over_it(client: AsyncClient) -> None:
-    t = await team(client)
-    body = {"month": TODAY, "pct": "1.5", "note": "Monsoon stock"}
-    url = t.url("/wastage/allowances")
-    assert (await client.put(url, json=body, headers=bearer(t.operator))).status_code == 403
-    too_high = {**body, "pct": "2.5"}
-    assert (await client.put(url, json=too_high, headers=bearer(t.admin))).status_code == 422
-    assert (await client.put(url, json=body, headers=bearer(t.admin))).status_code == 204
-
-    await purchase(client, t, t.admin, "1000")
-    run = (await production(client, t, t.admin, {"rubber": "900"})).json()
-    # 2%: over this month's 1.5% allowance, but not over the 2% hard limit.
-    assert run["wastage_flagged"] is True
-    assert run["wastage_allowance_pct"] == 1.5
-    months = (
-        await client.get(
-            t.url(f"/wastage?date_from={TODAY}&date_to={TODAY}"), headers=bearer(t.admin)
-        )
-    ).json()
-    assert months[0]["declared"] is True and months[0]["flagged_runs"] == 1
-    assert months[0]["over_allowance"] is True and months[0]["high_runs"] == 0
 
 
 async def test_stock_check_adjusts_the_book_stock(client: AsyncClient) -> None:

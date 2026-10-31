@@ -34,7 +34,8 @@ class CompanyPermission(StrEnum):
     APPROVE_ENTRY = "approve_entry"  # Manager: approve, escalate to the in-charge, ask for a change
     VERIFY_ENTRY = "verify_entry"  # Finance: final approve, escalate to the Manager
     MANAGE_PARTIES = "manage_parties"  # suppliers and buyers
-    ADJUST_WASTAGE = "adjust_wastage"
+    ADJUST_WASTAGE = "adjust_wastage"  # Manager: stock checks; answers wastage escalations
+    APPROVE_WASTAGE = "approve_wastage"  # Super Admin only: approve, change or escalate a month
     MANAGE_GRADES = "manage_grades"
     VIEW_FINANCE = "view_finance"
     VIEW_OIL_KPI = "view_oil_kpi"
@@ -59,7 +60,8 @@ GLOBAL_COMPANY_PERMISSIONS: dict[GlobalRole, frozenset[CompanyPermission]] = {
 
 COMPANY_ROLE_PERMISSIONS: dict[CompanyRole, frozenset[CompanyPermission]] = {
     # Checks every in-charge entry first: approves, escalates to the in-charge, or asks the
-    # Super Admin to change it. Runs the company: suppliers and buyers, wastage, stock checks.
+    # Super Admin to change it. Runs the company: suppliers and buyers, stock checks, and
+    # answers the Super Admin's questions on a month's wastage.
     # Never enters, edits or rejects an entry.
     CompanyRole.MANAGER: _SEE_AND_DISCUSS
     | {

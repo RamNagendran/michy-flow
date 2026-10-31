@@ -146,6 +146,7 @@ def create_app() -> FastAPI:
     app.include_router(stock.router)
     app.include_router(documents.router)
     app.include_router(wastage.router)
+    app.include_router(wastage.queue_router)
     app.include_router(debit_notes.router)
     app.include_router(analytics.router)
     app.include_router(realtime_socket.router)

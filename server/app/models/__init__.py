@@ -17,7 +17,13 @@ from app.models.entries import (
 from app.models.membership import CompanyMembership
 from app.models.party import Party
 from app.models.user import User
-from app.models.wastage import StockCheck, StockCheckLine, WastageAllowance
+from app.models.wastage import (
+    StockCheck,
+    StockCheckLine,
+    WastageAdjustment,
+    WastageMonthEvent,
+    WastageMonthRecord,
+)
 
 __all__ = [
     "Account",
@@ -37,5 +43,7 @@ __all__ = [
     "StockCheck",
     "StockCheckLine",
     "User",
-    "WastageAllowance",
+    "WastageAdjustment",
+    "WastageMonthEvent",
+    "WastageMonthRecord",
 ]

@@ -1,43 +1,91 @@
 from datetime import date, datetime
-from decimal import Decimal
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, StringConstraints, model_validator
 
 from app.schemas.entries import QtyOrZero, Text
 
-Pct = Annotated[Decimal, Field(gt=0, le=2, max_digits=4, decimal_places=2)]
 Section = Literal["raw", "output", "resale"]
+# open: the month is still running; pending: waiting for the Super Admin; escalated: waiting
+# for the Manager; approved: final, and production in that month is locked.
+MonthStatus = Literal["open", "pending", "escalated", "approved"]
+# Trimmed first, so a comment of only spaces is refused.
+Comment = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=2000)]
 
 
-class AllowanceInput(BaseModel):
-    month: date  # any day in the month
-    pct: Pct
-    note: Text = ""
+class StockShare(BaseModel):
+    """How a changed month moves one raw material's stock, by its share of the processing."""
 
-
-class AllowanceRead(BaseModel):
-    month: date
-    pct: float
-    note: str
-    declared_by_name: str | None
-    updated_at: datetime
+    item: str
+    processed_kg: float
+    share_pct: float
+    qty: float  # positive: taken out of stock; negative: put back
+    stock_now: float | None = None  # only on the detail, while the month is not approved
+    stock_after: float | None = None
 
 
 class WastageMonth(BaseModel):
-    """One month of production against the allowance."""
-
     month: date
-    allowance_pct: float
-    declared: bool  # False: the default hard limit applies
+    status: MonthStatus
     runs: int
     processed_kg: float
     output_kg: float
-    wastage_kg: float
-    wastage_pct: float
-    over_allowance: bool
-    flagged_runs: int  # over the month's allowance
-    high_runs: int  # over the hard limit (older runs; new runs use the fixed rate)
+    calculated_kg: float  # what the production entries add up to (2% of each run's output)
+    wastage_kg: float  # the figure for the month: the Super Admin's own, if they changed it
+    wastage_pct: float  # of the processed weight
+    changed: bool  # the Super Admin's figure differs from the production total
+    adjustments: list[StockShare]
+    escalated_at: datetime | None
+    approved_by_name: str | None
+    approved_at: datetime | None
+    updated_at: datetime | None  # None until someone acts on the month
+
+
+class WastageEventRead(BaseModel):
+    id: int
+    action: str
+    comment: str
+    changes: dict | None
+    actor_name: str | None
+    created_at: datetime
+
+
+class WastageMonthDetail(WastageMonth):
+    actions: list[str]  # what this person may do now
+    events: list[WastageEventRead]
+
+
+class WastageComment(BaseModel):
+    comment: Comment
+
+
+class WastageChange(BaseModel):
+    wastage_kg: QtyOrZero
+    comment: Comment
+
+
+class MonthApproval(BaseModel):
+    month: date
+    # The figure the Super Admin saw. If production changed since, nothing is approved.
+    wastage_kg: QtyOrZero
+
+
+class WastageApproval(BaseModel):
+    months: list[MonthApproval] = Field(min_length=1, max_length=36)
+    comment: Text = ""
+
+    @model_validator(mode="after")
+    def _each_month_once(self) -> "WastageApproval":
+        months = [m.month.replace(day=1) for m in self.months]
+        if len(months) != len(set(months)):
+            raise ValueError("each month can be approved only once")
+        return self
+
+
+class WastageQueue(BaseModel):
+    company_id: int
+    to_approve: int  # months waiting for the Super Admin
+    escalated: int  # months waiting for the Manager
 
 
 class CountLine(BaseModel):

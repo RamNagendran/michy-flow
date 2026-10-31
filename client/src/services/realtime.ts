@@ -7,7 +7,7 @@
  */
 
 export interface RealtimeEvent {
-  type: 'ready' | 'entry' | 'party' | 'company' | 'access' | 'stock'
+  type: 'ready' | 'entry' | 'party' | 'company' | 'access' | 'stock' | 'wastage'
   /** Needs attention now: "escalated" (sent back by the Manager or Finance). */
   alert?: string | null
   action?: string
@@ -19,6 +19,8 @@ export interface RealtimeEvent {
   created_by_id?: number | null
   actor_id?: number
   actor_name?: string
+  /** On "wastage": the month it is about (YYYY-MM-01). */
+  month?: string
   /** On "ready": true when this is a reconnect, so missed changes must be refetched. */
   reconnected?: boolean
 }

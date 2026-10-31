@@ -42,6 +42,8 @@ class Connection:
             return False
         if kind == "entry" and self.scopes[company_id]:
             return event.get("created_by_id") == self.user_id
+        if kind == "wastage":
+            return not self.scopes[company_id]  # in-charges never see wastage approvals
         return True
 
 

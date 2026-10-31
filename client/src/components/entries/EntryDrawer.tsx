@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Alert, Button, Drawer, Input, Modal, Skeleton, Space } from 'antd'
-import { CheckOutlined, FileExclamationOutlined, FlagOutlined, CloseOutlined, EditOutlined, FileSearchOutlined, SafetyCertificateOutlined, SendOutlined, WarningFilled } from '@ant-design/icons'
+import { Button, Drawer, Input, Modal, Skeleton, Space } from 'antd'
+import { CheckOutlined, FileExclamationOutlined, FlagOutlined, CloseOutlined, EditOutlined, FileSearchOutlined, SafetyCertificateOutlined, SendOutlined } from '@ant-design/icons'
 import { itemName } from '../../data/catalog'
 import { gradeInfo } from '../../data/grades'
 import { useEntry, useEntryAction, useEscalation } from '../../hooks/queries/entries'
@@ -183,20 +183,9 @@ function Production({ e }: { e: EntryDetail }) {
         <span className="muted">Total weight out</span>
         <b className="num">{formatKg(e.output_kg ?? 0)}</b>
       </div>
-      {e.wastage_flagged ? (
-        <Alert
-          type="warning"
-          showIcon
-          icon={<WarningFilled />}
-          style={{ marginTop: 10 }}
-          title={`Missing ${formatKg(e.wastage_kg ?? 0)} (${formatPercent(e.wastage_pct ?? 0)}) — over this month's ${formatPercent(e.wastage_allowance_pct ?? 2)} allowance`}
-          description="Flagged as waste for the Manager to check before approving."
-        />
-      ) : (
-        <div className="muted" style={{ fontSize: 13, marginTop: 6 }}>
-          Missing {formatKg(e.wastage_kg ?? 0)} ({formatPercent(e.wastage_pct ?? 0)}) — within this month's {formatPercent(e.wastage_allowance_pct ?? 2)} allowance
-        </div>
-      )}
+      <div className="muted" style={{ fontSize: 13, marginTop: 6 }}>
+        Wastage {formatKg(e.wastage_kg ?? 0)} ({formatPercent(e.wastage_pct ?? 0)}) · goes in this month's total for the Super Admin
+      </div>
     </div>
   )
 }

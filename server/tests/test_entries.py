@@ -17,7 +17,7 @@ async def test_production_works_out_input_and_wastage(client: AsyncClient) -> No
     p = res.json()
     assert p["output_kg"] == 490 and p["calculated_input_kg"] == 500 and p["qty"] == 500
     assert p["wastage_kg"] == 9.8 and p["wastage_pct"] == 2.0
-    assert p["wastage_flagged"] is False
+    assert "wastage_flagged" not in p  # no per-run flag: the month goes to the Super Admin
     assert p["ref_no"] == "PRD-MR-00001"
     assert (await stock_of(client, t, "truck"))["provisional"]["balance"] == 1500
 

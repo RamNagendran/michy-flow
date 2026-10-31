@@ -45,7 +45,10 @@ export const API_ROUTES = {
   },
   wastage: {
     months: (companyId: number) => `/companies/${companyId}/wastage`,
-    allowances: (companyId: number) => `/companies/${companyId}/wastage/allowances`,
+    month: (companyId: number, month: string) => `/companies/${companyId}/wastage/months/${month}`,
+    action: (companyId: number, month: string, action: string) => `/companies/${companyId}/wastage/months/${month}/actions/${action}`,
+    approve: (companyId: number) => `/companies/${companyId}/wastage/approve`,
+    queue: '/wastage/queue',
     stockChecks: (companyId: number) => `/companies/${companyId}/stock-checks`,
   },
   debitNotes: {

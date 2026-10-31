@@ -65,7 +65,7 @@ export const roleColor: Record<GlobalRole | CompanyRole, string> = {
 export const roleDescription: Record<GlobalRole | CompanyRole, string> = {
   super_admin: 'Manages everything: companies, users, item lists and oil factor.',
   ceo: 'Can see all companies. Cannot change anything.',
-  manager: 'Runs one company. Checks every entry first: approves it, escalates it to the in-charge, or asks the Super Admin to change it. Handles suppliers, buyers, wastage and stock checks.',
+  manager: 'Runs one company. Checks every entry first: approves it, escalates it to the in-charge, or asks the Super Admin to change it. Handles suppliers, buyers and stock checks. Answers questions from the Super Admin on monthly wastage.',
   finance: 'Gives the final approval after the Manager, or escalates it back to the Manager.',
   operator: 'In-charge. Enters purchases, sales or production, as ticked for them. Sees their own entries and the stock. Shift workers are listed when production is entered.',
 }
@@ -87,7 +87,8 @@ export const ROLE_MATRIX: [string, Partial<Record<MatrixColumn, true | 'duty'>>]
   ['Final approval, or escalate to the Manager', { super_admin: true, finance: true }],
   ['Change or reject an entry', { super_admin: true }],
   ['Add and edit suppliers and buyers', { super_admin: true, manager: true }],
-  ['Set monthly wastage limit and count stock', { super_admin: true, manager: true }],
+  ['Count stock, and answer questions on monthly wastage', { super_admin: true, manager: true }],
+  ['Approve, change or escalate monthly wastage', { super_admin: true }],
   ['Manage grade A / B / C stock', { super_admin: true, manager: true }],
   ['See finance and reports', { super_admin: true, ceo: true, manager: true, finance: true }],
   ['See oil production KPI', { super_admin: true, ceo: true, manager: true }],

@@ -1,20 +1,23 @@
 import { useState } from 'react'
-import { Button, Table, Tag } from 'antd'
-import { AuditOutlined, CalendarOutlined, PercentageOutlined } from '@ant-design/icons'
+import { Button, Space, Table } from 'antd'
+import { AuditOutlined, CalendarOutlined, CheckCircleOutlined, FieldTimeOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import CompanyPicker from '../../components/CompanyPicker'
 import WastageChart from '../../components/charts/WastageChart'
-import { PageHeader, SectionTitle } from '../../components/ui'
+import { HintButton, PageHeader, SectionTitle } from '../../components/ui'
 import { itemName, WASTAGE_ALERT_PCT } from '../../data/catalog'
 import { useStocks } from '../../hooks/queries/stock'
-import { useAllowances, useStockChecks, useWastageMonths } from '../../hooks/queries/wastage'
+import { useStockChecks, useWastageMonths } from '../../hooks/queries/wastage'
 import { useAccess } from '../../hooks/useAccess'
 import { usePeriod } from '../../hooks/usePeriod'
 import { useReportCompany } from '../../hooks/useReportCompany'
-import type { StockCheck, WastageMonth } from '../../types/reports'
-import { formatDate, formatKg, formatPercent, formatQty } from '../../utils/format'
-import AllowanceModal from './AllowanceModal'
+import type { StockCheck } from '../../types/reports'
+import { formatDate, formatKgFine, formatQty } from '../../utils/format'
+import ApproveModal from './ApproveModal'
+import MonthDrawer from './MonthDrawer'
+import MonthTable from './MonthTable'
 import StockCheckModal from './StockCheckModal'
+import { approvable } from './wastageMeta'
 
 function Card({ icon, tone, label, value, sub, action }: { icon: React.ReactNode; tone: string; label: string; value: React.ReactNode; sub: React.ReactNode; action?: React.ReactNode }) {
   return (
@@ -32,36 +35,73 @@ function Card({ icon, tone, label, value, sub, action }: { icon: React.ReactNode
   )
 }
 
-/** Wastage control: the monthly allowance and stock checks. */
+/** Wastage control: each month's wastage on its way to the Super Admin, and stock checks. */
 export default function Wastage() {
   const { can } = useAccess()
-  const { label, range } = usePeriod()
+  const { range } = usePeriod()
   const { companies, company, setCompany } = useReportCompany('view_all_entries')
   const cid = company?.id
   const manage = !!cid && can('adjust_wastage', cid)
-  const months = useWastageMonths(cid, range)
-  const allowances = useAllowances(cid)
+  const canApprove = !!cid && can('approve_wastage', cid)
+  // At least a year back, so months still waiting are never hidden by a short period.
+  const yearBack = dayjs().subtract(11, 'month').startOf('month').format('YYYY-MM-DD')
+  const from = range[0] < yearBack ? range[0] : yearBack
+  const months = useWastageMonths(cid, [from, dayjs().format('YYYY-MM-DD')])
   const checks = useStockChecks(cid)
   const stocks = useStocks(company ? [company] : [])
   const stock = cid ? stocks.byCompany.get(cid) : undefined
-  const [declaring, setDeclaring] = useState(false)
   const [counting, setCounting] = useState(false)
+  const [openMonth, setOpenMonth] = useState<string | null>(null)
+  const [selected, setSelected] = useState<string[]>([])
+  const [approving, setApproving] = useState(false)
 
-  const thisMonth = dayjs().startOf('month').format('YYYY-MM-DD')
-  const declared = allowances.data?.find((a) => a.month === thisMonth)
+  const all = months.data ?? []
+  const waiting = all.filter((m) => m.status === 'pending')
+  const withManager = all.filter((m) => m.status === 'escalated')
+  const running = all.find((m) => m.status === 'open')
+  const toApprove = all.filter((m) => selected.includes(m.month) && approvable(m))
 
   return (
     <div className="page">
-      <PageHeader title="Wastage control" subtitle={`Allowance and stock checks · ${label}`} extra={<CompanyPicker companies={companies} value={cid} onChange={setCompany} />} />
+      <PageHeader
+        title="Wastage control"
+        subtitle="Monthly approval and stock checks"
+        extra={
+          <Space>
+            <HintButton title="How monthly wastage works">
+              <p>Every production run counts {WASTAGE_ALERT_PCT}% of its output as wastage.</p>
+              <p>When a month ends, its total goes to the Super Admin. The next month starts fresh at once; it does not wait for approval.</p>
+              <p>The Super Admin can approve one month or several together, ask the Manager a question, or change the wastage. The Manager replies and sends it back.</p>
+              <p>If the Super Admin changes the wastage, the difference is taken out of (or put back into) raw stock by share of tyres used in that month. It happens only on approval.</p>
+              <p>After approval, production for that month is locked. Only the Super Admin can change wastage.</p>
+            </HintButton>
+            <CompanyPicker companies={companies} value={cid} onChange={setCompany} />
+          </Space>
+        }
+      />
 
-      <div className="grid grid-2 stagger">
+      <div className="grid grid-3 stagger">
         <Card
-          icon={<PercentageOutlined />}
+          icon={<FieldTimeOutlined />}
           tone="#2F6FEB"
-          label={`Allowance · ${dayjs().format('MMMM')}`}
-          value={formatPercent(declared?.pct ?? WASTAGE_ALERT_PCT, 2)}
-          sub={declared ? `Declared by ${declared.declared_by_name ?? '—'}${declared.note ? ` · ${declared.note}` : ''}` : `Not declared · the ${WASTAGE_ALERT_PCT}% limit applies`}
-          action={manage && <Button onClick={() => setDeclaring(true)}>{declared ? 'Change allowance' : 'Declare allowance'}</Button>}
+          label={`This month · ${dayjs().format('MMMM')}`}
+          value={formatKgFine(running?.wastage_kg ?? 0)}
+          sub={running ? `${running.runs} run${running.runs === 1 ? '' : 's'} so far · goes for approval on ${dayjs().add(1, 'month').startOf('month').format('DD MMM')}` : 'No production yet'}
+        />
+        <Card
+          icon={<CheckCircleOutlined />}
+          tone={waiting.length ? '#D98A0B' : '#1F9D6B'}
+          label="Waiting for Super Admin"
+          value={`${waiting.length} month${waiting.length === 1 ? '' : 's'}`}
+          sub={withManager.length ? `${withManager.length} with the Manager for a reply` : 'None with the Manager'}
+          action={
+            canApprove &&
+            waiting.length + withManager.length > 0 && (
+              <Button type="primary" onClick={() => setSelected([...waiting, ...withManager].map((m) => m.month))}>
+                Select all to approve
+              </Button>
+            )
+          }
         />
         <Card
           icon={<AuditOutlined />}
@@ -73,40 +113,9 @@ export default function Wastage() {
         />
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 1.25fr) minmax(0, 1fr)', gap: 16, marginTop: 16 }}>
-        <WastageChart months={months.data ?? []} loading={months.isLoading} refreshing={months.isPlaceholderData} />
-        <div className="surface chart-card fade-in">
-          <div className="chart-title">Month by month</div>
-          <div className="chart-sub" style={{ marginBottom: 10 }}>
-            Missing weight ÷ processed weight
-          </div>
-          <Table<WastageMonth>
-            size="small"
-            rowKey="month"
-            loading={months.isLoading}
-            pagination={false}
-            dataSource={[...(months.data ?? [])].reverse()}
-            scroll={{ y: 250 }}
-            columns={[
-              { title: 'Month', render: (_, m) => <b>{dayjs(m.month).format('MMM YYYY')}</b> },
-              { title: 'Processed', align: 'right', render: (_, m) => <span className="num">{formatKg(m.processed_kg)}</span> },
-              {
-                title: 'Wastage',
-                align: 'right',
-                render: (_, m) => (
-                  <span className="num strong" style={{ color: m.wastage_pct > WASTAGE_ALERT_PCT ? '#D4380D' : m.over_allowance ? '#D98A0B' : '#1F9D6B' }}>
-                    {formatPercent(m.wastage_pct, 2)}
-                  </span>
-                ),
-              },
-              { title: 'Allowance', align: 'right', render: (_, m) => <span className="num">{formatPercent(m.allowance_pct, 2)}{!m.declared && <span className="faint"> *</span>}</span> },
-              { title: 'Flagged', align: 'right', render: (_, m) => (m.high_runs ? <Tag color="error">{m.high_runs} over 2%</Tag> : m.flagged_runs ? <Tag color="warning">{m.flagged_runs}</Tag> : <span className="faint">—</span>) },
-            ]}
-          />
-          <div className="faint" style={{ fontSize: 12, marginTop: 6 }}>
-            * not declared: the {WASTAGE_ALERT_PCT}% limit applies
-          </div>
-        </div>
+      <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.25fr)', gap: 16, marginTop: 16 }}>
+        <WastageChart months={all} loading={months.isLoading} refreshing={months.isPlaceholderData} />
+        <MonthTable months={all} loading={months.isLoading} canApprove={canApprove} selected={selected} onSelect={setSelected} onOpen={setOpenMonth} onApprove={() => setApproving(true)} />
       </div>
 
       <SectionTitle title="Stock checks" hint="stock counted by the Manager · any difference corrects the stock" />
@@ -144,7 +153,8 @@ export default function Wastage() {
         />
       </div>
 
-      {cid && <AllowanceModal companyId={cid} open={declaring} current={declared?.pct} onClose={() => setDeclaring(false)} />}
+      {cid && <MonthDrawer companyId={cid} month={openMonth} onClose={() => setOpenMonth(null)} />}
+      {cid && <ApproveModal companyId={cid} months={approving ? toApprove : []} onClose={() => setApproving(false)} onDone={() => setSelected([])} />}
       {cid && <StockCheckModal companyId={cid} stock={stock} open={counting} onClose={() => setCounting(false)} />}
     </div>
   )

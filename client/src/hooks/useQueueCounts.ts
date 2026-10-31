@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useEntries } from './queries/entries'
+import { useWastageQueue } from './queries/wastage'
 import { useAccess } from './useAccess'
 
 /**
@@ -8,6 +9,8 @@ import { useAccess } from './useAccess'
  * - Finance: entries the Manager approved.
  * - Super Admin: change requests from the Manager.
  * - In-charge: their own entries the Manager sent back (the server returns only their own).
+ * - Monthly wastage: the Super Admin approves ended months; the Manager answers escalations.
+ * `entries` counts the Approvals screen, `wastage` the Wastage screen, `total` both (the bell).
  */
 export function useQueueCounts() {
   const { scope, can } = useAccess()
@@ -28,7 +31,13 @@ export function useQueueCounts() {
   const toVerify = useEntries({ status: ['approved'], escalated: false, company_id: finance, page_size: 1 }, finance.length > 0)
   const changes = useEntries({ status: ['change_requested'], company_id: superAdmin, page_size: 1 }, superAdmin.length > 0)
   const toIncharge = useEntries({ escalated_to: 'incharge', company_id: incharge, page_size: 1 }, incharge.length > 0)
+  const talksWastage = scope.some((c) => can('approve_wastage', c.id) || can('adjust_wastage', c.id))
+  const wastageQueue = useWastageQueue(talksWastage)
   const n = (on: number[], q: { data?: { total: number } }) => (on.length ? (q.data?.total ?? 0) : 0)
+  const inScope = new Set(scope.map((c) => c.id))
+  const wastageRows = (talksWastage ? (wastageQueue.data ?? []) : []).filter((r) => inScope.has(r.company_id))
+  const wastageToApprove = wastageRows.reduce((a, r) => a + r.to_approve, 0)
+  const wastageEscalated = wastageRows.reduce((a, r) => a + r.escalated, 0)
   const counts = {
     manager: n(manager, toApprove),
     fromFinance: n(manager, fromFinance),
@@ -36,5 +45,7 @@ export function useQueueCounts() {
     changes: n(superAdmin, changes),
     toIncharge: n(incharge, toIncharge),
   }
-  return { ...counts, total: Object.values(counts).reduce((a, b) => a + b, 0) }
+  const entries = Object.values(counts).reduce((a, b) => a + b, 0)
+  const wastage = wastageToApprove + wastageEscalated
+  return { ...counts, wastageToApprove, wastageEscalated, entries, wastage, total: entries + wastage }
 }

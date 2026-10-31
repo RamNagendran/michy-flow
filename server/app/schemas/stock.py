@@ -19,6 +19,8 @@ class StockLine(BaseModel):
     unit: str  # "kg" or "L"
     # Total of the Manager's stock-check differences (book − counted), already in out / balance.
     counted_adjustment: float = 0
+    # Raw stock moved by the Super Admin's approved wastage changes, already in out / balance.
+    wastage_adjustment: float = 0
     # Every live entry, including ones still waiting for approval.
     provisional: StockFigures
     # Only entries Finance has verified: the finalised inventory.

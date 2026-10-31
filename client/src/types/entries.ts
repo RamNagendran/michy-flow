@@ -146,9 +146,6 @@ export interface EntryDetail {
   output_kg: number | null
   wastage_kg: number | null
   wastage_pct: number | null
-  /** Over the month's declared allowance. */
-  wastage_flagged: boolean
-  wastage_allowance_pct: number | null
   crew: CrewMember[]
   running_hours: number | null
   efficiency_pct: number | null
@@ -253,6 +250,8 @@ export interface StockLine {
   unit: Unit
   /** The Manager's stock-check differences (book − counted), already in out / balance. */
   counted_adjustment: number
+  /** Raw stock moved by the Super Admin's approved wastage changes. */
+  wastage_adjustment: number
   /** Every live entry, including ones waiting for approval. */
   provisional: StockFigures
   /** Only entries Finance has verified. */

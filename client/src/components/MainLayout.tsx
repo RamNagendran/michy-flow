@@ -1,6 +1,7 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Avatar, Badge, Button, ConfigProvider, Dropdown, Layout, Popover, Tooltip, type MenuProps, type ThemeConfig } from 'antd'
 import {
+  AlertOutlined,
   BankOutlined,
   BellOutlined,
   ExperimentOutlined,
@@ -72,9 +73,23 @@ export default function MainLayout() {
     { key: 'changes', n: queue.changes, text: 'waiting for you to change or reject', tab: 'changes' },
     { key: 'toIncharge', n: queue.toIncharge, text: 'sent back to you by the Manager. Please reply.', tab: 'incharge' },
   ].filter((i) => i.n > 0)
+  const wastageItems = [
+    { key: 'wastageToApprove', n: queue.wastageToApprove, text: (n: number) => `${n} ${n === 1 ? 'month' : 'months'} of wastage waiting for your approval` },
+    { key: 'wastageEscalated', n: queue.wastageEscalated, text: (n: number) => `${n} ${n === 1 ? 'month' : 'months'} of wastage sent back by the Super Admin. Please reply.` },
+  ].filter((i) => i.n > 0)
   const notifications = (
     <div style={{ width: 340 }}>
       <div style={{ fontWeight: 800, fontSize: 15, padding: '4px 4px 10px' }}>Notifications</div>
+      {wastageItems.map((i) => (
+        <div key={i.key} className="qa-row" onClick={() => navigate('/wastage')}>
+          <span className="kpi-icon" style={{ background: '#fff4e5', color: '#D98A0B' }}>
+            <AlertOutlined />
+          </span>
+          <div style={{ flex: 1 }} className="strong">
+            {i.text(i.n)}
+          </div>
+        </div>
+      ))}
       {items.length ? (
         items.map((i) => (
           <div key={i.key} className="qa-row" onClick={() => navigate(sees('review') ? `/review?tab=${i.tab}` : '/')}>
@@ -86,7 +101,7 @@ export default function MainLayout() {
             </div>
           </div>
         ))
-      ) : (
+      ) : wastageItems.length ? null : (
         <div className="faint" style={{ padding: '8px 4px 4px', fontSize: 13.5 }}>
           Nothing needs your attention right now.
         </div>

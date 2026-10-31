@@ -32,6 +32,7 @@ from app.services import (
     document_service,
     party_service,
     stock_service,
+    wastage_month_service,
     wastage_service,
     workflow_service,
 )
@@ -226,6 +227,8 @@ async def create(
     if not ctx.can(kind.enter):
         raise ForbiddenError("Not allowed")
     await stock_service.lock_company(db, ctx.company.id)
+    if entry_type == EntryType.PRODUCTION:
+        await wastage_month_service.assert_month_open(db, ctx.company.id, data.entry_date)
     fields = await _fields(db, ctx, entry_type, data, None)
     entry = kind.model(
         company_id=ctx.company.id,
@@ -299,6 +302,11 @@ async def update(
     if not workflow_service.can_edit(ctx, entry):
         raise ForbiddenError("Only the Super Admin can edit entries")
     await stock_service.lock_company(db, ctx.company.id)
+    if isinstance(entry, Production):
+        # Neither the month it was in nor the month it moves to may be approved.
+        await wastage_month_service.assert_month_open(
+            db, ctx.company.id, entry.entry_date, data.entry_date
+        )
     fields = await _fields(db, ctx, entry_type, data, entry)
     changes = {
         k: [_as_json(getattr(entry, k)), _as_json(v)]

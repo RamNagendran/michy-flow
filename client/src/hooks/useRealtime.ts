@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { useQueryClient, type QueryKey } from '@tanstack/react-query'
+import dayjs from 'dayjs'
 import { getRealtime, type RealtimeClient, type RealtimeEvent } from '../services/realtime'
 import { endSession } from '../services/session'
 import { useAppSelector } from '../statemanager/hooks'
@@ -61,6 +62,23 @@ export function useRealtime(enabled: boolean) {
       if (e.type === 'company') return invalidate(['auth', 'me'], ['companies'], ['stock', e.company_id], ['wastage', e.company_id])
       if (e.type === 'party') return invalidate(['parties', e.company_id])
       if (e.type === 'stock') return invalidate(['stock', e.company_id], ['stock-checks', e.company_id], ['wastage', e.company_id])
+      if (e.type === 'wastage') {
+        invalidate(['wastage', e.company_id], ['wastage-queue'], ['stock', e.company_id])
+        if (!me || e.actor_id === me.id) return
+        const can = resolveAccess(me, null).can
+        const month = dayjs(e.month).format('MMMM YYYY')
+        const approver = can('approve_wastage', e.company_id)
+        if (e.action === 'escalated' && !approver && can('adjust_wastage', e.company_id)) {
+          notify.warning(`${month} wastage: Super Admin has a question`, `${e.actor_name} sent it to you. Open Wastage control and reply.`)
+        } else if (e.action === 'resent' && approver) {
+          notify.info(`${month} wastage sent back by the Manager`, `${e.actor_name} replied. Please check and approve it.`)
+        } else if (e.action === 'commented' && (approver || can('adjust_wastage', e.company_id))) {
+          notify.info(`New comment on ${month} wastage`, `By ${e.actor_name}`)
+        } else if ((e.action === 'approved' || e.action === 'changed') && can('adjust_wastage', e.company_id)) {
+          notify.info(`${month} wastage ${e.action === 'approved' ? 'was approved' : 'was changed'}`, `By ${e.actor_name} (Super Admin)`)
+        }
+        return
+      }
       if (e.type !== 'entry' || !me) return
 
       // Lists, stock, totals and every report built from entries in that company.
