@@ -1,5 +1,6 @@
+import { useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Avatar, Badge, Button, ConfigProvider, Dropdown, Layout, Popover, Result, Tooltip, type MenuProps, type ThemeConfig } from 'antd'
+import { Avatar, Badge, Button, ConfigProvider, Dropdown, Layout, Modal, Popover, Result, Tooltip, type MenuProps, type ThemeConfig } from 'antd'
 import {
   AlertOutlined,
   BankOutlined,
@@ -8,6 +9,7 @@ import {
   FileSearchOutlined,
   FileTextFilled,
   KeyOutlined,
+  QuestionCircleOutlined,
   LogoutOutlined,
   PlusOutlined,
   ShoppingCartOutlined,
@@ -23,6 +25,7 @@ import CompanySwitcher from './CompanySwitcher'
 import NoCompanies from './NoCompanies'
 import PageLoader from './PageLoader'
 import PeriodPicker from './PeriodPicker'
+import RolesTable from './RolesTable'
 import SidebarNavigation from './SidebarNavigation'
 
 const { Header, Content } = Layout
@@ -58,6 +61,7 @@ export default function MainLayout() {
   const access = useAccess()
   const navigate = useNavigate()
   const { pathname } = useLocation()
+  const [helpOpen, setHelpOpen] = useState(false)
   const sees = (screen: keyof typeof SCREEN_ACCESS) => access.canAnywhere(...SCREEN_ACCESS[screen])
   const seesDashboard = sees('dashboard')
   // Search opens the widest list this person may see.
@@ -133,10 +137,12 @@ export default function MainLayout() {
         ),
       },
       { type: 'divider' },
+      { key: 'help', icon: <QuestionCircleOutlined />, label: 'Help: roles and access' },
       { key: 'password', icon: <KeyOutlined />, label: 'Change password' },
       { key: 'logout', icon: <LogoutOutlined />, label: 'Sign out', danger: true },
     ],
     onClick: ({ key }) => {
+      if (key === 'help') setHelpOpen(true)
       if (key === 'password') navigate('/change-password')
       if (key === 'logout') logout()
     },
@@ -207,6 +213,9 @@ export default function MainLayout() {
           </div>
         </Content>
       </Layout>
+      <Modal title="What each role can do" open={helpOpen} onCancel={() => setHelpOpen(false)} footer={null} width={1000}>
+        <RolesTable />
+      </Modal>
     </Layout>
   )
 }

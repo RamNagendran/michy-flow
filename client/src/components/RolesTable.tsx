@@ -1,7 +1,7 @@
 import { Table, Tag, Tooltip } from 'antd'
 import { CheckOutlined, CloseOutlined } from '@ant-design/icons'
-import { MATRIX_COLUMNS, ROLE_MATRIX, roleColor, roleDescription, type MatrixColumn } from '../../utils/permissions'
-import { roleLabel } from '../../utils/user'
+import { MATRIX_COLUMNS, ROLE_MATRIX, roleColor, roleDescription, type MatrixColumn } from '../utils/permissions'
+import { roleLabel } from '../utils/user'
 
 const cell = (v: true | 'duty' | undefined) =>
   v === true ? (
@@ -16,8 +16,8 @@ const cell = (v: true | 'duty' | undefined) =>
     <CloseOutlined style={{ color: '#c4c8cf' }} />
   )
 
-/** Read-only table of what each role can do. The server enforces the same rules. */
-export default function RolesTab() {
+/** Read-only table of what each role can do (Settings, and Help in the account menu). The server enforces the same rules. */
+export default function RolesTable() {
   return (
     <div>
       <div className="grid grid-3" style={{ marginBottom: 20 }}>

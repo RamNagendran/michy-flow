@@ -5,7 +5,7 @@ import { useAccess } from '../../hooks/useAccess'
 import AuditTab from './AuditTab'
 import CompaniesTab from './CompaniesTab'
 import { ProductsTab } from './MasterListsTab'
-import RolesTab from './RolesTab'
+import RolesTable from '../../components/RolesTable'
 import UsersTab from './UsersTab'
 
 export default function Settings() {
@@ -15,7 +15,7 @@ export default function Settings() {
   const items = [
     canSystem('manage_users') && { key: 'users', label: 'People & access', children: <UsersTab /> },
     canSystem('manage_companies') && { key: 'companies', label: 'Companies', children: <CompaniesTab /> },
-    { key: 'roles', label: 'What each role can do', children: <RolesTab /> },
+    { key: 'roles', label: 'What each role can do', children: <RolesTable /> },
     canSystem('view_audit') && { key: 'audit', label: 'Audit log', children: <AuditTab /> },
     canSystem('manage_config') && { key: 'products', label: 'Company types & items', children: <ProductsTab /> },
   ].filter((i) => !!i)
