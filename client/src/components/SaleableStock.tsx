@@ -1,13 +1,12 @@
 import { Skeleton } from 'antd'
-import { itemName } from '../data/catalog'
+import { itemName, itemColor } from '../data/catalog'
 import { gradeInfo } from '../data/grades'
-import { seriesColors } from '../styles/theme'
 import type { CompanyRef } from '../types/auth'
 import type { CompanyStock, Grade, StockLine, StockSection } from '../types/entries'
 import { formatQty } from '../utils/format'
 import { activeLines } from '../utils/stock'
 
-const color = (item: string) => seriesColors[item as keyof typeof seriesColors] ?? '#8a919e'
+const color = (item: string) => itemColor(item)
 
 /** The stock each sale grade takes from, with words a sales person understands. */
 const GROUPS: { grade: Grade; section: StockSection; title: string }[] = [

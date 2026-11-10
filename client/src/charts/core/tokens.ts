@@ -1,5 +1,5 @@
 import { GRADES } from '../../data/grades'
-import { seriesColors } from '../../styles/theme'
+import { itemColor } from '../../data/catalog'
 
 /**
  * Chart ink and colours. Every categorical set below was checked with the dataviz palette
@@ -26,13 +26,9 @@ export const flowColors = {
   critical: '#D4380D',
 }
 
-/**
- * Products in a fixed drawing order. Any subset keeps passing the validator in this order
- * (crumb: rubber · fibre · steel; pyrolysis: carbon · oil · steel · waste water).
- */
-export const PRODUCT_ORDER = ['rubber', 'carbon', 'oil', 'other', 'steel', 'waste_water'] as const
+/** Each item's colour, set by the Super Admin with the item. */
 
-export const productColor = (id: string) => seriesColors[id as keyof typeof seriesColors] ?? ink.muted
+export const productColor = (id: string) => itemColor(id)
 
 export const gradeColor = Object.fromEntries(GRADES.map((g) => [g.id, g.fg])) as Record<'A' | 'B' | 'C', string>
 

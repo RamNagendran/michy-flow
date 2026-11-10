@@ -30,7 +30,7 @@ from app.models import (
     StockCheckLine,
     WastageAdjustment,
 )
-from app.models.catalog import LITRE, STOCKED_ITEMS, process_of, unit_of
+from app.models.catalog import LITRE, process_of, stocked_items, unit_of
 from app.models.enums import EntryStatus, Grade
 from app.schemas.stock import (
     CompanyStock,
@@ -108,7 +108,7 @@ def _lines(
     shown = set(wanted) | moved
     zero = (Decimal(0), Decimal(0))
     lines = []
-    for item in STOCKED_ITEMS:
+    for item in stocked_items():
         if item not in shown:
             continue
         (pi, ci), (po, co) = ins.get((grade, item), zero), outs.get((grade, item), zero)

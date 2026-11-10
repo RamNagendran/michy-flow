@@ -10,6 +10,7 @@ from app.core.db import get_db
 from app.core.errors import ForbiddenError, NotFoundError
 from app.core.security import InvalidTokenError, decode_token
 from app.models import Company, User
+from app.services import catalog_service
 from app.services.access_service import CompanyContext, permissions_in
 
 _bearer = HTTPBearer(auto_error=False)
@@ -42,6 +43,8 @@ async def get_user_allow_password_change(
         or user.token_version != payload["tv"]
     ):
         raise _UNAUTHORIZED
+    # Items and company types for the rest of the request (models/catalog.py).
+    await catalog_service.use_for(db, user.account)
     return user
 
 

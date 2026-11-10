@@ -6,12 +6,11 @@ import dayjs, { type Dayjs } from 'dayjs'
 import { PageHeader } from '../../components/ui'
 import { CompanyBadge } from '../../components/CompanyCards'
 import SavedEntry from '../../components/entries/SavedEntry'
-import { companyItems, itemName, processOf, SHIFT_HOURS, toKg, WASTAGE_ALERT_PCT, type OutputId } from '../../data/catalog'
+import { companyItems, itemName, processOf, SHIFT_HOURS, toKg, WASTAGE_ALERT_PCT, type OutputId, itemColor } from '../../data/catalog'
 import { useCreateEntry } from '../../hooks/queries/entries'
 import { useStocks } from '../../hooks/queries/stock'
 import { useAccess } from '../../hooks/useAccess'
 import { useNotify } from '../../hooks/useNotify'
-import { seriesColors } from '../../styles/theme'
 import type { EntryDetail } from '../../types/entries'
 import { formatDate, formatKg, formatKgFine, formatPercent, formatQty, kgInputProps, qtyInputProps } from '../../utils/format'
 import { balanceOf } from '../../utils/production'
@@ -20,7 +19,7 @@ import ShiftCrew from './ShiftCrew'
 
 type Outputs = Partial<Record<OutputId, number | null>>
 
-const color = (id: string) => seriesColors[id as keyof typeof seriesColors] ?? '#8a919e'
+const color = (id: string) => itemColor(id)
 
 const Choice = ({ selected, onClick, children }: { selected: boolean; onClick: () => void; children: React.ReactNode }) => (
   <div className="choice" style={{ padding: 18, borderColor: selected ? '#D82E54' : undefined, background: selected ? '#fffafb' : undefined }} onClick={onClick}>

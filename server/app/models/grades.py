@@ -10,10 +10,9 @@ What counts as raw material and product comes from the company's process (models
 """
 
 from app.core.errors import InvalidError
-from app.models.catalog import STOCKED_ITEMS, Process
-from app.models.enums import EntryType, Grade, Material
-
-_MATERIALS = frozenset(m.value for m in Material)
+from app.models import catalog
+from app.models.catalog import Process
+from app.models.enums import EntryType, Grade
 
 _RULES = {
     (EntryType.PURCHASE, Grade.A): "Grade A purchases are raw material this company processes",
@@ -25,7 +24,7 @@ _RULES = {
 
 def allowed_items(entry_type: EntryType, grade: Grade, process: Process) -> frozenset[str]:
     if grade == Grade.C:
-        return frozenset(STOCKED_ITEMS)
+        return frozenset(catalog.stocked_items())
     if entry_type == EntryType.SALE and grade == Grade.A:
         return frozenset(process.products)
     return frozenset(process.inputs)
@@ -40,7 +39,7 @@ def check_item(entry_type: EntryType, grade: Grade, item: str, process: Process)
 
 def default_sale_grade(item: str) -> Grade:
     """Selling a product means it was made here (A); selling raw material is a re-sell (B)."""
-    return Grade.B if item in _MATERIALS else Grade.A
+    return Grade.B if catalog.is_material(item) else Grade.A
 
 
 def check_production(process: Process, material: str, outputs: list[str]) -> None:

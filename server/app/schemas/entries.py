@@ -12,8 +12,6 @@ from app.models.enums import (
     EntryStatus,
     EntryType,
     Grade,
-    Material,
-    OutputProduct,
 )
 
 # Limits match the database columns (see models/entries.py), so nothing is silently rounded.
@@ -24,8 +22,9 @@ Qty = Kg
 QtyOrZero = KgOrZero
 Rate = Annotated[Decimal, Field(ge=0, le=1_000_000, max_digits=12, decimal_places=4)]
 Text = Annotated[str, Field(max_length=2000)]
-# Any catalogue item. Which ones a purchase or sale may carry depends on its grade.
-Item = Material | OutputProduct
+# Any catalogue item key. Which ones a purchase or sale may carry depends on its grade and the
+# company's items, checked by the service (models/grades.py).
+Item = Annotated[str, Field(min_length=1, max_length=20)]
 
 Action = Literal["approve", "request_change", "verify", "reject"]
 EARLIEST_DATE = date(2000, 1, 1)
@@ -128,7 +127,7 @@ class SaleInput(EntryInput, _Invoice, _BillGstins):
 
 
 class OutputInput(BaseModel):
-    product: OutputProduct
+    product: Item
     qty: QtyOrZero  # in the product's unit: litres for oil, kg for the rest
 
 
@@ -147,7 +146,7 @@ class ProductionInput(EntryInput):
     # Operators on the shift (operator ids), picked by the production in-charge.
     crew_ids: list[int] = Field(default_factory=list, max_length=50)
     running_hours: Decimal | None = Field(default=None, gt=0, le=24, max_digits=5, decimal_places=2)
-    outputs: list[OutputInput] = Field(min_length=1, max_length=len(OutputProduct))
+    outputs: list[OutputInput] = Field(min_length=1, max_length=50)
 
     @field_validator("crew_ids")
     @classmethod
@@ -281,7 +280,7 @@ class EventRead(BaseModel):
 
 
 class OutputRead(BaseModel):
-    product: OutputProduct
+    product: str
     qty: float
     unit: str
     qty_kg: float  # its weight

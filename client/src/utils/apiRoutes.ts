@@ -19,6 +19,13 @@ export const API_ROUTES = {
     config: (id: number) => `/companies/${id}/config`,
     operators: (id: number) => `/companies/${id}/operators`,
   },
+  catalog: {
+    root: '/catalog',
+    items: '/catalog/items',
+    item: (id: number) => `/catalog/items/${id}`,
+    types: '/catalog/types',
+    type: (id: number) => `/catalog/types/${id}`,
+  },
   users: {
     list: '/users',
     one: (id: number) => `/users/${id}`,

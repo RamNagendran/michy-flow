@@ -7,7 +7,7 @@ from app.auth.dependencies import require_company_permission
 from app.auth.permissions import CompanyPermission as P
 from app.core.db import get_db
 from app.core.errors import InvalidError
-from app.models.catalog import INPUT_CHOICES, ITEMS
+from app.models.catalog import input_choices, is_item
 from app.models.enums import Grade
 from app.routers._range import Range, report_range
 from app.schemas.analytics import (
@@ -51,7 +51,7 @@ async def prices(
     db: AsyncSession = Depends(get_db),
 ) -> PriceHistory:
     """What each supplier charged for one item, against the average, over time."""
-    if item not in INPUT_CHOICES:
+    if item not in input_choices():
         raise InvalidError("Unknown item")
     return await analytics_service.prices(
         db, ctx.company.id, item, r.date_from, r.date_to, r.bucket
@@ -70,7 +70,7 @@ async def trade_analysis(
 ) -> TradeAnalysis:
     """Purchases or sales per period, item, supplier or buyer and grade, with rate ranges.
     Grade C is left out unless asked for."""
-    if item is not None and item not in ITEMS:
+    if item is not None and not is_item(item):
         raise InvalidError("Unknown item")
     return await analytics_service.trade_analysis(
         db,

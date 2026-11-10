@@ -3,11 +3,12 @@ from sqlalchemy import exists, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.errors import ConflictError, NotFoundError
-from app.models import Company, Production, Purchase, Sale, User
+from app.core.errors import ConflictError, InvalidError, NotFoundError
+from app.models import Company, Production, Purchase, Sale, User, catalog
 from app.models.catalog import defaults_for
 from app.schemas.company import CompanyConfig, CompanyCreate, CompanyUpdate
 from app.services import audit_service
+from app.services.catalog_service import check_lists
 
 _DUPLICATE_CODE = "Another company already uses this code"
 
@@ -37,9 +38,15 @@ async def _has_entries(db: AsyncSession, company_id: int) -> bool:
     return False
 
 
+def _check_category(category: str) -> None:
+    if category not in catalog.current().types:
+        raise InvalidError("Unknown company type", code="unknown_type")
+
+
 async def create(
     db: AsyncSession, actor: User, data: CompanyCreate, request: Request | None = None
 ) -> Company:
+    _check_category(data.category)
     defaults = defaults_for(data.category)
     company = Company(
         account_id=actor.account_id,
@@ -84,6 +91,8 @@ async def update(
     }
     if not changes:
         return company
+    if "category" in changes:
+        _check_category(changes["category"])
     if "category" in changes and await _has_entries(db, company.id):
         # Its stock and history are in the old type's items; changing would strand them.
         raise ConflictError(
@@ -124,6 +133,7 @@ async def configure(
 ) -> Company:
     """Set what the company processes and makes, the oil density and the stock-check cycle.
     Entries already saved keep their items and weights; only new entries follow the change."""
+    check_lists(data.input_items, data.output_items)
     company = await get_in_account(db, actor.account_id, company_id)
     values = data.model_dump(exclude_none=True)
     changes = {k: v for k, v in values.items() if getattr(company, k) != v}

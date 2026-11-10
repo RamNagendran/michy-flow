@@ -3,12 +3,11 @@ import { DatePicker, Input, Select, Table, Tag, Tooltip } from 'antd'
 import { ExperimentOutlined, SearchOutlined, ShopOutlined, ShoppingCartOutlined, WarningFilled } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { Dayjs } from 'dayjs'
-import { itemName, WASTAGE_ALERT_PCT } from '../../data/catalog'
+import { itemName, WASTAGE_ALERT_PCT, itemColor } from '../../data/catalog'
 import { useEntries } from '../../hooks/queries/entries'
 import type { Company } from '../../types/auth'
 import type { EntryRow, EntryStatus, EntryType, EscalatedTo, Grade } from '../../types/entries'
 import { formatDate, formatINR, formatKg, formatPercent, formatQty, formatRateIn } from '../../utils/format'
-import { seriesColors } from '../../styles/theme'
 import { GradeTag, SourceTag, StatusTag } from '../ui'
 import { GRADES } from '../../data/grades'
 import { statusMeta } from '../../utils/entryStatus'
@@ -22,7 +21,7 @@ const typeMeta: Record<EntryType, { label: string; fg: string; icon: React.React
 
 const Item = ({ id }: { id: string }) => (
   <span className="pill" style={{ background: '#fff', border: '1px solid #e6e8ec', color: '#3a3f47' }}>
-    <span className="legend-dot" style={{ background: seriesColors[id as keyof typeof seriesColors] ?? '#8a919e' }} />
+    <span className="legend-dot" style={{ background: itemColor(id) }} />
     {itemName(id)}
   </span>
 )

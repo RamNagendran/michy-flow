@@ -57,7 +57,7 @@ function CompanyModal({ company, onClose }: { company?: Company; onClose: () => 
           extra={company ? 'Can be changed only until the company has its first entry.' : 'Decides the raw material it processes and the products it makes.'}
         >
           <Radio.Group style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10, width: '100%' }}>
-            {PROCESSES.map((p) => (
+            {PROCESSES().map((p) => (
               <Radio key={p.id} value={p.id} style={{ margin: 0, padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e6e8ec', alignItems: 'flex-start' }}>
                 <div style={{ fontWeight: 800 }}>{p.name}</div>
                 <div className="muted" style={{ fontSize: 12.5, lineHeight: 1.35 }}>

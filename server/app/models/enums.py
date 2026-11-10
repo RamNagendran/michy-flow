@@ -57,37 +57,6 @@ class PartyKind(StrEnum):
     BUYER = "buyer"
 
 
-class Material(StrEnum):
-    """What goes into production (see models/catalog.py for which company type uses which)."""
-
-    TRUCK = "truck"
-    CAR = "car"
-    TWO_WHEELER = "twowheeler"
-    OTR = "otr"
-    TRACTOR = "tractor"
-    SCRAP_STEEL = "scrap_steel"
-
-
-class OutputProduct(StrEnum):
-    """What production yields. Oil is measured in litres, everything else in kg."""
-
-    RUBBER = "rubber"  # rubber crumbs
-    STEEL = "steel"
-    OIL = "oil"
-    CARBON = "carbon"  # carbon powder
-    OTHER = "other"  # fibre / fluff
-    WASTE_WATER = "waste_water"
-    WASTE = "waste"  # weighed waste; not stock, never sold
-
-
-class CompanyCategory(StrEnum):
-    """What kind of plant a company runs. Decides its inputs and outputs (models/catalog.py)."""
-
-    PYROLYSIS = "pyrolysis"  # tyres → oil, carbon powder, steel, waste water
-    CRUMB = "crumb"  # tyres → rubber crumbs, steel, fibre
-    STEEL = "steel"  # scrap steel → steel
-
-
 class Grade(StrEnum):
     """How a purchase or sale moves goods (see models/grades.py for the rules).
 

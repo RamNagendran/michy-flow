@@ -7,7 +7,7 @@
  */
 
 import type { Grade, StockSection } from '../types/entries'
-import { companyItems, materials, stockedItems, type CatalogItem } from './catalog'
+import { allItems, companyItems, stockedItems, type CatalogItem } from './catalog'
 
 export type TradeKind = 'purchase' | 'sale'
 
@@ -35,7 +35,7 @@ type Configured = Parameters<typeof companyItems>[0]
 
 /** What a purchase or sale of this grade may carry in this company. */
 export function itemsFor(kind: TradeKind, grade: Grade, company: Configured): CatalogItem<string>[] {
-  if (grade === 'C') return stockedItems
+  if (grade === 'C') return stockedItems()
   const p = companyItems(company)
   return kind === 'sale' && grade === 'A' ? p.products : p.inputs
 }
@@ -43,7 +43,7 @@ export function itemsFor(kind: TradeKind, grade: Grade, company: Configured): Ca
 export const itemAllowed = (kind: TradeKind, grade: Grade, company: Configured, item: string | undefined) => !!item && itemsFor(kind, grade, company).some((i) => i.id === item)
 
 /** Selling a product means it was made here (A); selling raw material is a re-sell (B). */
-export const defaultSaleGrade = (item: string | undefined): Grade => (item && materials.some((m) => m.id === item) ? 'B' : 'A')
+export const defaultSaleGrade = (item: string | undefined): Grade => (item && allItems().some((m) => m.id === item && m.kind === 'material') ? 'B' : 'A')
 
 /** Which stock a purchase or sale of this grade moves. */
 export const stockSection = (kind: TradeKind, grade: Grade): StockSection => (grade === 'B' ? 'resale' : grade === 'C' ? 'books' : kind === 'purchase' ? 'raw' : 'output')

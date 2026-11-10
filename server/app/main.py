@@ -21,6 +21,7 @@ from app.routers import (
     analytics,
     audit,
     auth,
+    catalog,
     companies,
     debit_notes,
     documents,
@@ -138,6 +139,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health.router)
     app.include_router(auth.router)
+    app.include_router(catalog.router)
     app.include_router(companies.router)
     app.include_router(users.router)
     app.include_router(audit.router)

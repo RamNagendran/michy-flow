@@ -5,11 +5,10 @@ import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 
 import ChartTooltip from '../../components/ChartTooltip'
 import { Formula, GradeTag, PageHeader, SectionTitle } from '../../components/ui'
 import { gradeInfo } from '../../data/grades'
-import { itemsOfCompanies } from '../../data/catalog'
+import { itemsOfCompanies, itemColor } from '../../data/catalog'
 import { useSummaries } from '../../hooks/queries/stock'
 import { useAccess } from '../../hooks/useAccess'
 import { usePeriod } from '../../hooks/usePeriod'
-import { seriesColors } from '../../styles/theme'
 import type { MoneyTotals } from '../../types/entries'
 import { formatINR, formatINRShort, formatPercent, formatKg } from '../../utils/format'
 import { periodLabels } from '../../utils/period'
@@ -29,7 +28,7 @@ function ByItemChart({ title, totals, items }: { title: string; totals: MoneyTot
             <Tooltip cursor={{ fill: 'rgba(16,24,40,0.04)' }} content={<ChartTooltip format={(v) => formatINR(v)} />} />
             <Bar isAnimationActive={false} dataKey="value" name="Value" radius={[0, 4, 4, 0]} barSize={22} label={{ position: 'right', formatter: (v: unknown) => formatINRShort(Number(v)), fill: '#1f2329', fontSize: 12.5, fontWeight: 700 }}>
               {data.map((d) => (
-                <Cell key={d.key} fill={seriesColors[d.key as keyof typeof seriesColors] ?? '#8a919e'} />
+                <Cell key={d.key} fill={itemColor(d.key)} />
               ))}
             </Bar>
           </BarChart>

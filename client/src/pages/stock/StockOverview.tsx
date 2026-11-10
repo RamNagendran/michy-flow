@@ -2,16 +2,15 @@ import { useNavigate } from 'react-router-dom'
 import { Table } from 'antd'
 import { CompaniesTotalCard, CompanyBadge, CompanyCard, StockFigure } from '../../components/CompanyCards'
 import { Formula, PageHeader, SectionTitle } from '../../components/ui'
-import { itemName } from '../../data/catalog'
+import { itemName, itemColor } from '../../data/catalog'
 import { useCompanyData } from '../../hooks/useCompanyData'
-import { seriesColors } from '../../styles/theme'
 import type { CompanyRef } from '../../types/auth'
 import type { StockLine, StockSection } from '../../types/entries'
 import { formatINRShort, formatKg, formatQty } from '../../utils/format'
 import { periodLabels } from '../../utils/period'
 
 const zero: StockLine = { item: '', grade: 'A', unit: 'kg', counted_adjustment: 0, wastage_adjustment: 0, provisional: { in_qty: 0, out_qty: 0, balance: 0 }, confirmed: { in_qty: 0, out_qty: 0, balance: 0 } }
-const dot = (item: string) => <span className="legend-dot" style={{ background: seriesColors[item as keyof typeof seriesColors] }} />
+const dot = (item: string) => <span className="legend-dot" style={{ background: itemColor(item) }} />
 
 /** Items down the side, companies across the top, each cell "in stock (finalised)". */
 function Matrix({ items, companies, lineFor, total }: { items: string[]; companies: CompanyRef[]; lineFor: (c: CompanyRef, item: string) => StockLine; total: (item: string) => StockLine }) {

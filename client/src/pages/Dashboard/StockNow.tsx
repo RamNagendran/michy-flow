@@ -5,16 +5,15 @@ import dayjs from 'dayjs'
 import { ChartFrame, HeatmapChart } from '../../charts'
 import { CompanyBadge } from '../../components/CompanyCards'
 import { SectionTitle } from '../../components/ui'
-import { companyItems, itemName, toKg } from '../../data/catalog'
+import { companyItems, itemName, toKg, itemColor } from '../../data/catalog'
 import { avgRate, type TradeView } from '../../hooks/queries/reports'
 import { useCompanyData } from '../../hooks/useCompanyData'
-import { seriesColors } from '../../styles/theme'
 import type { Company } from '../../types/auth'
 import type { CompanyStock, CompanySummary, StockLine } from '../../types/entries'
 import { formatINRShort, formatQty, formatKg } from '../../utils/format'
 import { activeLines, totalOf } from '../../utils/stock'
 
-const dot = (item: string) => <span className="legend-dot" style={{ background: seriesColors[item as keyof typeof seriesColors] ?? '#8a919e' }} />
+const dot = (item: string) => <span className="legend-dot" style={{ background: itemColor(item) }} />
 
 /** Average rate per item in a trade view (amount ÷ quantity). */
 const ratesOf = (view: TradeView | null) => new Map((view?.items ?? []).map((i) => [i.item, avgRate(i.amount, i.qty) ?? 0]))

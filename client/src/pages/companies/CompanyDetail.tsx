@@ -6,12 +6,11 @@ import { CompanyBadge, StockFigure } from '../../components/CompanyCards'
 import { activeLines } from '../../utils/stock'
 import EntryTable from '../../components/entries/EntryTable'
 import { PageHeader, SectionTitle } from '../../components/ui'
-import { itemName, processOf } from '../../data/catalog'
+import { itemName, processOf, itemColor } from '../../data/catalog'
 import { useStocks, useSummaries } from '../../hooks/queries/stock'
 import { useAccess } from '../../hooks/useAccess'
 import { useAuth } from '../../hooks/useAuth'
 import { usePeriod } from '../../hooks/usePeriod'
-import { seriesColors } from '../../styles/theme'
 import type { StockLine } from '../../types/entries'
 import { formatINRShort, formatPercent, formatQty, formatKg } from '../../utils/format'
 import { periodLabels } from '../../utils/period'
@@ -25,7 +24,7 @@ function StockCards({ lines, empty }: { lines: StockLine[]; empty: string }) {
       {lines.map((l) => (
         <div key={l.item} className="surface" style={{ padding: 18 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800 }}>
-            <span className="legend-dot" style={{ background: seriesColors[l.item as keyof typeof seriesColors] }} />
+            <span className="legend-dot" style={{ background: itemColor(l.item) }} />
             {itemName(l.item)}
           </div>
           <div style={{ fontSize: 22, marginTop: 8 }}>

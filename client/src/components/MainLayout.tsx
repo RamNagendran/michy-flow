@@ -1,5 +1,5 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Avatar, Badge, Button, ConfigProvider, Dropdown, Layout, Popover, Tooltip, type MenuProps, type ThemeConfig } from 'antd'
+import { Avatar, Badge, Button, ConfigProvider, Dropdown, Layout, Popover, Result, Tooltip, type MenuProps, type ThemeConfig } from 'antd'
 import {
   AlertOutlined,
   BankOutlined,
@@ -16,10 +16,12 @@ import {
 import { useAuth } from '../hooks/useAuth'
 import { useAccess } from '../hooks/useAccess'
 import { useQueueCounts } from '../hooks/useQueueCounts'
+import { useCatalog } from '../hooks/queries/catalog'
 import { roleColor, SCREEN_ACCESS } from '../utils/permissions'
 import { accessRoleLabel, initials } from '../utils/user'
 import CompanySwitcher from './CompanySwitcher'
 import NoCompanies from './NoCompanies'
+import PageLoader from './PageLoader'
 import PeriodPicker from './PeriodPicker'
 import SidebarNavigation from './SidebarNavigation'
 
@@ -61,6 +63,8 @@ export default function MainLayout() {
   // Search opens the widest list this person may see.
   const searchScreen = (['records', 'purchases', 'sales', 'production'] as const).find((s) => sees(s))
   const queue = useQueueCounts()
+  // Item names, units and company types: every screen reads them, so they load first.
+  const catalog = useCatalog()
   const role = user?.global_role ?? access.activeAccess?.role ?? access.companies[0]?.role ?? null
 
   const title = titles.find(([p]) => pathname.startsWith(p))?.[1] ?? (seesDashboard ? 'Dashboard' : 'Home')
@@ -191,7 +195,15 @@ export default function MainLayout() {
         <Content>
           {/* Keyed on the path so each page eases in; opacity and transform only, so it stays cheap. */}
           <div key={pathname} className="page-enter">
-            {access.companies.length === 0 && !pathname.startsWith('/settings') ? <NoCompanies /> : <Outlet />}
+            {catalog.isError && !catalog.data ? (
+              <Result status="warning" title="Could not load items" subTitle="Please check your connection." extra={<Button onClick={() => catalog.refetch()}>Try again</Button>} />
+            ) : !catalog.data ? (
+              <PageLoader />
+            ) : access.companies.length === 0 && !pathname.startsWith('/settings') ? (
+              <NoCompanies />
+            ) : (
+              <Outlet />
+            )}
           </div>
         </Content>
       </Layout>

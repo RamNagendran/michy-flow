@@ -5,7 +5,6 @@ from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TimestampMixin
-from app.models.enums import CompanyCategory
 
 
 class Company(TimestampMixin, Base):
@@ -24,10 +23,8 @@ class Company(TimestampMixin, Base):
     city: Mapped[str] = mapped_column(String(100), default="", server_default="")
     # GST number; bills uploaded for this company must show it.
     gstin: Mapped[str | None] = mapped_column(String(15))
-    # What the plant does: decides its raw material and products (models/catalog.py).
-    category: Mapped[str] = mapped_column(
-        String(20), default=CompanyCategory.CRUMB.value, server_default=CompanyCategory.CRUMB.value
-    )
+    # Its company type (company_types.key): decides its default raw material and products.
+    category: Mapped[str] = mapped_column(String(20), default="crumb", server_default="crumb")
     # Inventory configuration (set by the Super Admin): what this company processes and makes.
     # Filled from the company type's defaults when the company is created.
     input_items: Mapped[list[str]] = mapped_column(

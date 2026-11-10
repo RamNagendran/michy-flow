@@ -1,5 +1,5 @@
 import { Alert, Form, InputNumber, Modal, Segmented, Select } from 'antd'
-import { companyItems, inputChoices, OIL_DENSITY, outputChoices } from '../../data/catalog'
+import { companyItems, inputChoices, OIL_DENSITY, outputChoices, unitOf } from '../../data/catalog'
 import { useConfigureCompany } from '../../hooks/queries/companies'
 import { errorMessage } from '../../services/apiError'
 import type { Company, CompanyConfig } from '../../types/auth'
@@ -11,8 +11,6 @@ const option = (i: { id: string; name: string; unit: string; stocked: boolean })
   label: `${i.name}${i.unit === 'L' ? ' (litres)' : ''}${i.stocked ? '' : ' — not stocked'}`,
 })
 
-const stockedOutput = new Set<string>(outputChoices.filter((o) => o.stocked).map((o) => o.id))
-
 /** Super Admin: what this company processes and makes, the oil density, and the stock-check cycle. */
 export default function InventoryModal({ company, onClose }: { company: Company; onClose: () => void }) {
   const [form] = Form.useForm<CompanyConfig>()
@@ -20,6 +18,7 @@ export default function InventoryModal({ company, onClose }: { company: Company;
   const outputsPicked = Form.useWatch('output_items', form) ?? []
   const density = Form.useWatch('oil_density', form) ?? company.oil_density
   const current = companyItems(company)
+  const stockedOutput = new Set(outputChoices().filter((o) => o.stocked).map((o) => o.id))
   const initial: CompanyConfig = {
     input_items: current.inputs.map((i) => i.id),
     output_items: current.outputs.map((o) => o.id),
@@ -37,7 +36,7 @@ export default function InventoryModal({ company, onClose }: { company: Company;
           rules={[{ required: true, type: 'array', min: 1, message: 'Choose at least one input' }]}
           extra="At least one."
         >
-          <Select mode="multiple" options={inputChoices.map(option)} placeholder="e.g. Truck tyres, Scrap steel, Rubber crumbs" />
+          <Select mode="multiple" options={inputChoices().map(option)} placeholder="e.g. Truck tyres, Scrap steel, Rubber crumbs" />
         </Form.Item>
         <Form.Item
           label="Output materials (what it makes)"
@@ -52,9 +51,9 @@ export default function InventoryModal({ company, onClose }: { company: Company;
           ]}
           extra="Pick at least one item that is kept in stock. Items marked “not stocked” are not counted."
         >
-          <Select mode="multiple" options={outputChoices.map(option)} placeholder="e.g. Oil, Steel, Carbon powder" />
+          <Select mode="multiple" options={outputChoices().map(option)} placeholder="e.g. Oil, Steel, Carbon powder" />
         </Form.Item>
-        {outputsPicked.includes('oil') && (
+        {outputsPicked.some((id) => unitOf(id) === 'L') && (
           <Form.Item
             label="Oil conversion factor (kg per litre)"
             name="oil_density"

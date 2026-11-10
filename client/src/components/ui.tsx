@@ -7,8 +7,7 @@ import {
   ThunderboltFilled,
 } from '@ant-design/icons'
 import { formatKg } from '../utils/format'
-import { seriesColors } from '../styles/theme'
-import { itemName, type MaterialId, type OutputId } from '../data/catalog'
+import { itemName, type MaterialId, type OutputId, itemColor } from '../data/catalog'
 import type { EntrySource, EntryStatus, EntryType, Grade } from '../types/entries'
 import { gradeInfo } from '../data/grades'
 import { statusMeta } from '../utils/entryStatus'
@@ -163,7 +162,7 @@ export function Formula({ parts }: { parts: FormulaPart[] }) {
 export function MaterialTag({ id }: { id: MaterialId }) {
   return (
     <span className="pill" style={{ background: '#fff', border: '1px solid #e6e8ec', color: '#3a3f47' }}>
-      <span className="legend-dot" style={{ background: seriesColors[id] }} />
+      <span className="legend-dot" style={{ background: itemColor(id) }} />
       {itemName(id)}
     </span>
   )
@@ -172,7 +171,7 @@ export function MaterialTag({ id }: { id: MaterialId }) {
 export function ProductTag({ id }: { id: OutputId }) {
   return (
     <span className="pill" style={{ background: '#fff', border: '1px solid #e6e8ec', color: '#3a3f47' }}>
-      <span className="legend-dot" style={{ background: seriesColors[id] }} />
+      <span className="legend-dot" style={{ background: itemColor(id) }} />
       {itemName(id)}
     </span>
   )

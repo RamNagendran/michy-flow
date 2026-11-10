@@ -58,6 +58,11 @@ async def company_changed(company: Company) -> None:
     await _publish({"type": "company", "account_id": company.account_id, "company_id": company.id})
 
 
+async def catalog_changed(account_id: int) -> None:
+    """The Super Admin changed an item or company type: everyone reloads the catalogue."""
+    await _publish({"type": "catalog", "account_id": account_id})
+
+
 async def access_changed(account_id: int, user_ids: list[int]) -> None:
     """These people's access changed; their open sessions are no longer valid."""
     await _publish({"type": "access", "account_id": account_id, "user_ids": user_ids})

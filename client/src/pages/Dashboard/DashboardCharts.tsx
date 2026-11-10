@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChartFrame, ColumnChart, DonutChart, flowColors, gradeColor, PRODUCT_ORDER, productColor, StackedBarChart, StackedColumnChart } from '../../charts'
+import { ChartFrame, ColumnChart, DonutChart, flowColors, gradeColor, productColor, StackedBarChart, StackedColumnChart } from '../../charts'
 import { SectionTitle } from '../../components/ui'
-import { itemName, itemsOfCompanies, toKg } from '../../data/catalog'
+import { allItems, itemName, itemsOfCompanies, toKg } from '../../data/catalog'
 import { useTrends } from '../../hooks/queries/reports'
 import { useAccess } from '../../hooks/useAccess'
 import { useCompanyData } from '../../hooks/useCompanyData'
@@ -10,7 +10,11 @@ import type { Bucket } from '../../types/reports'
 import { formatINRShort, formatPercent, formatKg } from '../../utils/format'
 import { bucketLabels, periodLabel, periodLabels } from '../../utils/period'
 
-const byProductOrder = (a: string, b: string) => PRODUCT_ORDER.indexOf(a as never) - PRODUCT_ORDER.indexOf(b as never)
+/** In the Super Admin's item order. */
+const byProductOrder = (a: string, b: string) => {
+  const order = allItems().map((i) => i.id)
+  return order.indexOf(a) - order.indexOf(b)
+}
 
 /** Production and money flow. Dates and company come from the top bar; the grouping ("Chart by") from the analysis filter bar above. */
 export default function DashboardCharts({ bucket }: { bucket: Bucket }) {

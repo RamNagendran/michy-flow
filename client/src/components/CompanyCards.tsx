@@ -1,15 +1,14 @@
 import { useNavigate } from 'react-router-dom'
 import { Skeleton, Tooltip } from 'antd'
 import { FunctionOutlined, RightOutlined } from '@ant-design/icons'
-import { seriesColors } from '../styles/theme'
-import { itemName, processOf } from '../data/catalog'
+import { itemName, processOf, itemColor } from '../data/catalog'
 import type { CompanyRef } from '../types/auth'
 import type { CompanySummary, StockLine } from '../types/entries'
 import { formatKg, formatQty } from '../utils/format'
 import { activeLines, totalOf } from '../utils/stock'
 import { StockBar } from './ui'
 
-const color = (item: string) => seriesColors[item as keyof typeof seriesColors] ?? '#8a919e'
+const color = (item: string) => itemColor(item)
 
 /** "1,240 kg" (or litres for oil) with the finalised figure underneath when the two differ. */
 export function StockFigure({ line }: { line: Pick<StockLine, 'provisional' | 'confirmed' | 'unit'> }) {

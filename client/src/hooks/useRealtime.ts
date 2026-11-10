@@ -60,6 +60,7 @@ export function useRealtime(enabled: boolean) {
         return
       }
       if (e.type === 'company') return invalidate(['auth', 'me'], ['companies'], ['stock', e.company_id], ['wastage', e.company_id])
+      if (e.type === 'catalog') return invalidate(['catalog'], ['companies'])
       if (e.type === 'party') return invalidate(['parties', e.company_id])
       if (e.type === 'stock') return invalidate(['stock', e.company_id], ['stock-checks', e.company_id], ['wastage', e.company_id])
       if (e.type === 'wastage') {

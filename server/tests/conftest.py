@@ -29,6 +29,8 @@ if "test" not in settings.DATABASE_URL.rsplit("/", 1)[-1]:
 
 _TABLES = (
     "accounts",
+    "catalog_items",
+    "company_types",
     "users",
     "companies",
     "company_memberships",

@@ -17,8 +17,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.periods import periods, truncate
 from app.models import Company, Operator, Party, Production, ProductionOutput, Purchase, Sale
-from app.models.catalog import LITRE, process_of, unit_of
-from app.models.enums import EntryStatus, Grade, OutputProduct
+from app.models.catalog import LITRE, OIL, process_of, unit_of
+from app.models.enums import EntryStatus, Grade
 from app.schemas.analytics import (
     OilKpi,
     OilPoint,
@@ -152,7 +152,7 @@ async def oil_kpi(
             .join(Production, Production.id == ProductionOutput.production_id)
             .where(
                 *_in(Production, company.id, d_from, d_to),
-                ProductionOutput.product == OutputProduct.OIL,
+                ProductionOutput.product == OIL,
             )
             .group_by(period)
         )
@@ -169,7 +169,7 @@ async def oil_kpi(
     total_processed = sum(processed.values(), _ZERO)
     pct = _pct(total_kg, total_processed)
     return OilKpi(
-        applicable=OutputProduct.OIL in process_of(company).outputs,
+        applicable=OIL in process_of(company).outputs,
         oil_l=total_l,
         oil_kg=total_kg,
         processed_kg=total_processed,

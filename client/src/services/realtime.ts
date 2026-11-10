@@ -7,7 +7,7 @@
  */
 
 export interface RealtimeEvent {
-  type: 'ready' | 'entry' | 'party' | 'company' | 'access' | 'stock' | 'wastage'
+  type: 'ready' | 'entry' | 'party' | 'company' | 'catalog' | 'access' | 'stock' | 'wastage'
   /** Needs attention now: "escalated" (sent back by the Manager or Finance). */
   alert?: string | null
   action?: string

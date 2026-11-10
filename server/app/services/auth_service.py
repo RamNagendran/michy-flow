@@ -16,7 +16,7 @@ from app.core.security import (
 from app.models import Account, User
 from app.models.enums import GlobalRole
 from app.schemas.user import SignupRequest, TokenResponse
-from app.services import audit_service
+from app.services import audit_service, catalog_service
 from app.services.access_service import build_user_read
 
 
@@ -66,6 +66,7 @@ async def signup(db: AsyncSession, data: SignupRequest, request: Request | None 
     except IntegrityError as exc:
         await db.rollback()
         raise EmailAlreadyRegisteredError from exc
+    catalog_service.seed(db, account.id)
     audit_service.record(
         db,
         account_id=account.id,

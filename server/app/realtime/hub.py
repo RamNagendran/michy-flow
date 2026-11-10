@@ -35,7 +35,7 @@ class Connection:
         kind = event.get("type")
         if kind == "access":
             return self.user_id in event.get("user_ids", ())
-        if kind == "company":
+        if kind in ("company", "catalog"):
             return True
         company_id = event.get("company_id")
         if company_id not in self.scopes:

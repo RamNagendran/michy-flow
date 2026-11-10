@@ -3,6 +3,7 @@
 from app.models.account import Account
 from app.models.audit_log import AuditLog
 from app.models.base import Base
+from app.models.catalog_tables import CatalogItem, CompanyType
 from app.models.company import Company
 from app.models.debit_note import DebitNote
 from app.models.document import Document
@@ -30,7 +31,9 @@ __all__ = [
     "Account",
     "AuditLog",
     "Base",
+    "CatalogItem",
     "Company",
+    "CompanyType",
     "CompanyMembership",
     "DebitNote",
     "Document",
