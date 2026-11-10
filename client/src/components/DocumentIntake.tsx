@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { Alert, Button, Select, Spin, Steps, Upload } from 'antd'
+import { Alert, Button, Spin, Steps, Upload } from 'antd'
 import { ArrowLeftOutlined, CameraOutlined, CheckCircleFilled, CloudUploadOutlined, EditOutlined, FilePdfOutlined } from '@ant-design/icons'
 import BillReview from './bill/BillReview'
 import { useUploadBill } from '../hooks/queries/documents'
@@ -43,9 +43,10 @@ interface Props {
 /** Add a purchase or sale: upload the bill and check what was read, or type it in. */
 export default function DocumentIntake({ kind, save, renderManual, renderDone, onStepChange, onDiscard }: Props) {
   const notify = useNotify()
-  const { companiesWith, active } = useAccess()
+  const { companiesWith, scope } = useAccess()
+  // Always the header's company; the form never asks for one.
   const companies = useMemo(() => companiesWith(kind === 'purchase' ? 'enter_purchase' : 'enter_sales'), [companiesWith, kind])
-  const [companyId, setCompanyId] = useState<number | undefined>(() => companies.find((c) => c.id === active)?.id ?? (companies.length === 1 ? companies[0].id : undefined))
+  const companyId = companies[0]?.id
   const [step, setStepRaw] = useState<IntakeStep>('choose')
   const [file, setFile] = useState<File | null>(null)
   const [doc, setDoc] = useState<BillDocument | null>(null)
@@ -110,7 +111,11 @@ export default function DocumentIntake({ kind, save, renderManual, renderDone, o
         </div>
       )}
 
-      {step === 'choose' && (
+      {step === 'choose' && !companyId && (
+        <Alert type="warning" showIcon title={`You cannot add a ${label} for ${scope[0]?.name ?? 'this company'}.`} description="Switch the company at the top of the screen." />
+      )}
+
+      {step === 'choose' && !!companyId && (
         <div className="grid grid-2 fade-in" style={{ gap: 20 }}>
           <div className="choice" onClick={() => setStep('upload')}>
             <span className="pill" style={{ position: 'absolute', top: 20, right: 20, background: '#e8f6ef', color: '#1f9d6b' }}>
@@ -144,12 +149,6 @@ export default function DocumentIntake({ kind, save, renderManual, renderDone, o
       {step === 'upload' && (
         <div className="fade-in" style={{ maxWidth: 820, margin: '0 auto' }}>
           {upload.isError && <Alert type="error" showIcon style={{ marginBottom: 16 }} title={errorMessage(upload.error)} />}
-          {companies.length > 1 && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontWeight: 700, marginBottom: 6 }}>Which company is this bill for?</div>
-              <Select size="large" style={{ width: '100%' }} value={companyId} onChange={setCompanyId} placeholder="Choose the company" options={companies.map((c) => ({ value: c.id, label: c.name }))} />
-            </div>
-          )}
           <div className="dropzone">
             <Upload.Dragger
               accept={ACCEPT}
@@ -164,7 +163,7 @@ export default function DocumentIntake({ kind, save, renderManual, renderDone, o
               <div style={{ fontSize: 44, color: '#D82E54' }}>
                 <CloudUploadOutlined />
               </div>
-              <div style={{ fontSize: 19, fontWeight: 800, marginTop: 10, color: '#191919' }}>{companyId ? `Drop the ${label} here` : 'Choose the company first'}</div>
+              <div style={{ fontSize: 19, fontWeight: 800, marginTop: 10, color: '#191919' }}>{`Drop the ${label} here`}</div>
               <div className="muted" style={{ marginTop: 6, fontSize: 14.5 }}>
                 or <a style={{ fontWeight: 700 }}>choose a file</a> · PDF, JPG or PNG up to {MAX_MB} MB
               </div>

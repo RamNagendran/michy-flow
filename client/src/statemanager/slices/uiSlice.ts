@@ -2,8 +2,8 @@ import { createSlice, type PayloadAction } from '@reduxjs/toolkit'
 import type { DateRange, Period } from '../../utils/period'
 import { loggedOut } from './authSlice'
 
-/** A company id, or 'all' for the combined view of every company the person can see. */
-export type CompanySelection = number | 'all'
+/** The one company every screen shows. Data from several companies is never shown together. */
+export type CompanySelection = number
 
 export interface UiState {
   /** Keep the full menu open. When false the menu shows icons only and opens on hover. */

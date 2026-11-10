@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Segmented, Table, Tag, Tooltip } from 'antd'
 import { ArrowDownOutlined, ArrowUpOutlined, RightOutlined } from '@ant-design/icons'
-import CompanyPicker from '../../components/CompanyPicker'
 import PriceChart from '../../components/charts/PriceChart'
 import { PageHeader, SectionTitle } from '../../components/ui'
 import { companyItems, itemName } from '../../data/catalog'
@@ -22,7 +21,7 @@ function comparedItems(inputs: string[]) {
 /** Purchase price history: each supplier against the weighted average, per item. */
 export default function Pricing() {
   const { label, range, subtitle } = usePeriod()
-  const { companies, company, setCompany } = useReportCompany('view_finance')
+  const { company } = useReportCompany('view_finance')
   const inputs = useMemo(() => (company ? companyItems(company).inputs.map((i) => i.id) : []), [company])
   const [pickedItem, setItem] = useState<string>()
   const item = pickedItem && inputs.includes(pickedItem) ? pickedItem : inputs[0]
@@ -40,7 +39,6 @@ export default function Pricing() {
       <PageHeader
         title="Purchase prices"
         subtitle={`Each supplier's rate compared to the average · ${label} (${subtitle}) · Grade C bills not included`}
-        extra={<CompanyPicker companies={companies} value={company?.id} onChange={setCompany} />}
       />
 
       <div className={right ? 'grid grid-2' : 'grid'}>

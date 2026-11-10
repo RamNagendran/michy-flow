@@ -9,7 +9,6 @@ export default function CompanySwitcher() {
   if (companies.length < 2) return null
 
   const options = [
-    { value: 'all' as const, label: `All companies (${companies.length})`, search: 'all companies' },
     ...companies.map((c) => ({
       value: c.company.id,
       label: (
@@ -23,8 +22,8 @@ export default function CompanySwitcher() {
   ]
 
   return (
-    <Select<number | 'all'>
-      value={active ?? 'all'}
+    <Select<number>
+      value={active ?? undefined}
       onChange={setActive}
       options={options}
       prefix={<ApartmentOutlined className="faint" />}

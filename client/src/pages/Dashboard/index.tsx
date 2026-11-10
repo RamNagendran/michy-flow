@@ -13,6 +13,7 @@ import { useAccess } from '../../hooks/useAccess'
 import { useAuth } from '../../hooks/useAuth'
 import { useChartGrouping } from '../../hooks/useChartGrouping'
 import { useCompanyData } from '../../hooks/useCompanyData'
+import { useQueueCounts } from '../../hooks/useQueueCounts'
 import { brand, seriesColors } from '../../styles/theme'
 import { formatDateShort, formatINRShort, formatPercent, formatKg, formatQty } from '../../utils/format'
 import { bucketFor, periodLabels, rangeSubtitle } from '../../utils/period'
@@ -67,10 +68,10 @@ function RecentEntries({ companyIds }: { companyIds: number[] }) {
 export default function Dashboard() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const { active, activeAccess, canAnywhere, can } = useAccess()
+  const { activeAccess, can } = useAccess()
   const { scope, period, range, total: t } = useCompanyData()
   const several = scope.length > 1
-  const viewing = active === 'all' ? `all ${scope.length} companies` : activeAccess?.company.name
+  const viewing = activeAccess?.company.name
   // The header period's buying and selling, for stock values and "vs before" (the analysis below starts from the same figures).
   const financeIds = useMemo(() => scope.filter((c) => can('view_finance', c.id)).map((c) => c.id), [scope, can])
   const tradeBase = { range, bucket: bucketFor(range), grades: ['A' as const, 'B' as const] }
@@ -86,7 +87,25 @@ export default function Dashboard() {
 
   const margin = (t?.sales.amount ?? 0) - (t?.purchases.amount ?? 0)
   const marginPct = t?.sales.amount ? (margin / t.sales.amount) * 100 : 0
-  const queue = t ? t.queue.pending + t.queue.approved + t.queue.change_requested : 0
+  // Only what waits on this person. The CEO never sees it. The Super Admin may act on the
+  // Manager's and Finance's queues too, but the card shows only what is theirs alone.
+  const queues = useQueueCounts()
+  const superAdmin = user?.global_role === 'super_admin'
+  const mine = superAdmin ? { ...queues, manager: 0, fromFinance: 0, finance: 0, toIncharge: 0, wastageEscalated: 0 } : queues
+  const waiting = (
+    [
+      [mine.manager, 'new to approve'],
+      [mine.fromFinance, 'sent back by Finance'],
+      [mine.finance, 'approved by the Manager, waiting for you'],
+      [mine.changes, 'change requests from the Manager'],
+      [mine.toIncharge, 'sent back to you'],
+      [mine.wastageToApprove, `month${mine.wastageToApprove === 1 ? '' : 's'} of wastage to approve`],
+      [mine.wastageEscalated, `wastage question${mine.wastageEscalated === 1 ? '' : 's'} from the Super Admin`],
+    ] as const
+  ).filter(([n]) => n > 0)
+  const mineTotal = waiting.reduce((a, [n]) => a + n, 0)
+  const mineEntries = mine.manager + mine.fromFinance + mine.finance + mine.changes + mine.toIncharge
+  const showQueue = user?.global_role !== 'ceo' && mineTotal > 0
 
 
   return (
@@ -102,19 +121,17 @@ export default function Dashboard() {
         }
       />
 
-      {queue > 0 && (
+      {showQueue && (
         <Alert
-          type={t!.queue.change_requested || t!.queue.escalated_to_manager ? 'error' : 'warning'}
+          type={mine.changes || mine.fromFinance || mine.toIncharge || mine.wastageEscalated ? 'error' : 'warning'}
           showIcon
           style={{ marginBottom: 16, borderRadius: 12 }}
-          title={`${queue} ${queue === 1 ? 'entry is' : 'entries are'} not final yet`}
-          description={`${t!.queue.pending} waiting for the Manager · ${t!.queue.approved} waiting for Finance · ${t!.queue.change_requested} with the Super Admin${t!.queue.escalated_to_manager ? ` · ${t!.queue.escalated_to_manager} sent back by Finance` : ''}`}
+          title={`${mineTotal} ${mineTotal === 1 ? 'item waits' : 'items wait'} for you`}
+          description={waiting.map(([n, what]) => `${n} ${what}`).join(' · ')}
           action={
-            canAnywhere('approve_entry', 'verify_entry', 'edit_entry') && (
-              <Button onClick={() => navigate('/review')}>
-                Open approvals <RightOutlined />
-              </Button>
-            )
+            <Button onClick={() => navigate(mineEntries ? '/review' : '/wastage')}>
+              {mineEntries ? 'Open approvals' : 'Open wastage'} <RightOutlined />
+            </Button>
           }
         />
       )}

@@ -1,6 +1,6 @@
 import { Navigate, useNavigate } from 'react-router-dom'
 import { Button } from 'antd'
-import { AppstoreOutlined, FunctionOutlined, LogoutOutlined, RightOutlined } from '@ant-design/icons'
+import { AppstoreOutlined, LogoutOutlined, RightOutlined } from '@ant-design/icons'
 import logo from '../../assets/michy-logo.png'
 import { useAccess } from '../../hooks/useAccess'
 import { useAuth } from '../../hooks/useAuth'
@@ -71,7 +71,7 @@ export default function CeoWelcome() {
               {greeting()}, {firstName(user)}
             </h1>
             <p>
-              You have access to {access.companies.length} companies. Choose one to open its dashboard, or look at all of them together. You can switch at any time
+              You have access to {access.companies.length} companies. Choose one to open its dashboard. You can switch at any time
               from the top of the screen.
             </p>
           </div>
@@ -79,16 +79,6 @@ export default function CeoWelcome() {
 
         <section className="welcome-section">
           <div className="grid grid-3">
-            <PickCard
-              badge={
-                <div className="loc-badge total" style={{ background: '#D82E54' }}>
-                  <FunctionOutlined />
-                </div>
-              }
-              name="All companies"
-              detail={`${access.companies.length} companies added together`}
-              onClick={() => open('all')}
-            />
             {access.companies.map(({ company, role }) => {
               const raw = stocks.byCompany.get(company.id)?.raw
               return (

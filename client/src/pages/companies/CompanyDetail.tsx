@@ -69,6 +69,8 @@ export default function CompanyDetail() {
   const summaries = useSummaries(canSeeTotals ? list : [], range)
 
   if (!entry || !company) return <Navigate to="/stock" replace />
+  // The header's company always wins: switching it there opens that company here.
+  if (access.active !== null && company.id !== access.active) return <Navigate to={`/companies/${access.active}`} replace />
   const stock = stocks.byCompany.get(company.id)
   const t = summaries.byCompany.get(company.id)
   const myRole = accessRoleLabel(user, entry)
@@ -79,7 +81,7 @@ export default function CompanyDetail() {
       <PageHeader
         eyebrow={
           <a onClick={() => navigate('/stock')} style={{ color: 'inherit' }}>
-            <ArrowLeftOutlined /> All companies
+            <ArrowLeftOutlined /> Stock
           </a>
         }
         title={

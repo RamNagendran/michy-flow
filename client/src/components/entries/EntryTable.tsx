@@ -155,14 +155,13 @@ export default function EntryTable({ types, companies, statuses, pageSize = 15, 
   const [q, setQ] = useState('')
   const [status, setStatus] = useState<EntryStatus>()
   const [grade, setGrade] = useState<Grade>()
-  const [companyId, setCompanyId] = useState<number>()
   const [range, setRange] = useState<[Dayjs | null, Dayjs | null] | null>(null)
   const [open, setOpen] = useState<EntryRef | null>(null)
 
   const query = useMemo(
     () => ({
       type: types,
-      company_id: companyId ? [companyId] : companies.map((c) => c.id),
+      company_id: companies.map((c) => c.id),
       status: statuses ?? (status ? [status] : undefined),
       grade: grade ? [grade] : undefined,
       party_id: partyId,
@@ -175,7 +174,7 @@ export default function EntryTable({ types, companies, statuses, pageSize = 15, 
       page,
       page_size: pageSize,
     }),
-    [types, companies, companyId, statuses, status, grade, q, range, page, pageSize, partyId, item, escalated, escalatedTo],
+    [types, companies, statuses, status, grade, q, range, page, pageSize, partyId, item, escalated, escalatedTo],
   )
   const entries = useEntries(query, companies.length > 0)
   const reset = <T,>(set: (v: T) => void) => (v: T) => {
@@ -188,9 +187,6 @@ export default function EntryTable({ types, companies, statuses, pageSize = 15, 
       {!compact && (
         <div style={{ display: 'flex', gap: 10, padding: 16, flexWrap: 'wrap', alignItems: 'center' }}>
           <Input prefix={<SearchOutlined className="faint" />} placeholder="Search reference, bill no. or party" style={{ width: 280 }} allowClear value={q} onChange={(e) => reset(setQ)(e.target.value)} />
-          {companies.length > 1 && (
-            <Select allowClear placeholder="All companies" style={{ width: 200 }} value={companyId} onChange={reset(setCompanyId)} options={companies.map((c) => ({ value: c.id, label: c.name }))} />
-          )}
           {!statuses && (
             <Select
               allowClear

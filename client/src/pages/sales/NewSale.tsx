@@ -38,6 +38,8 @@ export default function NewSale() {
         />
       )}
       <DocumentIntake
+        // A fresh form whenever the header's company changes.
+        key={access.active ?? 0}
         kind="sale"
         onStepChange={setStep}
         onDiscard={() => navigate('/sales')}

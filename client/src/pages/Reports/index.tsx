@@ -1,5 +1,4 @@
 import { useMemo } from 'react'
-import CompanyPicker from '../../components/CompanyPicker'
 import OilKpiPanel from '../../components/charts/OilKpiPanel'
 import { MoneyTrend, ProductionTrend } from '../../components/charts/TrendCharts'
 import { PageHeader, SectionTitle } from '../../components/ui'
@@ -39,7 +38,7 @@ function totals(series: TrendPoint[]) {
   return { ...t, wastagePct: t.processed ? (t.wastage / t.processed) * 100 : 0 }
 }
 
-/** Trends for the companies in view, the oil KPI for the CEO and Managers, and shift efficiency. */
+/** Trends for the header's company, the oil KPI for the CEO and Managers, and shift efficiency. */
 export default function Reports() {
   const { scope, can } = useAccess()
   const { label, range, subtitle } = usePeriod()
@@ -53,7 +52,7 @@ export default function Reports() {
 
   return (
     <div className="page">
-      <PageHeader title="Reports" subtitle={`${label} · ${subtitle} · ${ids.length > 1 ? `${ids.length} companies added together` : (scope.find((c) => c.id === ids[0])?.name ?? '')}`} />
+      <PageHeader title="Reports" subtitle={`${label} · ${subtitle} · ${scope[0]?.name ?? ''}`} />
 
       <div className="grid grid-4 stagger">
         <Tile label="Sales" value={formatINRShort(t.sales)} />
@@ -78,10 +77,10 @@ export default function Reports() {
         </>
       )}
 
-      {plant.companies.length > 0 && (
+      {plant.company && (
         <>
-          <SectionTitle title="Production efficiency" hint="3 shifts a day" extra={<CompanyPicker companies={plant.companies} value={plant.company?.id} onChange={plant.setCompany} />} />
-          <ProductionEfficiency companyId={plant.company?.id} range={range} />
+          <SectionTitle title="Production efficiency" hint="3 shifts a day" />
+          <ProductionEfficiency companyId={plant.company.id} range={range} />
         </>
       )}
     </div>

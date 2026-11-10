@@ -8,10 +8,10 @@ import { useAuth } from './useAuth'
 export interface Access {
   /** Every company this person can open, as sent by the server. */
   companies: CompanyAccess[]
-  /** The company picked in the header, or 'all' for the combined view. null = no companies. */
+  /** The company picked in the header (the first one until they pick). null = no companies. */
   active: CompanySelection | null
   activeAccess: CompanyAccess | undefined
-  /** The companies the current screen should show: the active one, or all of them. */
+  /** The companies the current screen shows: only the active one (empty with no companies). */
   scope: Company[]
   isGlobal: boolean
   /** In a given company, or (without an id) in any company currently in scope. */
@@ -21,7 +21,8 @@ export interface Access {
   canSystem: (permission: SystemPermission) => boolean
   /** May read this company's stock figures (see STOCK_READERS). */
   canReadStock: (companyId: number) => boolean
-  /** Companies where the person holds `permission`, e.g. the choices on an entry form. */
+  /** The header's company, when the person holds `permission` there (empty otherwise). Entry
+   * forms use it, so they never ask for a company of their own. */
   companiesWith: (permission: CompanyPermission) => Company[]
   accessFor: (companyId: number) => CompanyAccess | undefined
 }
@@ -34,20 +35,15 @@ export function resolveAccess(user: AuthUser | null, selected: CompanySelection 
   const permsById = new Map(companies.map((c) => [c.company.id, new Set(c.permissions)]))
   const system = new Set(user?.system_permissions ?? [])
 
-  const active: CompanySelection | null =
-    typeof selected === 'number' && byId.has(selected)
-      ? selected
-      : companies.length === 1
-        ? companies[0].company.id
-        : companies.length > 1
-          ? 'all'
-          : null
-  const inScope = active === 'all' ? companies : active === null ? [] : [byId.get(active)!]
+  // Always exactly one company: overall figures across companies are never shown. A saved
+  // choice that is no longer valid (or the old 'all') falls back to the first company.
+  const active: CompanySelection | null = typeof selected === 'number' && byId.has(selected) ? selected : (companies[0]?.company.id ?? null)
+  const inScope = active === null ? [] : [byId.get(active)!]
 
   return {
     companies,
     active,
-    activeAccess: typeof active === 'number' ? byId.get(active) : undefined,
+    activeAccess: active === null ? undefined : byId.get(active),
     scope: inScope.map((c) => c.company),
     isGlobal: !!user?.global_role,
     can: (permission, companyId) =>
@@ -57,7 +53,7 @@ export function resolveAccess(user: AuthUser | null, selected: CompanySelection 
     canAnywhere: (...permissions) => companies.some((c) => permissions.some((p) => permsById.get(c.company.id)!.has(p))),
     canSystem: (permission) => system.has(permission),
     canReadStock: (companyId) => STOCK_READERS.some((p) => !!permsById.get(companyId)?.has(p)),
-    companiesWith: (permission) => companies.filter((c) => permsById.get(c.company.id)!.has(permission)).map((c) => c.company),
+    companiesWith: (permission) => inScope.filter((c) => permsById.get(c.company.id)!.has(permission)).map((c) => c.company),
     accessFor: (companyId) => byId.get(companyId),
   }
 }

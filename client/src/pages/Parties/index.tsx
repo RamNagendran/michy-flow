@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Alert, Button, Form, Input, Modal, Segmented, Select, Switch, Table, Tag } from 'antd'
+import { Alert, Button, Form, Input, Modal, Segmented, Switch, Table, Tag } from 'antd'
 import { PlusOutlined, SearchOutlined } from '@ant-design/icons'
 import { PageHeader } from '../../components/ui'
 import { useParties, useSaveParty } from '../../hooks/queries/parties'
@@ -49,11 +49,10 @@ function PartyModal({ companyId, kind, party, onClose }: { companyId: number; ki
 
 export default function Parties() {
   const { scope, can } = useAccess()
-  const [companyId, setCompanyId] = useState<number | undefined>(scope[0]?.id)
   const [kind, setKind] = useState<PartyKind>('supplier')
   const [q, setQ] = useState('')
   const [editing, setEditing] = useState<Party | 'new' | null>(null)
-  const current = scope.find((c) => c.id === companyId) ?? scope[0]
+  const current = scope[0]
   const parties = useParties(current?.id, kind)
   const canManage = !!current && can('manage_parties', current.id)
   const rows = useMemo(() => {
@@ -76,7 +75,6 @@ export default function Parties() {
       />
       <div className="surface table-card">
         <div style={{ display: 'flex', gap: 10, padding: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-          {scope.length > 1 && <Select style={{ width: 220 }} value={current?.id} onChange={setCompanyId} options={scope.map((c) => ({ value: c.id, label: c.name }))} />}
           <Segmented<PartyKind> value={kind} onChange={setKind} options={[{ value: 'supplier', label: 'Suppliers' }, { value: 'buyer', label: 'Buyers' }]} />
           <Input prefix={<SearchOutlined className="faint" />} placeholder="Search name, city or GST number" allowClear value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
         </div>

@@ -4,7 +4,6 @@ import { Alert, Button, Checkbox, DatePicker, Input, InputNumber, Segmented, Ste
 import { ArrowLeftOutlined, ArrowRightOutlined, CheckCircleFilled, CheckOutlined } from '@ant-design/icons'
 import dayjs, { type Dayjs } from 'dayjs'
 import { PageHeader } from '../../components/ui'
-import { CompanyBadge } from '../../components/CompanyCards'
 import SavedEntry from '../../components/entries/SavedEntry'
 import { companyItems, itemName, processOf, SHIFT_HOURS, toKg, type OutputId, itemColor } from '../../data/catalog'
 import { useCreateEntry } from '../../hooks/queries/entries'
@@ -34,15 +33,21 @@ const Choice = ({ selected, onClick, children }: { selected: boolean; onClick: (
  * Stock goes down by products + wastage; the wastage is never part of the products. Worked out
  * again on the server.
  */
-export default function NewProduction() {
+/** A fresh form whenever the header's company changes. */
+export default function NewProductionPage() {
+  const { active } = useAccess()
+  return <NewProduction key={active ?? 0} />
+}
+
+function NewProduction() {
   const navigate = useNavigate()
   const notify = useNotify()
-  const { companiesWith, active } = useAccess()
-  // Only companies where this person may record production; material comes from that company's stock.
+  const { companiesWith, scope } = useAccess()
+  // The header's company, when this person may record production there; material comes from its stock.
   const companies = useMemo(() => companiesWith('enter_production'), [companiesWith])
   const create = useCreateEntry('production')
   const [step, setStep] = useState(0)
-  const [companyId, setCompanyId] = useState<number | undefined>(() => companies.find((c) => c.id === active)?.id ?? (companies.length === 1 ? companies[0].id : undefined))
+  const companyId = companies[0]?.id
   const [date, setDate] = useState<Dayjs>(dayjs())
   const [shift, setShift] = useState<number>(1)
   const [material, setMaterial] = useState<string>()
@@ -58,7 +63,7 @@ export default function NewProduction() {
   const [hours, setHours] = useState<number | null>(null)
   const [saved, setSaved] = useState<EntryDetail | null>(null)
 
-  const company = companies.find((c) => c.id === companyId)
+  const company = companies[0]
   // The company's own inputs and outputs (its inventory configuration) and its type's name.
   const process = company ? { ...companyItems(company), name: processOf(company.category).name } : undefined
   const density = company?.oil_density
@@ -148,7 +153,7 @@ export default function NewProduction() {
           current={step}
           size="small"
           items={[
-            { title: 'Company, date & shift', content: company?.name },
+            { title: 'Date & shift', content: company?.name },
             { title: 'What came out', content: outputKg ? formatKg(outputKg) : undefined },
             { title: 'Raw material & wastage', content: material && step > 2 ? formatKgFine(stockOutKg) : undefined },
             { title: 'Check & save' },
@@ -157,34 +162,10 @@ export default function NewProduction() {
       </div>
 
       <div className="surface fade-in" key={step} style={{ padding: 28 }}>
-        {step === 0 && (
+        {step === 0 && !company && <Alert type="warning" showIcon title={`You cannot record production for ${scope[0]?.name ?? 'this company'}.`} description="Switch the company at the top of the screen." />}
+        {step === 0 && company && (
           <>
-            <h3 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 800 }}>Which company?</h3>
-            <div className="grid grid-3" style={{ marginTop: 16 }}>
-              {companies.map((c) => (
-                <Choice
-                  key={c.id}
-                  selected={companyId === c.id}
-                  onClick={() => {
-                    setCompanyId(c.id)
-                    reset()
-                  }}
-                >
-                  <div style={{ marginBottom: 12 }}>
-                    <CompanyBadge code={c.code} />
-                  </div>
-                  <h3 style={{ fontSize: 16 }}>{c.name}</h3>
-                  <p style={{ fontSize: 13 }}>
-                    {processOf(c.category).name}
-                    {c.city ? ` · ${c.city}` : ''}
-                  </p>
-                  <p className="faint" style={{ fontSize: 12.5, marginTop: 4 }}>
-                    {processOf(c.category).summary}
-                  </p>
-                </Choice>
-              ))}
-            </div>
-            <div style={{ display: 'flex', gap: 24, marginTop: 24, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
               <div style={{ width: 280 }}>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Production date</div>
                 <DatePicker value={date} onChange={(d) => d && setDate(d)} format="DD MMM YYYY" size="large" style={{ width: '100%' }} allowClear={false} disabledDate={(d) => d.isAfter(dayjs(), 'day')} />

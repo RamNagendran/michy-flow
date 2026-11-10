@@ -7,11 +7,13 @@ import DocumentIntake, { type IntakeStep } from '../../components/DocumentIntake
 import ManualTradeForm from '../../components/entries/ManualTradeForm'
 import SavedEntry from '../../components/entries/SavedEntry'
 import { useCreateEntry } from '../../hooks/queries/entries'
+import { useAccess } from '../../hooks/useAccess'
 
 export default function NewPurchase() {
   const navigate = useNavigate()
   const [step, setStep] = useState<IntakeStep>('choose')
   const create = useCreateEntry('purchase')
+  const access = useAccess()
 
   return (
     <div className="page">
@@ -32,6 +34,8 @@ export default function NewPurchase() {
         />
       )}
       <DocumentIntake
+        // A fresh form whenever the header's company changes.
+        key={access.active ?? 0}
         kind="purchase"
         onStepChange={setStep}
         onDiscard={() => navigate('/purchases')}

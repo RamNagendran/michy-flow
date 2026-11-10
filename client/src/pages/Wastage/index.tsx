@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { Button, Space, Table } from 'antd'
 import { AuditOutlined, CalendarOutlined, CheckCircleOutlined, FieldTimeOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import CompanyPicker from '../../components/CompanyPicker'
 import WastageChart from '../../components/charts/WastageChart'
 import { HintButton, PageHeader, SectionTitle } from '../../components/ui'
 import { itemName } from '../../data/catalog'
@@ -39,7 +38,7 @@ function Card({ icon, tone, label, value, sub, action }: { icon: React.ReactNode
 export default function Wastage() {
   const { can } = useAccess()
   const { range } = usePeriod()
-  const { companies, company, setCompany } = useReportCompany('view_all_entries')
+  const { company } = useReportCompany('view_all_entries')
   const cid = company?.id
   const manage = !!cid && can('adjust_wastage', cid)
   const canApprove = !!cid && can('approve_wastage', cid)
@@ -75,7 +74,6 @@ export default function Wastage() {
               <p>If the Super Admin changes the wastage, the difference is taken out of (or put back into) raw stock by share of tyres used in that month. It happens only on approval.</p>
               <p>After approval, production for that month is locked. Only the Super Admin can change wastage.</p>
             </HintButton>
-            <CompanyPicker companies={companies} value={cid} onChange={setCompany} />
           </Space>
         }
       />

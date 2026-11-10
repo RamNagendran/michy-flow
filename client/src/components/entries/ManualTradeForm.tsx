@@ -55,7 +55,7 @@ export default function ManualTradeForm({ kind, saving, onSaved, back }: { kind:
   const unit = item ? unitOf(item) : 'kg'
   const options = company ? itemsFor(kind, grade, company) : []
   const over = !isPurchase && available !== null && qty > available
-  const initialCompany = companies.find((c) => c.id === access.active)?.id ?? (companies.length === 1 ? companies[0].id : undefined)
+  const initialCompany = companies[0]?.id
   const canAddParty = !!company && access.can('manage_parties', company.id)
 
   return (
@@ -84,8 +84,9 @@ export default function ManualTradeForm({ kind, saving, onSaved, back }: { kind:
             {isPurchase ? 'Bill details' : 'Sale details'}
           </div>
           <div className="grid grid-2" style={{ columnGap: 16, rowGap: 0 }}>
-            <Form.Item label="Company" name="companyId" rules={[{ required: true, message: 'Choose the company' }]}>
-              <Select placeholder="Choose company" options={companies.map((c) => ({ value: c.id, label: `${c.name}${c.city ? ` · ${c.city}` : ''}` }))} />
+            {/* Always the header's company. */}
+            <Form.Item name="companyId" hidden rules={[{ required: true }]}>
+              <Input />
             </Form.Item>
             <Form.Item
               label={isPurchase ? 'Supplier' : 'Buyer'}
