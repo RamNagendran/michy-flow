@@ -1,15 +1,30 @@
 import { useMemo, useState } from 'react'
-import { App, Avatar, Button, Dropdown, Input, Table, Tag, Tooltip } from 'antd'
+import { App, Avatar, Button, Dropdown, Input, Select, Table, Tag, Tooltip } from 'antd'
 import { KeyOutlined, MoreOutlined, PlusOutlined, SafetyOutlined, SearchOutlined, StopOutlined, CheckCircleOutlined } from '@ant-design/icons'
 import { useCompanies } from '../../hooks/queries/companies'
 import { useResetPassword, useUpdateUser, useUsers } from '../../hooks/queries/users'
 import { useAuth } from '../../hooks/useAuth'
-import type { ManagedUser, UserWithPassword } from '../../types/auth'
+import type { CompanyRole, GlobalRole, ManagedUser, UserWithPassword } from '../../types/auth'
 import { formatDate } from '../../utils/format'
-import { companyRoleLabel, dutyLabel, globalRoleLabel, roleColor } from '../../utils/permissions'
-import { initials } from '../../utils/user'
+import { companyRoleLabel, dutyLabel, globalRoleLabel, MATRIX_COLUMNS, roleColor } from '../../utils/permissions'
+import { initials, roleLabel } from '../../utils/user'
 import TemporaryPasswordModal from './TemporaryPasswordModal'
 import UserFormModal from './UserFormModal'
+
+type Sort = 'name' | 'recent' | 'oldest'
+
+/** Super Admin and CEO see every company, so they match any company filter. */
+const inCompany = (u: ManagedUser, companyId: number | undefined) => companyId === undefined || !!u.global_role || u.memberships.some((m) => m.company.id === companyId)
+
+/** With a company picked, the role must be held in that company. */
+const hasRole = (u: ManagedUser, role: GlobalRole | CompanyRole | undefined, companyId: number | undefined) =>
+  role === undefined || u.global_role === role || u.memberships.some((m) => m.role === role && (companyId === undefined || m.company.id === companyId))
+
+/** Last sign-in, newest or oldest first; people who never signed in always go last. */
+const bySignIn = (dir: 1 | -1) => (a: ManagedUser, b: ManagedUser) => {
+  if (!a.last_login_at || !b.last_login_at) return a.last_login_at ? -1 : b.last_login_at ? 1 : 0
+  return dir * a.last_login_at.localeCompare(b.last_login_at)
+}
 
 function AccessCell({ user }: { user: ManagedUser }) {
   if (user.global_role) {
@@ -43,15 +58,21 @@ export default function UsersTab() {
   const update = useUpdateUser()
   const reset = useResetPassword()
   const [q, setQ] = useState('')
+  const [companyId, setCompanyId] = useState<number>()
+  const [role, setRole] = useState<GlobalRole | CompanyRole>()
+  const [active, setActive] = useState<boolean>()
+  const [sort, setSort] = useState<Sort>('name')
   const [editing, setEditing] = useState<ManagedUser | null>(null)
   const [adding, setAdding] = useState(false)
   const [password, setPassword] = useState<UserWithPassword | null>(null)
 
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase()
-    const list = users.data ?? []
-    return needle ? list.filter((u) => `${u.full_name} ${u.email}`.toLowerCase().includes(needle)) : list
-  }, [users.data, q])
+    const list = (users.data ?? []).filter(
+      (u) => (!needle || `${u.full_name} ${u.email}`.toLowerCase().includes(needle)) && inCompany(u, companyId) && hasRole(u, role, companyId) && (active === undefined || u.is_active === active),
+    )
+    return sort === 'name' ? list : [...list].sort(bySignIn(sort === 'recent' ? -1 : 1))
+  }, [users.data, q, companyId, role, active, sort])
 
   const confirmReset = (u: ManagedUser) =>
     modal.confirm({
@@ -73,7 +94,41 @@ export default function UsersTab() {
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
-        <Input prefix={<SearchOutlined className="faint" />} placeholder="Search name or email" allowClear value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 280 }} />
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Input prefix={<SearchOutlined className="faint" />} placeholder="Search name or email" allowClear value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 240 }} />
+          <Select
+            placeholder="All companies"
+            allowClear
+            showSearch
+            optionFilterProp="label"
+            value={companyId}
+            onChange={setCompanyId}
+            options={(companies.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
+            style={{ width: 180 }}
+          />
+          <Select placeholder="All roles" allowClear value={role} onChange={setRole} options={MATRIX_COLUMNS.map((r) => ({ value: r, label: roleLabel(r) }))} style={{ width: 140 }} />
+          <Select
+            placeholder="Active and inactive"
+            allowClear
+            value={active}
+            onChange={setActive}
+            options={[
+              { value: true, label: 'Active' },
+              { value: false, label: 'Inactive' },
+            ]}
+            style={{ width: 170 }}
+          />
+          <Select<Sort>
+            value={sort}
+            onChange={setSort}
+            options={[
+              { value: 'name', label: 'Sort: name' },
+              { value: 'recent', label: 'Sort: last sign-in, newest' },
+              { value: 'oldest', label: 'Sort: last sign-in, oldest' },
+            ]}
+            style={{ width: 210 }}
+          />
+        </div>
         <Button type="primary" icon={<PlusOutlined />} onClick={() => setAdding(true)} disabled={!companies.data}>
           Add a person
         </Button>
