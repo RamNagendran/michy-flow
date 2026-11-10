@@ -1,4 +1,4 @@
-import { Link, useLocation, useNavigate, type Location } from 'react-router-dom'
+import { useLocation, useNavigate, type Location } from 'react-router-dom'
 import { Alert, Button, Form, Input } from 'antd'
 import { LockOutlined, MailOutlined } from '@ant-design/icons'
 import AuthLayout from '../../components/AuthLayout'
