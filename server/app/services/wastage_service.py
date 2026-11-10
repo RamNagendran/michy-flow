@@ -1,8 +1,8 @@
-"""Wastage control: the fixed wastage rate and the Manager's stock checks.
+"""Wastage control: the fixed wastage rate and the Super Admin's stock checks.
 
 - Every production run counts WASTAGE_ALERT_PCT of its output as wastage (entry_service).
   Each month's total goes to the Super Admin for approval (wastage_month_service).
-- Stock checks: every 1 or 3 months the Manager counts the physical stock; each difference from
+- Stock checks: every 1 or 3 months the Super Admin counts the physical stock; each difference from
   the book stock is recorded and adjusts the stock from then on.
 """
 
@@ -30,8 +30,8 @@ _GRADE_OF_SECTION = {"raw": "A", "output": "A", "resale": "B"}
 
 
 def _require(ctx: CompanyContext) -> None:
-    if not ctx.can(P.ADJUST_WASTAGE):
-        raise ForbiddenError("Only the Manager manages wastage")
+    if not ctx.can(P.COUNT_STOCK):
+        raise ForbiddenError("Only the Super Admin can count the stock")
 
 
 # ---------------------------------------------------------------------------
@@ -40,7 +40,7 @@ def _require(ctx: CompanyContext) -> None:
 
 
 async def record_check(db: AsyncSession, ctx: CompanyContext, data: StockCheckInput) -> StockCheck:
-    """Compare the Manager's physical count with the book stock and record the differences."""
+    """Compare the Super Admin's physical count with the book stock and record the differences."""
     _require(ctx)
     if data.counted_on > today():
         raise InvalidError("The count date cannot be in the future")

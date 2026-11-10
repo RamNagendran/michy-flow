@@ -34,8 +34,10 @@ async def test_stock_check_adjusts_the_book_stock(client: AsyncClient) -> None:
         "lines": [{"section": "raw", "item": "truck", "counted_qty": "950"}],
     }
     url = t.url("/stock-checks")
-    assert (await client.post(url, json=body, headers=bearer(t.finance))).status_code == 403
-    res = await client.post(url, json=body, headers=bearer(t.manager))
+    # Only the Super Admin counts the stock.
+    for someone in (t.finance, t.manager):
+        assert (await client.post(url, json=body, headers=bearer(someone))).status_code == 403
+    res = await client.post(url, json=body, headers=bearer(t.admin))
     assert res.status_code == 201, res.text
 
     line = await stock_of(client, t, "truck")

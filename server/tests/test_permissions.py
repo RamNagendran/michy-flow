@@ -36,6 +36,8 @@ def test_manager_checks_entries_and_runs_the_company() -> None:
     # Never enters, edits, rejects or gives Finance's approval.
     assert not {P.ENTER_PURCHASE, P.ENTER_SALES, P.ENTER_PRODUCTION} & perms
     assert not {P.EDIT_ENTRY, P.REJECT_ENTRY, P.VERIFY_ENTRY} & perms
+    # The physical stock check is the Super Admin's.
+    assert P.COUNT_STOCK not in perms
 
 
 def test_the_admin_role_is_gone() -> None:

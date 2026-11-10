@@ -27,7 +27,7 @@ router = APIRouter(prefix="/companies/{company_id}", tags=["wastage"])
 queue_router = APIRouter(tags=["wastage"])
 
 _see = require_company_permission(P.VIEW_ALL_ENTRIES)
-_manage = require_company_permission(P.ADJUST_WASTAGE)
+_count = require_company_permission(P.COUNT_STOCK)
 _approve = require_company_permission(P.APPROVE_WASTAGE)
 _talk = require_company_permission(P.APPROVE_WASTAGE, P.ADJUST_WASTAGE)
 
@@ -127,10 +127,10 @@ async def list_stock_checks(
 @router.post("/stock-checks", status_code=status.HTTP_201_CREATED)
 async def record_stock_check(
     data: StockCheckInput,
-    ctx: CompanyContext = Depends(_manage),
+    ctx: CompanyContext = Depends(_count),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, int | date]:
-    """The Manager's physical count. Differences from the book stock adjust it from now on."""
+    """The Super Admin's physical count. Differences from the book stock adjust it from now on."""
     check = await wastage_service.record_check(db, ctx, data)
     await events.stock_checked(ctx.company, ctx.user)
     return {"id": check.id, "counted_on": check.counted_on}

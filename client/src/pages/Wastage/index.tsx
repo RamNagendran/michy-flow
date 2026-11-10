@@ -40,7 +40,7 @@ export default function Wastage() {
   const { range } = usePeriod()
   const { company } = useReportCompany('view_all_entries')
   const cid = company?.id
-  const manage = !!cid && can('adjust_wastage', cid)
+  const canCount = !!cid && can('count_stock', cid)
   const canApprove = !!cid && can('approve_wastage', cid)
   // At least a year back, so months still waiting are never hidden by a short period.
   const yearBack = dayjs().subtract(11, 'month').startOf('month').format('YYYY-MM-DD')
@@ -107,7 +107,7 @@ export default function Wastage() {
           label={`Stock check · every ${stock?.check_every_months ?? 1} month${stock?.check_every_months === 3 ? 's' : ''}`}
           value={stock ? (stock.check_overdue ? <span style={{ color: '#D4380D' }}>Overdue</span> : formatDate(stock.next_check_due)) : '—'}
           sub={stock?.last_check_on ? `Last counted ${formatDate(stock.last_check_on)}` : 'Not counted yet'}
-          action={manage && <Button type={stock?.check_overdue ? 'primary' : 'default'} icon={<CalendarOutlined />} onClick={() => setCounting(true)}>Count stock now</Button>}
+          action={canCount && <Button type={stock?.check_overdue ? 'primary' : 'default'} icon={<CalendarOutlined />} onClick={() => setCounting(true)}>Count stock now</Button>}
         />
       </div>
 
@@ -116,7 +116,7 @@ export default function Wastage() {
         <MonthTable months={all} loading={months.isLoading} canApprove={canApprove} selected={selected} onSelect={setSelected} onOpen={setOpenMonth} onApprove={() => setApproving(true)} />
       </div>
 
-      <SectionTitle title="Stock checks" hint="stock counted by the Manager · any difference corrects the stock" />
+      <SectionTitle title="Stock checks" hint="stock counted by the Super Admin · any difference corrects the stock" />
       <div className="surface table-card">
         <Table<StockCheck>
           rowKey="id"

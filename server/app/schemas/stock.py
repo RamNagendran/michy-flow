@@ -17,7 +17,7 @@ class StockLine(BaseModel):
     item: str
     grade: Grade
     unit: str  # "kg" or "L"
-    # Total of the Manager's stock-check differences (book − counted), already in out / balance.
+    # Total of the Super Admin's stock-check differences (book − counted), already in out / balance.
     counted_adjustment: float = 0
     # Raw stock moved by the Super Admin's approved wastage changes, already in out / balance.
     wastage_adjustment: float = 0
@@ -36,7 +36,7 @@ class CompanyStock(BaseModel):
     output: list[StockLine]  # Grade A products: in from production, out by Grade A sales
     resale: list[StockLine]  # Grade B raw material: bought and re-sold as it is
     books: list[StockLine]  # Grade C book stock (no goods move): only items that moved
-    # The Manager's physical stock check, every 1 or 3 months.
+    # The Super Admin's physical stock check, every 1 or 3 months.
     check_every_months: int
     last_check_on: date | None
     next_check_due: date

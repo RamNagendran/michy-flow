@@ -1,4 +1,4 @@
-"""Wastage control: the monthly wastage approval and the Manager's physical stock checks."""
+"""Wastage control: the monthly wastage approval and the Super Admin's physical stock checks."""
 
 from datetime import date, datetime
 from decimal import Decimal
@@ -99,7 +99,7 @@ class WastageMonthEvent(Base):
 
 
 class StockCheck(Base):
-    """One physical count by the Manager. Each line's difference adjusts the book stock."""
+    """One physical count by the Super Admin. Each line's difference adjusts the book stock."""
 
     __tablename__ = "stock_checks"
 

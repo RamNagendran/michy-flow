@@ -263,7 +263,7 @@ export interface StockLine {
   item: string
   grade: Grade
   unit: Unit
-  /** The Manager's stock-check differences (book − counted), already in out / balance. */
+  /** The Super Admin's stock-check differences (book − counted), already in out / balance. */
   counted_adjustment: number
   /** Raw stock moved by the Super Admin's approved wastage changes. */
   wastage_adjustment: number

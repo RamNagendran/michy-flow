@@ -22,6 +22,7 @@ export type CompanyPermission =
   | 'verify_entry'
   | 'manage_parties'
   | 'adjust_wastage'
+  | 'count_stock'
   | 'approve_wastage'
   | 'manage_grades'
   | 'view_finance'
@@ -50,7 +51,7 @@ export interface Company extends CompanyBrief {
   output_items: string[]
   /** kg per litre of oil. */
   oil_density: number
-  /** Months between the Manager's physical stock checks. */
+  /** Months between the Super Admin's physical stock checks. */
   stock_check_months: 1 | 3
   is_active: boolean
 }

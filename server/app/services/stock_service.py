@@ -100,7 +100,7 @@ def _lines(
 ) -> list[StockLine]:
     """One line per item: the company's configured items, plus any other item that has moved
     in this grade (so nothing in stock is ever hidden). Weighed waste is never stocked.
-    `counted` holds stock-check differences (book − counted) for this section, which the Manager
+    `counted` holds stock-check differences (book − counted) for this section, which the Super Admin
     verified, so they apply to both figures. `wasted` holds raw stock moved by the Super Admin's
     approved wastage changes (positive: taken out), which apply to both figures too."""
     counted, wasted = counted or {}, wasted or {}

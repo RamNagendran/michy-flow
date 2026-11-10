@@ -147,7 +147,7 @@ which is kept in the record but never stocked or sold.
 - **High alert and debit note.** A run over 2% raises a live high alert for the Admin and
   Managers. It cannot be approved or verified until the Admin records a debit note. An
   approver's own run waits for review too.
-- **Stock checks.** Every 1 or 3 months (set per company) the Admin counts the physical stock.
+- **Stock checks.** Every 1 or 3 months (set per company) the Super Admin counts the physical stock.
   Each difference from the book stock is recorded and corrects the stock from then on. The
   stock response says when the next count is due and whether it is overdue.
 
