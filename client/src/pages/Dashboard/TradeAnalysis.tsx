@@ -42,14 +42,14 @@ const OTHERS = 'Others'
 
 /** Change against the previous period of the same length. `upIsGood` colours it. */
 function Change({ now, before, upIsGood }: { now: number; before: number; upIsGood?: boolean }) {
-  if (!before) return <span className="change-flat">{now ? 'nothing in the period before' : ''}</span>
+  if (!before) return <span className="change-flat">{now ? 'nothing last period' : ''}</span>
   const pct = ((now - before) / before) * 100
-  if (Math.abs(pct) < 0.05) return <span className="change-flat">same as before</span>
+  if (Math.abs(pct) < 0.05) return <span className="change-flat">same as last period</span>
   const up = pct > 0
   const tone = upIsGood === undefined ? 'change-flat' : up === upIsGood ? 'change-good' : 'change-bad'
   return (
     <span className={tone}>
-      {up ? <ArrowUpOutlined /> : <ArrowDownOutlined />} {formatPercent(Math.abs(pct))} vs before
+      {up ? <ArrowUpOutlined /> : <ArrowDownOutlined />} {formatPercent(Math.abs(pct), 0)} vs last period
     </span>
   )
 }
@@ -260,20 +260,20 @@ function Overview({ view: v, side, loading }: { view: TradeView | null; side: Tr
   const before = `${dayjs(v.previous_from).format('D MMM YY')} – ${dayjs(v.previous_to).format('D MMM YY')}`
   return (
     <div className="grid grid-4">
-      <Tile label={`${w.money}`} value={formatINRShort(t.amount)} sub={<Tooltip title={`Before: ${before} · ${formatINRShort(p.amount)}`}><span><Change now={t.amount} before={p.amount} upIsGood={side === 'sale'} /></span></Tooltip>} />
+      <Tile label={`${w.money}`} value={formatINRShort(t.amount)} sub={<Tooltip title={`Last period: ${before} · ${formatINRShort(p.amount)}`}><span><Change now={t.amount} before={p.amount} upIsGood={side === 'sale'} /></span></Tooltip>} />
       <Tile
         label={`Quantity ${w.verb}`}
         value={unit ? formatQty(qty, unit) : qtyText(t.qty_kg, t.qty_l)}
-        sub={<>{t.bills} bills · {formatINRShort(t.bills ? t.amount / t.bills : 0)} a bill · <Change now={unit ? qty : t.qty_kg + t.qty_l} before={unit ? prevQty : p.qty_kg + p.qty_l} /></>}
+        sub={<>{t.bills} bills · <Change now={unit ? qty : t.qty_kg + t.qty_l} before={unit ? prevQty : p.qty_kg + p.qty_l} /></>}
       />
       {unit ? (
         <Tile
           label="Average rate"
           value={rate === null ? '—' : formatRateIn(rate, unit)}
-          sub={rate !== null && prevRate !== null ? <Tooltip title={`Before: ${formatRateIn(prevRate, unit)}`}><span><Change now={rate} before={prevRate} upIsGood={side === 'sale'} /></span></Tooltip> : 'weighted by quantity'}
+          sub={rate !== null && prevRate !== null ? <Tooltip title={`Last period: ${formatRateIn(prevRate, unit)}`}><span><Change now={rate} before={prevRate} upIsGood={side === 'sale'} /></span></Tooltip> : 'average of all bills'}
         />
       ) : (
-        <Tile label={`${w.items}`} value={v.items.length} sub={v.items[0] ? `Most: ${itemName(v.items[0].item)} · ${formatPercent(t.amount ? (v.items[0].amount / t.amount) * 100 : 0, 0)}` : 'pick one to see its rate'} />
+        <Tile label={`${w.items}`} value={v.items.length} sub={v.items[0] ? `Most: ${itemName(v.items[0].item)} (${formatPercent(t.amount ? (v.items[0].amount / t.amount) * 100 : 0, 0)})` : 'pick one to see its rate'} />
       )}
       <Tile
         label={w.parties}
@@ -282,11 +282,11 @@ function Overview({ view: v, side, loading }: { view: TradeView | null; side: Tr
           top ? (
             <Tooltip title={`How much of the money went to the biggest ${w.party.toLowerCase()}. Above 50% means we depend on one party.`}>
               <span style={{ color: topShare > 50 ? '#D4380D' : undefined }}>
-                Biggest: {top.name} · {formatPercent(topShare, 0)}
+                Biggest: {top.name} ({formatPercent(topShare, 0)})
               </span>
             </Tooltip>
           ) : (
-            `was ${p.parties} before`
+            `${p.parties} last period`
           )
         }
       />

@@ -4,7 +4,7 @@ import { Segmented, Skeleton } from 'antd'
 import dayjs from 'dayjs'
 import { ChartFrame, HeatmapChart } from '../../charts'
 import { CompanyBadge } from '../../components/CompanyCards'
-import { SectionTitle } from '../../components/ui'
+import { HintButton, SectionTitle } from '../../components/ui'
 import { companyItems, itemName, toKg, itemColor } from '../../data/catalog'
 import { avgRate, type TradeView } from '../../hooks/queries/reports'
 import { useCompanyData } from '../../hooks/useCompanyData'
@@ -21,11 +21,11 @@ const ratesOf = (view: TradeView | null) => new Map((view?.items ?? []).map((i) 
 /** Days in the period so far: presets end today, a custom range may end earlier. */
 const daysIn = ([from, to]: [string, string]) => Math.max(1, dayjs(to).isAfter(dayjs()) ? dayjs().diff(dayjs(from), 'day') + 1 : dayjs(to).diff(dayjs(from), 'day') + 1)
 
-/** "≈ 12 days" of cover at the period's pace, or nothing when there was no use. */
+/** "lasts ≈ 12 days" at the period's pace, or nothing when there was no use. */
 const cover = (stock: number, used: number, days: number) => {
   if (stock <= 0 || used <= 0) return null
   const d = stock / (used / days)
-  return d >= 365 ? '1 year +' : `≈ ${Math.round(d)} days`
+  return d >= 365 ? 'lasts 1 year +' : `lasts ≈ ${Math.round(d)} days`
 }
 
 interface Rates {
@@ -46,7 +46,7 @@ function Row({ line, hint, value }: { line: StockLine; hint?: string | null; val
           {formatQty(qty, line.unit)}
         </b>
         <span className="faint num">
-          {[line.confirmed.balance !== qty && `${formatQty(line.confirmed.balance, line.unit)} checked`, hint, value ? `≈ ${formatINRShort(value)}` : null].filter(Boolean).join(' · ')}
+          {[hint, value ? `≈ ${formatINRShort(value)}` : null].filter(Boolean).join(' · ')}
         </span>
       </span>
     </div>
@@ -82,23 +82,23 @@ function CompanyStockCard({ company, stock, summary, days, rates }: { company: C
         <div style={{ minWidth: 0, flex: 1 }}>
           <div className="strong" style={{ fontSize: 15 }}>{company.name}</div>
           <div className="faint" style={{ fontSize: 12.5 }}>
-            {formatKg(rawKg)} raw material{cover(rawKg, processed, days) ? ` · ${cover(rawKg, processed, days)} of production` : ''}
+            {formatKg(rawKg)} raw material{cover(rawKg, processed, days) ? ` · ${cover(rawKg, processed, days)}` : ''}
             {stock.check_overdue && <b style={{ color: '#D4380D' }}> · stock check due</b>}
           </div>
         </div>
         {rates && readyValue > 0 && (
           <div style={{ textAlign: 'right' }}>
             <div className="strong num" style={{ fontSize: 15 }}>≈ {formatINRShort(readyValue)}</div>
-            <div className="faint" style={{ fontSize: 11.5 }}>ready stock value</div>
+            <div className="faint" style={{ fontSize: 11.5 }}>value of ready stock</div>
           </div>
         )}
       </header>
       <div className="stock-cols">
-        <Group title="Raw material · for production" lines={raw} empty="No raw material">
+        <Group title="Raw material" lines={raw} empty="No raw material">
           {(l) => <Row key={l.item} line={l} value={rates ? Math.max(l.provisional.balance, 0) * (rates.buy.get(l.item) ?? 0) : undefined} />}
         </Group>
-        <Group title="Ready to sell · made here" lines={ready} empty="Nothing made yet">
-          {(l) => <Row key={l.item} line={l} hint={cover(l.provisional.balance, soldQty(l.item), days) && `${cover(l.provisional.balance, soldQty(l.item), days)} of sales`} value={rates ? Math.max(l.provisional.balance, 0) * (rates.sell.get(l.item) ?? 0) : undefined} />}
+        <Group title="Ready to sell" lines={ready} empty="Nothing made yet">
+          {(l) => <Row key={l.item} line={l} hint={cover(l.provisional.balance, soldQty(l.item), days)} value={rates ? Math.max(l.provisional.balance, 0) * (rates.sell.get(l.item) ?? 0) : undefined} />}
         </Group>
         {resale.length > 0 && (
           <Group title="Grade B" lines={resale} empty="">
@@ -141,14 +141,24 @@ export default function StockNow({ purchases, sales }: { purchases: TradeView | 
 
   return (
     <>
-      <SectionTitle title="Stock right now" hint="live stock · the period does not change it · big number includes entries not yet checked" />
-      <div className="grid grid-4">
+      <SectionTitle
+        title="Stock right now"
+        hint="today"
+        extra={
+          <HintButton title="How stock is counted">
+            <p>Only entries the Manager has approved are counted. Entries still waiting for the Manager are not in stock yet.</p>
+            <p>Stock is for today. The dates at the top do not change it.</p>
+            {rates && <p>Values (≈) use this period's average buying rate for raw material and selling rate for products.</p>}
+            <p>"Lasts" is how many days the stock will last at this period's pace.</p>
+          </HintButton>
+        }
+      />
+      <div className="grid grid-3">
         {(
           [
-            ['Raw material', formatKg(totalOf(raw)), `${formatKg(totalOf(raw, 'confirmed'))} checked${rates && rawValue ? ` · ≈ ${formatINRShort(rawValue)}` : ''}`],
-            ['Ready to sell', formatKg(readyKg), [readyL ? `+ ${formatQty(readyL, 'L')} oil` : null, rates && readyValue ? `≈ ${formatINRShort(readyValue)}` : null].filter(Boolean).join(' · ') || 'made in the plant'],
-            ['Grade B', formatKg(resaleKg), 'raw material'],
-            ['Companies', String(scope.length), several ? 'stock added together above' : scope[0]?.name ?? ''],
+            ['Raw material', formatKg(totalOf(raw)), rates && rawValue ? `worth ≈ ${formatINRShort(rawValue)}` : 'for production'],
+            ['Ready to sell', formatKg(readyKg), [readyL ? `+ ${formatQty(readyL, 'L')} oil` : null, rates && readyValue ? `worth ≈ ${formatINRShort(readyValue)}` : null].filter(Boolean).join(' · ') || 'made in the plant'],
+            ['Grade B stock', formatKg(resaleKg), 'raw material'],
           ] as const
         ).map(([label, value, sub]) => (
           <div key={label} className="surface stat-tile">
@@ -158,7 +168,6 @@ export default function StockNow({ purchases, sales }: { purchases: TradeView | 
           </div>
         ))}
       </div>
-      {rates && <div className="faint" style={{ fontSize: 12, margin: '6px 2px 0' }}>Values (≈) use this period's average buying rate for raw material and selling rate for products. Days use this period's pace.</div>}
 
       <div className={`grid ${several ? 'grid-2' : ''}`} style={{ marginTop: 12 }}>
         {companies.map((c) => (

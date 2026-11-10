@@ -30,7 +30,7 @@ export default function AuthLayout({ title, subtitle, children }: { title: strin
             from purchase to sale.
           </h1>
           <p style={{ color: 'rgba(255,255,255,0.65)', fontSize: 16, lineHeight: 1.6, marginTop: 18 }}>
-            See what each company bought, what it produced, what is in stock and what was sold — checked and approved, all in one place.
+            See what each company bought, what it produced, what is in stock and what was sold — approved, all in one place.
           </p>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 36 }}>

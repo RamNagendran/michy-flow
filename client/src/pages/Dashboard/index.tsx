@@ -1,11 +1,12 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Alert, Button, Empty, Timeline } from 'antd'
-import { ExperimentOutlined, RightOutlined, RiseOutlined, ShopOutlined, ShoppingCartOutlined } from '@ant-design/icons'
+import { CalendarOutlined, ExperimentOutlined, RightOutlined, RiseOutlined, ShopOutlined, ShoppingCartOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import { KpiCard, PageHeader, SectionTitle } from '../../components/ui'
+import { HintButton, KpiCard, PageHeader, SectionTitle } from '../../components/ui'
 import { statusMeta } from '../../utils/entryStatus'
-import { companyItems, itemName } from '../../data/catalog'
+import { companyItems, itemName, processOf } from '../../data/catalog'
+import { CompanyBadge } from '../../components/CompanyCards'
 import OilKpiPanel from '../../components/charts/OilKpiPanel'
 import { useOilKpi, useTradeAnalysis } from '../../hooks/queries/reports'
 import { useEntries } from '../../hooks/queries/entries'
@@ -70,14 +71,15 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const { activeAccess, can } = useAccess()
   const { scope, period, range, total: t } = useCompanyData()
-  const several = scope.length > 1
-  const viewing = activeAccess?.company.name
+  // The one company every figure below belongs to.
+  const company = activeAccess?.company
   // The header period's buying and selling, for stock values and "vs before" (the analysis below starts from the same figures).
   const financeIds = useMemo(() => scope.filter((c) => can('view_finance', c.id)).map((c) => c.id), [scope, can])
   const tradeBase = { range, bucket: bucketFor(range), grades: ['A' as const, 'B' as const] }
   const bought = useTradeAnalysis(financeIds, { ...tradeBase, side: 'purchase' }).view
   const sold = useTradeAnalysis(financeIds, { ...tradeBase, side: 'sale' }).view
-  const change = (now: number, before: number | undefined) => (before ? ` · ${now >= before ? '▲' : '▼'} ${formatPercent(Math.abs(((now - before) / before) * 100))} vs before` : '')
+  // "▲ 12% vs last period": the period of the same length just before.
+  const change = (now: number, before: number | undefined) => (before ? `${now >= before ? '▲' : '▼'} ${formatPercent(Math.abs(((now - before) / before) * 100), 0)} vs last period` : 'this period')
   // CEO and Managers see the oil KPI for companies that make oil.
   const oilIds = useMemo(() => scope.filter((c) => can('view_oil_kpi', c.id) && companyItems(c).outputs.some((o) => o.id === 'oil')).map((c) => c.id), [scope, can])
   const oil = useOilKpi(oilIds, range)
@@ -114,10 +116,24 @@ export default function Dashboard() {
         eyebrow={dayjs().format('dddd, D MMMM YYYY')}
         title={`${greeting}, ${firstName(user)}`}
         subtitle={
-          <>
-            Here's how <b>{viewing}</b> {several ? 'are' : 'is'} doing — {periodLabels[period].toLowerCase()} ({rangeSubtitle(range)}). Figures include entries still
-            waiting for approval.
-          </>
+          company && (
+            <div className="company-strip">
+              <div className="company-strip-main">
+                <CompanyBadge code={company.code} size={40} />
+                <div style={{ minWidth: 0 }}>
+                  <div className="company-strip-name">{company.name}</div>
+                  <div className="company-strip-meta">{[processOf(company.category).name, company.city].filter(Boolean).join(' · ')}</div>
+                </div>
+              </div>
+              <div className="company-strip-period">
+                <CalendarOutlined />
+                <div>
+                  {periodLabels[period]}
+                  <small>{rangeSubtitle(range)}</small>
+                </div>
+              </div>
+            </div>
+          )
         }
       />
 
@@ -138,23 +154,32 @@ export default function Dashboard() {
 
       <StockNow purchases={bought} sales={sold} />
 
-      <SectionTitle title="Money this period" hint={`${periodLabels[period].toLowerCase()} · ${rangeSubtitle(range)}`} />
+      <SectionTitle
+        title="Money"
+        hint={`${periodLabels[period].toLowerCase()} · ${rangeSubtitle(range)}`}
+        extra={
+          <HintButton title="How these are counted">
+            <p>Every purchase, sale and production entry in these dates is counted, including ones still waiting for approval. Rejected entries are left out.</p>
+            <p>"vs last period" compares with the same number of days just before.</p>
+          </HintButton>
+        }
+      />
       <div className="grid grid-4">
-        <KpiCard label="Spent on purchases" value={formatINRShort(t?.purchases.amount ?? 0)} sub={`${formatINRShort(t?.purchases.verified_amount ?? 0)} checked by Finance${bought ? change(bought.totals.amount, bought.previous.amount) : ''}`} icon={<ShoppingCartOutlined />} tone={{ bg: '#eef4fb', fg: seriesColors.purchase }} onClick={() => navigate('/purchases')} />
-        <KpiCard label="Received from sales" value={formatINRShort(t?.sales.amount ?? 0)} sub={`${formatINRShort(t?.sales.verified_amount ?? 0)} checked by Finance${sold ? change(sold.totals.amount, sold.previous.amount) : ''}`} icon={<ShopOutlined />} tone={{ bg: brand.primarySoft, fg: brand.primary }} onClick={() => navigate('/sales')} />
+        <KpiCard label="Purchases" value={formatINRShort(t?.purchases.amount ?? 0)} sub={bought ? change(bought.totals.amount, bought.previous.amount) : 'this period'} icon={<ShoppingCartOutlined />} tone={{ bg: '#eef4fb', fg: seriesColors.purchase }} onClick={() => navigate('/purchases')} />
+        <KpiCard label="Sales" value={formatINRShort(t?.sales.amount ?? 0)} sub={sold ? change(sold.totals.amount, sold.previous.amount) : 'this period'} icon={<ShopOutlined />} tone={{ bg: brand.primarySoft, fg: brand.primary }} onClick={() => navigate('/sales')} />
         <KpiCard
-          label="Basic difference"
+          label="Sales minus purchases"
           value={formatINRShort(margin)}
-          sub={`${formatPercent(marginPct)} of sales value`}
+          sub={`${formatPercent(marginPct, 0)} of sales`}
           icon={<RiseOutlined />}
           tone={{ bg: '#e6f5f3', fg: seriesColors.margin }}
-          help="Sales money minus purchase money. Labour, power and transport costs are not included."
+          help="Labour, power and transport costs are not included."
           onClick={() => navigate('/finance')}
         />
         <KpiCard
           label="Produced"
           value={formatKg(t?.production.output_kg ?? 0)}
-          sub={`from ${formatKg(t?.production.processed_kg ?? 0)} processed · ${t?.production.count ?? 0} runs`}
+          sub={`${t?.production.count ?? 0} runs · used ${formatKg(t?.production.processed_kg ?? 0)} raw material`}
           icon={<ExperimentOutlined />}
           tone={{ bg: '#f1f2f5', fg: '#3a3f47' }}
           onClick={() => navigate('/production')}

@@ -50,7 +50,7 @@ export default function StockOverview() {
     <div className="page">
       <PageHeader
         title="Stock by company"
-        subtitle="Stock is kept separately for each grade. Oil is in litres. The big number includes entries not yet checked. The small number is what Finance has checked."
+        subtitle="Stock is kept separately for each grade. Oil is in litres. The big number is what the Manager has approved. The small number is what Finance has also approved."
       />
 
       <div className="grid grid-4">
