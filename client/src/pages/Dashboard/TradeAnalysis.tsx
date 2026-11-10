@@ -123,7 +123,7 @@ function AnalysisHint() {
         <li><b>Dates:</b> picked once, in the top bar of the screen (Month, Quarter, Year or Custom, up to 10 years).</li>
         <li><b>Chart by:</b> how the charts split those dates: one point per day, week, month or year. The production charts below follow it too. Long ranges cannot be shown daily.</li>
         <li><b>Material or product:</b> pick one to see its rates, each party's price range and every bill.</li>
-        <li><b>Grade:</b> A and B are real goods. Grade C is bill only, so it is off at first; its rates are not real prices.</li>
+        <li><b>Grade:</b> Grade C is off at first.</li>
         <li><b>Supplier or buyer:</b> only when one company is open.</li>
       </ul>
       <h4>Rates</h4>
@@ -504,7 +504,7 @@ function Charts({
         </ChartFrame>
         <ChartFrame
           title="Grade mix"
-          sub="A: plant · B: re-sell · C: bill only (all grades, whatever the filter)"
+          sub="All grades, whatever the filter"
           {...frame}
           empty={!grades.some((g) => g.amount)}
           height={240}

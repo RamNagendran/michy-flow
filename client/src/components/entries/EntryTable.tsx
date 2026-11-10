@@ -72,7 +72,7 @@ function columnsFor(types: EntryType[], showCompany: boolean): ColumnsType<Entry
   }
   cols.push(
     { title: only === 'production' ? 'Raw material' : 'Item', key: 'item', render: (_, r) => <Item id={r.item} /> },
-    { title: 'Grade', key: 'grade', align: 'center', render: (_, r) => <GradeTag grade={r.grade} type={r.type} /> },
+    { title: 'Grade', key: 'grade', align: 'center', render: (_, r) => <GradeTag grade={r.grade} /> },
     {
       title: only === 'production' ? 'Input' : 'Quantity',
       key: 'qty',
@@ -202,7 +202,7 @@ export default function EntryTable({ types, companies, statuses, pageSize = 15, 
             />
           )}
           {!types.every((t) => t === 'production') && (
-            <Select allowClear placeholder="Any grade" style={{ width: 200 }} value={grade} onChange={reset(setGrade)} options={GRADES.map((g) => ({ value: g.id, label: `${g.name} · ${g.short}` }))} />
+            <Select allowClear placeholder="Any grade" style={{ width: 200 }} value={grade} onChange={reset(setGrade)} options={GRADES.map((g) => ({ value: g.id, label: g.name }))} />
           )}
           <DatePicker.RangePicker format="DD MMM YYYY" value={range} onChange={reset(setRange)} />
           <div style={{ flex: 1 }} />

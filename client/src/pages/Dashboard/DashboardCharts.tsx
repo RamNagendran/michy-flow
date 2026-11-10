@@ -136,7 +136,7 @@ export default function DashboardCharts({ bucket }: { bucket: Bucket }) {
         </ChartFrame>
         <ChartFrame
           title="Grade A / B / C share"
-          sub={`${periodText} · A: plant · B: sold again · C: bill only`}
+          sub={periodText}
           loading={isLoading}
           empty={noGrades}
           table={{

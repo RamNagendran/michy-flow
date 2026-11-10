@@ -14,18 +14,15 @@ export type TradeKind = 'purchase' | 'sale'
 export interface GradeInfo {
   id: Grade
   name: string
-  /** A few words, for tags and filters. */
-  short: string
-  purchase: string
-  sale: string
   fg: string
   bg: string
 }
 
 export const GRADES: GradeInfo[] = [
-  { id: 'A', name: 'Grade A', short: 'Through the plant', purchase: 'Raw material for production', sale: 'Products made in the plant', fg: '#1f7a4d', bg: '#e8f6ef' },
-  { id: 'B', name: 'Grade B', short: 'Re-sell', purchase: 'Raw material bought to re-sell as it is', sale: 'Raw material re-sold without processing', fg: '#2F6FEB', bg: '#eef4fb' },
-  { id: 'C', name: 'Grade C', short: 'Invoice only', purchase: 'Financial record only — no goods move', sale: 'Credit sale or adjustment — no goods move', fg: '#8a5300', bg: '#fdf3e1' },
+  // Only the name is shown in the app: never what each grade means.
+  { id: 'A', name: 'Grade A', fg: '#1f7a4d', bg: '#e8f6ef' },
+  { id: 'B', name: 'Grade B', fg: '#2F6FEB', bg: '#eef4fb' },
+  { id: 'C', name: 'Grade C', fg: '#8a5300', bg: '#fdf3e1' },
 ]
 
 const byId = new Map(GRADES.map((g) => [g.id, g]))

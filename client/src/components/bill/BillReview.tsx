@@ -265,7 +265,7 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
           <div style={{ display: 'grid', gap: 12 }}>
             <div>
               <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 6 }}>Grade</div>
-              <GradePicker kind={doc.kind} value={grade} onChange={setGrade} />
+              <GradePicker value={grade} onChange={setGrade} />
             </div>
             <XField label={isPurchase ? (grade === 'C' ? 'Item' : 'Raw material') : grade === 'A' ? 'Product sold' : 'Item sold'} read={p.item} note={p.item_text ? `Bill says: "${p.item_text}"` : undefined}>
               <Select<string>

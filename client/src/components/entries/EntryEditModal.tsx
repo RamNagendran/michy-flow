@@ -103,7 +103,7 @@ export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail;
       >
         {entry.type !== 'production' && (
           <Form.Item label="Grade" name="grade" rules={[{ required: true }]} extra="If you change the grade, the stock also moves to that grade.">
-            <GradePicker kind={entry.type} />
+            <GradePicker />
           </Form.Item>
         )}
         <div className="grid grid-2" style={{ columnGap: 16, rowGap: 0 }}>

@@ -50,7 +50,7 @@ export default function StockOverview() {
     <div className="page">
       <PageHeader
         title="Stock by company"
-        subtitle="Stock is kept separately for each grade. Grade A: tyres for the plant and what it made. Grade B: tyres to sell again. Grade C: bill-only stock. Oil is in litres. The big number includes entries not yet checked. The small number is what Finance has checked."
+        subtitle="Stock is kept separately for each grade. Oil is in litres. The big number includes entries not yet checked. The small number is what Finance has checked."
       />
 
       <div className="grid grid-4">
@@ -60,16 +60,16 @@ export default function StockOverview() {
         {several && <CompaniesTotalCard count={scope.length} raw={raw} output={output} />}
       </div>
 
-      <SectionTitle title="Grade A · Raw material for production" hint="Only these can go into production" />
+      <SectionTitle title="Grade A · Raw material" />
       {matrix('raw', rawItems.length ? rawItems : raw.slice(0, 1).map((l) => l.item), raw)}
 
-      <SectionTitle title="Grade A · Output ready to sell" hint="Made in the plant" />
+      <SectionTitle title="Grade A · Output" />
       {matrix('output', products, output)}
 
-      <SectionTitle title="Grade B · Raw material to re-sell" hint="Bought and sold on without processing" />
-      {resaleItems.length ? matrix('resale', resaleItems, resale) : <div className="surface muted" style={{ padding: 18 }}>No Grade B stock yet. Record a purchase as Grade B to buy raw material for re-selling.</div>}
+      <SectionTitle title="Grade B · Raw material" />
+      {resaleItems.length ? matrix('resale', resaleItems, resale) : <div className="surface muted" style={{ padding: 18 }}>No Grade B stock yet.</div>}
 
-      <SectionTitle title="Grade C · Book stock" hint="Bills only. No goods move. Kept separate from Grade A and B." />
+      <SectionTitle title="Grade C" />
       {bookItems.length ? matrix('books', bookItems, books) : <div className="surface muted" style={{ padding: 18 }}>No Grade C entries yet.</div>}
 
       <SectionTitle title="How output stock is worked out" hint={several ? 'All companies in view' : scope[0]?.name} />
@@ -118,8 +118,8 @@ export default function StockOverview() {
                     </span>
                   ),
                 },
-                { title: 'Tyres for production (A)', align: 'right', render: (_, c) => <span className="num" style={{ color: '#1f9d6b', fontWeight: 700 }}>+{formatKg(summaries.get(c.id)!.purchases.by_grade[0].qty_kg)}</span> },
-                { title: 'Tyres to re-sell (B)', align: 'right', render: (_, c) => <span className="num" style={{ fontWeight: 700 }}>+{formatKg(summaries.get(c.id)!.purchases.by_grade[1].qty_kg)}</span> },
+                { title: 'Grade A purchases', align: 'right', render: (_, c) => <span className="num" style={{ color: '#1f9d6b', fontWeight: 700 }}>+{formatKg(summaries.get(c.id)!.purchases.by_grade[0].qty_kg)}</span> },
+                { title: 'Grade B purchases', align: 'right', render: (_, c) => <span className="num" style={{ fontWeight: 700 }}>+{formatKg(summaries.get(c.id)!.purchases.by_grade[1].qty_kg)}</span> },
                 { title: 'Sent to production', align: 'right', render: (_, c) => <span className="num" style={{ color: '#D82E54', fontWeight: 700 }}>−{formatKg(summaries.get(c.id)!.production.input_kg)}</span> },
                 { title: 'Output produced', align: 'right', render: (_, c) => <span className="num" style={{ fontWeight: 700 }}>{formatKg(summaries.get(c.id)!.production.output_kg)}</span> },
                 { title: 'Wastage', align: 'right', render: (_, c) => <span className="num">{formatKg(summaries.get(c.id)!.production.wastage_kg)}</span> },

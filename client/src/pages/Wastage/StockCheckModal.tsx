@@ -11,7 +11,7 @@ import { formatQty, qtyInputProps } from '../../utils/format'
 const SECTIONS: { key: CountSection; label: string }[] = [
   { key: 'raw', label: 'Grade A raw material' },
   { key: 'output', label: 'Grade A products' },
-  { key: 'resale', label: 'Grade B re-sell' },
+  { key: 'resale', label: 'Grade B raw material' },
 ]
 
 interface Row {

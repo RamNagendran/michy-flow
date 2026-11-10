@@ -230,9 +230,9 @@ export default function NewProduction() {
           <>
             <h3 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 800 }}>Which raw material was used?</h3>
             <p className="muted" style={{ marginTop: 0 }}>
-              Taken from {company.name}'s Grade A stock. Production always uses Grade A.
+              Taken from {company.name}'s Grade A stock.
             </p>
-            {stock && !rawLines.length && <Alert type="warning" showIcon title="No Grade A raw material in stock here yet. First enter the purchase as Grade A (for production)." />}
+            {stock && !rawLines.length && <Alert type="warning" showIcon title="No Grade A raw material in stock here yet. First enter the purchase as Grade A." />}
             <div className="grid grid-3" style={{ marginTop: 18 }}>
               {rawLines.map((l) => (
                 <Choice key={l.item} selected={material === l.item} onClick={() => setMaterial(l.item)}>

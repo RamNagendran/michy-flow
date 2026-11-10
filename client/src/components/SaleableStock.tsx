@@ -8,11 +8,11 @@ import { activeLines } from '../utils/stock'
 
 const color = (item: string) => itemColor(item)
 
-/** The stock each sale grade takes from, with words a sales person understands. */
-const GROUPS: { grade: Grade; section: StockSection; title: string }[] = [
-  { grade: 'A', section: 'output', title: 'Made in our plant' },
-  { grade: 'B', section: 'resale', title: 'Bought to sell again' },
-  { grade: 'C', section: 'books', title: 'Bill only (no goods)' },
+/** The stock each sale grade takes from. */
+const GROUPS: { grade: Grade; section: StockSection }[] = [
+  { grade: 'A', section: 'output' },
+  { grade: 'B', section: 'resale' },
+  { grade: 'C', section: 'books' },
 ]
 
 interface Props {
@@ -40,7 +40,7 @@ export default function SaleableStock({ company, stock, selected, bare }: Props)
       {groups.map((g) => (
         <div key={g.grade} style={{ marginTop: 10 }}>
           <div className="faint" style={{ fontSize: 11.5, fontWeight: 800, letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-            {gradeInfo(g.grade).name} · {g.title}
+            {gradeInfo(g.grade).name}
           </div>
           {g.lines.map((l) => (
             <Row key={l.item} line={l} active={selected?.grade === g.grade && selected.item === l.item} />

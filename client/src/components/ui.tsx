@@ -8,7 +8,7 @@ import {
 } from '@ant-design/icons'
 import { formatKg } from '../utils/format'
 import { itemName, type MaterialId, type OutputId, itemColor } from '../data/catalog'
-import type { EntrySource, EntryStatus, EntryType, Grade } from '../types/entries'
+import type { EntrySource, EntryStatus, Grade } from '../types/entries'
 import { gradeInfo } from '../data/grades'
 import { statusMeta } from '../utils/entryStatus'
 
@@ -217,15 +217,12 @@ export function StockBar({ parts, total, height = 10 }: { parts: { key: string; 
   )
 }
 
-/** Grade A / B / C, with what it means for this kind of entry on hover. */
-export function GradeTag({ grade, type }: { grade: Grade; type?: EntryType }) {
+/** Grade A / B / C. */
+export function GradeTag({ grade }: { grade: Grade }) {
   const g = gradeInfo(grade)
-  const hint = type === 'production' ? 'Production is always Grade A' : type ? g[type] : g.short
   return (
-    <Tooltip title={`${g.name}: ${hint}`}>
-      <span className="pill" style={{ background: g.bg, color: g.fg, fontWeight: 800 }}>
-        {grade}
-      </span>
-    </Tooltip>
+    <span className="pill" style={{ background: g.bg, color: g.fg, fontWeight: 800 }}>
+      {grade}
+    </span>
   )
 }

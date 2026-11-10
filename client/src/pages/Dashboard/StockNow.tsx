@@ -101,7 +101,7 @@ function CompanyStockCard({ company, stock, summary, days, rates }: { company: C
           {(l) => <Row key={l.item} line={l} hint={cover(l.provisional.balance, soldQty(l.item), days) && `${cover(l.provisional.balance, soldQty(l.item), days)} of sales`} value={rates ? Math.max(l.provisional.balance, 0) * (rates.sell.get(l.item) ?? 0) : undefined} />}
         </Group>
         {resale.length > 0 && (
-          <Group title="Grade B · bought to re-sell" lines={resale} empty="">
+          <Group title="Grade B" lines={resale} empty="">
             {(l) => <Row key={l.item} line={l} />}
           </Group>
         )}
@@ -147,7 +147,7 @@ export default function StockNow({ purchases, sales }: { purchases: TradeView | 
           [
             ['Raw material', formatKg(totalOf(raw)), `${formatKg(totalOf(raw, 'confirmed'))} checked${rates && rawValue ? ` · ≈ ${formatINRShort(rawValue)}` : ''}`],
             ['Ready to sell', formatKg(readyKg), [readyL ? `+ ${formatQty(readyL, 'L')} oil` : null, rates && readyValue ? `≈ ${formatINRShort(readyValue)}` : null].filter(Boolean).join(' · ') || 'made in the plant'],
-            ['Bought to re-sell', formatKg(resaleKg), 'Grade B, not processed'],
+            ['Grade B', formatKg(resaleKg), 'raw material'],
             ['Companies', String(scope.length), several ? 'stock added together above' : scope[0]?.name ?? ''],
           ] as const
         ).map(([label, value, sub]) => (

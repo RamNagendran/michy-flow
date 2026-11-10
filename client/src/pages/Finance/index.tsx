@@ -86,7 +86,7 @@ export default function Finance() {
         <ByItemChart title="Purchases by raw material" totals={t?.purchases} items={itemsOfCompanies(companies, 'inputs')} />
       </div>
 
-      <SectionTitle title="By grade" hint="A: plant · B: sold again as bought · C: bill only" />
+      <SectionTitle title="By grade" />
       <div className="surface table-card">
         <Table
           scroll={{ x: 'max-content' }}
@@ -94,7 +94,7 @@ export default function Finance() {
           rowKey="grade"
           dataSource={t ? t.purchases.by_grade.map((p, i) => ({ grade: p.grade, bought: p, sold: t.sales.by_grade[i] })) : []}
           columns={[
-            { title: 'Grade', render: (_, r) => <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><GradeTag grade={r.grade} /><b>{gradeInfo(r.grade).short}</b></span> },
+            { title: 'Grade', render: (_, r) => <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><GradeTag grade={r.grade} /><b>{gradeInfo(r.grade).name}</b></span> },
             { title: 'Bought', align: 'right', render: (_, r) => <span className="num">{formatKg(r.bought.qty_kg)} · {r.bought.count} bills</span> },
             { title: 'Spent', align: 'right', render: (_, r) => <span className="num strong">{formatINR(r.bought.amount)}</span> },
             { title: 'Sold', align: 'right', render: (_, r) => <span className="num">{formatKg(r.sold.qty_kg)} · {r.sold.count} invoices</span> },

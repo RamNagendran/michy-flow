@@ -10,7 +10,7 @@ export default function PurchasesList() {
     <EntryListPage
       type="purchase"
       title="Purchases"
-      subtitle="All purchase bills. Grade A: tyres for the plant. Grade B: tyres to sell again. Grade C: bill only, no goods. Stock changes when the Manager approves. Bills become final after Finance approves."
+      subtitle="All purchase bills. Stock changes when the Manager approves. Bills become final after Finance approves."
       newPath="/purchases/new"
       newLabel="Record a purchase"
       enter="enter_purchase"

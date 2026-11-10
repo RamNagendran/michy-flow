@@ -127,7 +127,7 @@ export default function ManualTradeForm({ kind, saving, onSaved, back }: { kind:
             {isPurchase ? 'Material and price' : 'Product and price'}
           </div>
           <Form.Item label="Grade" name="grade" rules={[{ required: true }]}>
-            <GradePicker kind={kind} />
+            <GradePicker />
           </Form.Item>
           <Form.Item label={isPurchase ? (grade === 'C' ? 'Item' : 'Raw material') : grade === 'A' ? 'Product' : 'Item sold'} name="item" rules={[{ required: true, message: 'Choose one' }]}>
             <Select placeholder={company ? 'Choose' : 'Choose the company first'} disabled={!company} options={options.map((m) => ({ value: m.id as string, label: `${m.name} — ${m.description}` }))} />
