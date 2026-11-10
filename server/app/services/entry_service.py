@@ -27,9 +27,9 @@ from app.schemas.entries import (
     SaleUpdate,
 )
 from app.services import (
-    crew_service,
     debit_note_service,
     document_service,
+    operator_service,
     party_service,
     stock_service,
     wastage_month_service,
@@ -109,7 +109,7 @@ async def _fields(
     if entry_type == EntryType.PRODUCTION:
         grades.check_production(process, data.material, list(_outputs(data)))
         keep = frozenset(current.crew_ids) if isinstance(current, Production) else frozenset()
-        await crew_service.require_crew(db, ctx.company.id, data.crew_ids, keep)
+        await operator_service.require_crew(db, ctx.company.id, data.crew_ids, keep)
         # In-charges do not know exactly how much went in, only what came out. Stock goes down
         # by output + the wastage rate (to the nearest kg), and wastage is that rate of the
         # output. If they give a bigger total, it is used only to work out the wastage: it is

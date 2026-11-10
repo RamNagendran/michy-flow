@@ -29,7 +29,7 @@ const fieldLabel: Record<string, string> = {
   qty: 'Quantity',
   qty_kg: 'Quantity (kg)',
   returned_kg: 'Returned to stock (kg)',
-  crew_ids: 'Crew',
+  crew_ids: 'Operators',
   running_hours: 'Running hours',
   input_kg: 'Input (kg)',
   rate: 'Rate',

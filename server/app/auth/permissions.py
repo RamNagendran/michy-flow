@@ -80,7 +80,6 @@ COMPANY_ROLE_PERMISSIONS: dict[CompanyRole, frozenset[CompanyPermission]] = {
     CompanyRole.OPERATOR: frozenset({_CP.VIEW, _CP.VIEW_STOCK, _CP.COMMENT_ENTRY}),
 }
 
-# Duty.SHIFT grants no permission; it only puts the person in the shift crew list.
 DUTY_PERMISSIONS: dict[Duty, CompanyPermission] = {
     Duty.PURCHASE: _CP.ENTER_PURCHASE,
     Duty.SALES: _CP.ENTER_SALES,

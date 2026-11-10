@@ -32,6 +32,7 @@ _TABLES = (
     "users",
     "companies",
     "company_memberships",
+    "operators",
     "audit_logs",
     "parties",
     "purchases",

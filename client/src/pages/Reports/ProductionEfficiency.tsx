@@ -65,11 +65,11 @@ export default function ProductionEfficiency({ companyId, range }: { companyId: 
         </div>
         <Table<OperatorRow>
           size="small"
-          rowKey="user_id"
+          rowKey="operator_id"
           loading={report.isLoading}
           pagination={{ pageSize: 6, hideOnSinglePage: true, size: 'small' }}
           dataSource={data?.by_operator}
-          locale={{ emptyText: 'No crew recorded on runs in this period' }}
+          locale={{ emptyText: 'No operators recorded on runs in this period' }}
           columns={[
             { title: 'Operator', dataIndex: 'name', render: (v) => <b>{v}</b> },
             { title: 'Runs', dataIndex: 'runs', align: 'right' },

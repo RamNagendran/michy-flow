@@ -37,8 +37,7 @@ export const SCREEN_ACCESS = {
  */
 export const STOCK_READERS = ['view_stock', 'enter_sales', 'enter_production'] as const satisfies readonly CompanyPermission[]
 
-/** 'shift' grants no permission; it only puts the person in the shift crew list. */
-export const DUTY_PERMISSION: Partial<Record<Duty, CompanyPermission>> = {
+export const DUTY_PERMISSION: Record<Duty, CompanyPermission> = {
   purchase: 'enter_purchase',
   sales: 'enter_sales',
   production: 'enter_production',
@@ -52,7 +51,7 @@ export const companyRoleLabel: Record<CompanyRole, string> = {
   operator: 'In-charge',
 }
 
-export const dutyLabel: Record<Duty, string> = { purchase: 'Purchase', sales: 'Sales', production: 'Production', shift: 'Shift worker' }
+export const dutyLabel: Record<Duty, string> = { purchase: 'Purchase', sales: 'Sales', production: 'Production' }
 
 export const roleColor: Record<GlobalRole | CompanyRole, string> = {
   super_admin: '#D82E54',
@@ -67,7 +66,7 @@ export const roleDescription: Record<GlobalRole | CompanyRole, string> = {
   ceo: 'Can see all companies. Cannot change anything.',
   manager: 'Runs one company. Checks every entry first: approves it, escalates it to the in-charge, or asks the Super Admin to change it. Handles suppliers, buyers and stock checks. Answers questions from the Super Admin on monthly wastage.',
   finance: 'Gives the final approval after the Manager, or escalates it back to the Manager.',
-  operator: 'In-charge. Enters purchases, sales or production, as ticked for them. Sees their own entries and the stock. Shift workers are listed when production is entered.',
+  operator: 'In-charge. Enters purchases, sales or production, as ticked for them. Sees their own entries and the stock.',
 }
 
 export type MatrixColumn = GlobalRole | CompanyRole

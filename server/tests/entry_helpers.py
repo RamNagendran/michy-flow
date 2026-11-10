@@ -46,9 +46,7 @@ async def team(client: AsyncClient, category: str = "crumb") -> Team:
         admin=sa,
         finance=await _member(client, sa, cid, "fin@example.com", "finance"),
         operator=await _member(client, sa, cid, "ops@example.com", "operator", all_duties),
-        operator2=await _member(
-            client, sa, cid, "ops2@example.com", "operator", (*all_duties, "shift")
-        ),
+        operator2=await _member(client, sa, cid, "ops2@example.com", "operator", all_duties),
         supplier=0,
         buyer=0,
     )

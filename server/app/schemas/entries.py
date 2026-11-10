@@ -144,7 +144,7 @@ class ProductionInput(EntryInput):
     # Raw material put back into stock after the run; stock goes down by outputs + 2% minus this.
     returned_kg: KgOrZero = Decimal(0)
     shift: int | None = Field(default=None, ge=1, le=3)
-    # Operators on the shift (user ids), picked by the production in-charge.
+    # Operators on the shift (operator ids), picked by the production in-charge.
     crew_ids: list[int] = Field(default_factory=list, max_length=50)
     running_hours: Decimal | None = Field(default=None, gt=0, le=24, max_digits=5, decimal_places=2)
     outputs: list[OutputInput] = Field(min_length=1, max_length=len(OutputProduct))

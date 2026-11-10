@@ -8,13 +8,13 @@ from app.auth.dependencies import (
 )
 from app.auth.permissions import CompanyPermission, SystemPermission
 from app.core.db import get_db
-from app.models import Company, User
+from app.models import Company, Operator, User
 from app.realtime import events
 from app.schemas.audit import AuditLogRead
 from app.schemas.common import Paginated
 from app.schemas.company import CompanyConfig, CompanyCreate, CompanyRead, CompanyUpdate
-from app.schemas.entries import CrewMember
-from app.services import audit_service, company_service, crew_service
+from app.schemas.operator import OperatorInput, OperatorRead
+from app.services import audit_service, company_service, operator_service
 from app.services.access_service import CompanyContext, accessible_companies
 
 router = APIRouter(prefix="/companies", tags=["companies"])
@@ -76,14 +76,28 @@ async def configure_company(
     return company
 
 
-@router.get("/{company_id}/crew", response_model=list[CrewMember])
-async def list_crew(
-    ctx: CompanyContext = Depends(require_company_permission(CompanyPermission.ENTER_PRODUCTION)),
+_enter_production = require_company_permission(CompanyPermission.ENTER_PRODUCTION)
+
+
+@router.get("/{company_id}/operators", response_model=list[OperatorRead])
+async def list_operators(
+    ctx: CompanyContext = Depends(_enter_production), db: AsyncSession = Depends(get_db)
+) -> list[Operator]:
+    """Operators the production in-charge can put on a shift."""
+    return await operator_service.list_operators(db, ctx.company.id)
+
+
+@router.post(
+    "/{company_id}/operators", response_model=OperatorRead, status_code=status.HTTP_201_CREATED
+)
+async def create_operator(
+    request: Request,
+    data: OperatorInput,
+    ctx: CompanyContext = Depends(_enter_production),
     db: AsyncSession = Depends(get_db),
-) -> list[CrewMember]:
-    """Shift workers the production in-charge can put on a shift (names only)."""
-    people = await crew_service.operators(db, ctx.company.id)
-    return [CrewMember(id=i, name=n) for i, n in people.items()]
+) -> Operator:
+    """Add an operator (name and shift) straight from the production form. No login."""
+    return await operator_service.create(db, ctx, data, request)
 
 
 @router.get("/{company_id}/audit-logs", response_model=Paginated[AuditLogRead])

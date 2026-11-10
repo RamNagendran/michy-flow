@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../../services/api'
 import { API_ROUTES } from '../../utils/apiRoutes'
 import type { Company, CompanyConfig, CompanyInput } from '../../types/auth'
-import type { CrewMember } from '../../types/entries'
+import type { Operator, OperatorInput } from '../../types/entries'
 import { authKeys } from './auth'
 import { useNotify } from '../useNotify'
 
@@ -57,11 +57,25 @@ export function useConfigureCompany() {
 }
 
 /** Operators a production in-charge can put on a shift. */
-export function useCrew(companyId: number | undefined) {
+export function useOperators(companyId: number | undefined) {
   return useQuery({
-    queryKey: ['crew', companyId],
-    queryFn: async () => (await api.get<CrewMember[]>(API_ROUTES.companies.crew(companyId!))).data,
+    queryKey: ['operators', companyId],
+    queryFn: async () => (await api.get<Operator[]>(API_ROUTES.companies.operators(companyId!))).data,
     enabled: !!companyId,
     staleTime: 5 * 60_000,
+  })
+}
+
+/** Adds an operator (name and shift) straight from the production form. */
+export function useAddOperator(companyId: number | undefined) {
+  const qc = useQueryClient()
+  const notify = useNotify()
+  return useMutation({
+    mutationFn: async (body: OperatorInput) => (await api.post<Operator>(API_ROUTES.companies.operators(companyId!), body)).data,
+    onSuccess: (op) => {
+      notify.success('Operator added', op.name)
+      qc.setQueryData<Operator[]>(['operators', companyId], (list) => [...(list ?? []), op])
+    },
+    onError: (err) => notify.error(err, 'Could not add the operator'),
   })
 }

@@ -53,7 +53,7 @@ function Facts({ e }: { e: EntryDetail }) {
     [e.type === 'production' ? 'Taken from stock' : 'Quantity', formatQty(e.qty, e.unit)],
     ...(e.rate !== null ? ([['Rate', formatRateIn(e.rate, e.unit)]] as [string, string][]) : []),
     ...(e.shift ? ([['Shift', `Shift ${e.shift}`]] as [string, string][]) : []),
-    ...(e.crew.length ? ([['Crew', e.crew.map((c) => c.name).join(', ')]] as [string, string][]) : []),
+    ...(e.crew.length ? ([['Operators', e.crew.map((c) => c.name).join(', ')]] as [string, string][]) : []),
     ...(e.running_hours ? ([['Running hours', `${e.running_hours} h · ${formatPercent(e.efficiency_pct ?? 0, 0)} efficiency · ${(e.kg_per_hour ?? 0).toLocaleString('en-IN')} kg/h`]] as [string, string][]) : []),
     ['Entered by', `${e.created_by_name ?? '—'} · ${formatDate(e.created_at)}`],
     ...(e.approved_by_name ? ([['Approved by (Manager)', `${e.approved_by_name} · ${formatDate(e.approved_at!)}`]] as [string, string][]) : []),

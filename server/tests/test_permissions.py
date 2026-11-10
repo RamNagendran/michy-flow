@@ -64,8 +64,6 @@ def test_operator_gets_only_the_duties_ticked() -> None:
     # In-charges see only their own entries, plus the stock.
     assert P.VIEW_ALL_ENTRIES not in perms
     assert P.EDIT_ENTRY not in perms and P.APPROVE_ENTRY not in perms
-    # A shift worker enters nothing; the duty only puts them in the shift crew list.
-    assert membership_permissions("operator", ["shift"]) == base
 
 
 def test_duties_do_not_widen_other_roles() -> None:

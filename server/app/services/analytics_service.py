@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.periods import periods, truncate
-from app.models import Company, Party, Production, ProductionOutput, Purchase, Sale, User
+from app.models import Company, Operator, Party, Production, ProductionOutput, Purchase, Sale
 from app.models.catalog import LITRE, process_of, unit_of
 from app.models.enums import EntryStatus, Grade, OutputProduct
 from app.schemas.analytics import (
@@ -631,7 +631,7 @@ async def production_report(
         dict(
             (
                 await db.execute(
-                    select(User.id, User.full_name).where(User.id.in_([r[0] for r in rows]))
+                    select(Operator.id, Operator.name).where(Operator.id.in_([r[0] for r in rows]))
                 )
             ).all()
         )
@@ -641,7 +641,7 @@ async def production_report(
     by_operator = sorted(
         (
             OperatorRow(
-                user_id=uid,
+                operator_id=uid,
                 name=names.get(uid, "Former operator"),
                 runs=runs,
                 hours=hours,

@@ -15,6 +15,7 @@ from app.models.entries import (
     Sale,
 )
 from app.models.membership import CompanyMembership
+from app.models.operator import Operator
 from app.models.party import Party
 from app.models.user import User
 from app.models.wastage import (
@@ -35,6 +36,7 @@ __all__ = [
     "Document",
     "EntryCounter",
     "EntryEvent",
+    "Operator",
     "Party",
     "Production",
     "ProductionOutput",

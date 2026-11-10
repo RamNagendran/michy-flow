@@ -36,7 +36,7 @@ from app.schemas.entries import (
     OutputRead,
     StatusCount,
 )
-from app.services import crew_service, debit_note_service, workflow_service
+from app.services import debit_note_service, operator_service, workflow_service
 from app.services.access_service import CompanyContext, accessible_companies, permissions_in
 from app.services.workflow_service import Entry
 
@@ -238,7 +238,7 @@ async def _names(db: AsyncSession, ids: set[int | None]) -> dict[int, str]:
 
 async def _production_extras(db: AsyncSession, run: Production) -> dict:
     """The crew and efficiency."""
-    crew = await crew_service.names(db, run.crew_ids)
+    crew = await operator_service.names(db, run.crew_ids)
     processed = run.input_kg - run.returned_kg
     hours = run.running_hours
     return {

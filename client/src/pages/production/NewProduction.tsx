@@ -189,7 +189,7 @@ export default function NewProduction() {
                 <Segmented size="large" value={shift} onChange={setShift} options={[1, 2, 3].map((s) => ({ value: s, label: `Shift ${s}` }))} />
               </div>
             </div>
-            <ShiftCrew companyId={companyId} crew={crew} onCrew={setCrew} hours={hours} onHours={setHours} />
+            <ShiftCrew companyId={companyId} shift={shift} crew={crew} onCrew={setCrew} hours={hours} onHours={setHours} />
           </>
         )}
 
@@ -332,7 +332,7 @@ export default function NewProduction() {
                   [
                     ['Company', `${company.name} · ${process.name}`],
                     ['Date · shift', `${formatDate(date.format('YYYY-MM-DD'))} · Shift ${shift}`],
-                    ...(crew.length ? [['Shift workers', String(crew.length)]] : []),
+                    ...(crew.length ? [['Operators', String(crew.length)]] : []),
                     ...(hours ? [['Running hours', `${hours} h · ${formatPercent((hours / SHIFT_HOURS) * 100, 0)} of the shift`]] : []),
                     ...process.outputs.filter((o) => out[o.id as OutputId]).map((o) => [o.name, formatQty(out[o.id as OutputId] ?? 0, o.unit)]),
                     ['Products total', formatKg(outputKg)],

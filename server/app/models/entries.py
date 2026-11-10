@@ -162,7 +162,7 @@ class Production(WorkflowMixin, Base):
     # Not processed after all and put back into stock (e.g. tyres left over at the end).
     returned_kg: Mapped[Decimal] = mapped_column(KG, default=0, server_default="0")
     shift: Mapped[int | None] = mapped_column(Integer)
-    # Operators who ran the shift (user ids), chosen by the production in-charge.
+    # Operators who ran the shift (operator ids), chosen by the production in-charge.
     crew_ids: Mapped[list[int]] = mapped_column(ARRAY(Integer), default=list, server_default="{}")
     # Hours the plant actually ran in the shift; efficiency = running hours / shift hours.
     running_hours: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))

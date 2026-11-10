@@ -88,7 +88,7 @@ export interface ShiftRow {
 }
 
 export interface OperatorRow {
-  user_id: number
+  operator_id: number
   name: string
   runs: number
   hours: number

@@ -17,7 +17,7 @@ export const API_ROUTES = {
     one: (id: number) => `/companies/${id}`,
     auditLogs: (id: number) => `/companies/${id}/audit-logs`,
     config: (id: number) => `/companies/${id}/config`,
-    crew: (id: number) => `/companies/${id}/crew`,
+    operators: (id: number) => `/companies/${id}/operators`,
   },
   users: {
     list: '/users',

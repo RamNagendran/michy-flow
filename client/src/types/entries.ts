@@ -58,6 +58,16 @@ export interface CrewMember {
   name: string
 }
 
+/** A plant worker put on production shifts. Just a name and their usual shift; no login. */
+export interface Operator extends CrewMember {
+  shift: number | null
+}
+
+export interface OperatorInput {
+  name: string
+  shift: number
+}
+
 /** A flag about a supplier, raised on a purchase: any issue the team should know about. Changes nothing by itself. */
 export interface DebitNote {
   id: number

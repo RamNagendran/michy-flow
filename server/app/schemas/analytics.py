@@ -90,7 +90,7 @@ class ShiftRow(BaseModel):
 
 
 class OperatorRow(BaseModel):
-    user_id: int
+    operator_id: int
     name: str
     runs: int
     hours: float
