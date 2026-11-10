@@ -19,7 +19,7 @@ function page(load: () => Promise<{ default: ComponentType }>) {
 }
 
 const Login = lazy(() => import('./pages/Login'))
-const Signup = lazy(() => import('./pages/Signup'))
+// const Signup = lazy(() => import('./pages/Signup'))
 const NotFound = page(() => import('./pages/NotFound'))
 const ChangePassword = page(() => import('./pages/ChangePassword'))
 const Dashboard = page(() => import('./pages/Dashboard'))
@@ -88,7 +88,7 @@ export default function App() {
           <Routes>
             <Route element={<PublicRoute />}>
               <Route path="/login" element={<Login />} />
-              <Route path="/signup" element={<Signup />} />
+              {/* <Route path="/signup" element={<Signup />} /> */}
             </Route>
 
             <Route path="/change-password" element={<SignedIn><ChangePassword /></SignedIn>} />

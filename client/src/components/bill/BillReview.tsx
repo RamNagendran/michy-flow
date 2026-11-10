@@ -70,7 +70,7 @@ function GstField({ label, registered, missing, read, readValue, value, onChange
           : !typed
             ? 'Not found on the bill. Look at the bill and type the GST number here.'
             : !valid
-              ? 'This is not a correct GST number. Please check it.'
+              ? 'This GST number is not in the right format. Please check it.'
               : matches
                 ? 'Matches the registered GST number.'
                 : 'Does not match the registered GST number. Check the bill. If it was read wrong, type the correct number here.'}

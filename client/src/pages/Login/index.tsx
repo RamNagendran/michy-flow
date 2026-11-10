@@ -31,9 +31,9 @@ export default function Login() {
           Sign in
         </Button>
       </Form>
-      <p className="muted" style={{ marginTop: 24, textAlign: 'center' }}>
+      {/* <p className="muted" style={{ marginTop: 24, textAlign: 'center' }}>
         New to Michy Flow? <Link to="/signup" style={{ fontWeight: 700 }}>Create an account</Link>
-      </p>
+      </p> */}
     </AuthLayout>
   )
 }
