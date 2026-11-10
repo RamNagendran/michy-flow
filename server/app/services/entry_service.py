@@ -33,7 +33,6 @@ from app.services import (
     party_service,
     stock_service,
     wastage_month_service,
-    wastage_service,
     workflow_service,
 )
 from app.services.access_service import CompanyContext
@@ -110,28 +109,18 @@ async def _fields(
         grades.check_production(process, data.material, list(_outputs(data)))
         keep = frozenset(current.crew_ids) if isinstance(current, Production) else frozenset()
         await operator_service.require_crew(db, ctx.company.id, data.crew_ids, keep)
-        # In-charges do not know exactly how much went in, only what came out. Stock goes down
-        # by output + the wastage rate (to the nearest kg), and wastage is that rate of the
-        # output. If they give a bigger total, it is used only to work out the wastage: it is
-        # not saved and does not change the stock or the outputs. Anything put back into stock
-        # is added back: stock goes down by the calculated weight minus the return.
+        # In-charges do not know exactly how much went in, only what came out, plus any
+        # wastage they saw. Stock goes down by output + wastage; the wastage is not an output.
+        # Anything put back into stock is added back: stock goes down by that minus the return.
         density = ctx.company.oil_density
-        rate = wastage_service.HARD_LIMIT
         output = sum((_weight(p, q, density) for p, q in _outputs(data).items()), Decimal(0))
-        calculated = calculated_input(output)
-        basis = data.wastage_on_kg or output
-        if data.wastage_on_kg is not None and data.wastage_on_kg < calculated:
-            raise InvalidError(
-                f"The total cannot be less than {calculated:,.0f} kg "
-                f"(products {output:,.0f} kg + {rate.normalize():f}% wastage)",
-                code="input_below_calculated",
-            )
+        wastage = data.wastage_kg or Decimal(0)
+        calculated = output + wastage
         if data.returned_kg >= calculated:
             raise InvalidError(
                 f"Returned to stock must be less than {calculated:,.0f} kg",
                 code="returned_too_much",
             )
-        wastage = (basis * rate / 100).quantize(_GRAM, rounding=ROUND_HALF_UP)
         return {
             **common,
             "material": data.material,
@@ -143,7 +132,8 @@ async def _fields(
             "output_kg": output,
             "calculated_input_kg": calculated,
             "wastage_kg": wastage,
-            "wastage_pct": rate.quantize(_PCT, rounding=ROUND_HALF_UP),
+            "wastage_type": data.wastage_type,
+            "wastage_pct": (wastage / calculated * 100).quantize(_PCT, rounding=ROUND_HALF_UP),
         }
     is_purchase = entry_type == EntryType.PURCHASE
     party_field = "supplier_id" if is_purchase else "buyer_id"
@@ -170,12 +160,6 @@ async def _fields(
         "invoice_no": data.invoice_no,
         **({"vehicle_nos": data.vehicle_nos} if is_purchase else {}),
     }
-
-
-def calculated_input(output_kg: Decimal) -> Decimal:
-    """What must have gone in for this output: output + the wastage rate, to the nearest kg."""
-    total = output_kg * (1 + wastage_service.HARD_LIMIT / 100)
-    return total.quantize(Decimal(1), rounding=ROUND_HALF_UP)
 
 
 def _outputs(data: ProductionInput) -> dict[str, Decimal]:

@@ -14,7 +14,7 @@ async def test_old_runs_over_the_limit_are_approved_without_a_debit_note(
     t = await team(client)
     await purchase(client, t, t.admin, "1000")
     run = (await production(client, t, t.admin, {"rubber": "900"})).json()
-    assert run["wastage_pct"] == 2.0 and "debit_note_required" not in run
+    assert run["wastage_pct"] == 0 and "debit_note_required" not in run
     await as_old_run(run, "5")
     assert (await act(client, t, t.manager, run, "approve")).status_code == 200
     gone = await client.post(
@@ -116,8 +116,10 @@ async def test_production_in_charge_picks_the_crew(client: AsyncClient) -> None:
         "shift": 2,
         "crew_ids": sorted(ops),
         "running_hours": "6",
-        # 941 kg out + 2% = 960 kg used.
+        # 941 kg out + 19 kg wastage = 960 kg used.
         "outputs": [{"product": "rubber", "qty": "700"}, {"product": "steel", "qty": "241"}],
+        "wastage_kg": "19",
+        "wastage_type": "liquid",
     }
     res = await client.post(t.url("/production"), json=body, headers=bearer(t.admin))
     assert res.status_code == 201, res.text

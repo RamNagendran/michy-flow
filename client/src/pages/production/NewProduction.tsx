@@ -1,19 +1,19 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Alert, Button, DatePicker, Input, InputNumber, Segmented, Steps } from 'antd'
-import { ArrowLeftOutlined, ArrowRightOutlined, CheckCircleFilled, CheckOutlined, EditOutlined, UndoOutlined } from '@ant-design/icons'
+import { Alert, Button, Checkbox, DatePicker, Input, InputNumber, Segmented, Steps } from 'antd'
+import { ArrowLeftOutlined, ArrowRightOutlined, CheckCircleFilled, CheckOutlined } from '@ant-design/icons'
 import dayjs, { type Dayjs } from 'dayjs'
 import { PageHeader } from '../../components/ui'
 import { CompanyBadge } from '../../components/CompanyCards'
 import SavedEntry from '../../components/entries/SavedEntry'
-import { companyItems, itemName, processOf, SHIFT_HOURS, toKg, WASTAGE_ALERT_PCT, type OutputId, itemColor } from '../../data/catalog'
+import { companyItems, itemName, processOf, SHIFT_HOURS, toKg, type OutputId, itemColor } from '../../data/catalog'
 import { useCreateEntry } from '../../hooks/queries/entries'
 import { useStocks } from '../../hooks/queries/stock'
 import { useAccess } from '../../hooks/useAccess'
 import { useNotify } from '../../hooks/useNotify'
-import type { EntryDetail } from '../../types/entries'
+import type { EntryDetail, WastageType } from '../../types/entries'
 import { formatDate, formatKg, formatKgFine, formatPercent, formatQty, kgInputProps, qtyInputProps } from '../../utils/format'
-import { balanceOf } from '../../utils/production'
+import { rawMaterialUsed, WASTAGE_TYPES, wastageTypeLabel } from '../../utils/production'
 import MassBalance from './MassBalance'
 import ShiftCrew from './ShiftCrew'
 
@@ -30,8 +30,9 @@ const Choice = ({ selected, onClick, children }: { selected: boolean; onClick: (
 
 /**
  * Record one production run. In-charges do not know exactly how much raw material went in, so
- * they enter what came out (oil in litres) first. Stock goes down by products + 2% wastage. They
- * may change the total, but that only changes the wastage. Worked out again on the server.
+ * they enter what came out (oil in litres) first, then any wastage (gas, liquid or solid) in kg.
+ * Stock goes down by products + wastage; the wastage is never part of the products. Worked out
+ * again on the server.
  */
 export default function NewProduction() {
   const navigate = useNavigate()
@@ -45,9 +46,10 @@ export default function NewProduction() {
   const [date, setDate] = useState<Dayjs>(dayjs())
   const [shift, setShift] = useState<number>(1)
   const [material, setMaterial] = useState<string>()
-  // The total typed by the in-charge, used only for the wastage; null = the calculated weight.
-  const [totalKg, setTotalKg] = useState<number | null>(null)
-  const [editingInput, setEditingInput] = useState(false)
+  // Wastage on the run, only when the in-charge ticks it: its type and weight.
+  const [hasWastage, setHasWastage] = useState(false)
+  const [wastageType, setWastageType] = useState<WastageType>()
+  const [wastageInput, setWastageInput] = useState<number | null>(null)
   // Raw material put back into stock after the run; added back to stock.
   const [returnedKg, setReturnedKg] = useState<number | null>(null)
   const [out, setOut] = useState<Outputs>({})
@@ -65,14 +67,16 @@ export default function NewProduction() {
   const rawLines = stock?.raw.filter((l) => process?.inputs.some((i) => i.id === l.item) && (l.provisional.balance > 0 || l.item === material)) ?? []
   const available = rawLines.find((l) => l.item === material)?.provisional.balance ?? 0
   const outputKg = (process?.outputs ?? []).reduce((s, o) => s + toKg(o.id, out[o.id as OutputId] ?? 0, density), 0)
-  const b = balanceOf(outputKg, totalKg)
   const anyOutput = (process?.outputs ?? []).some((o) => (out[o.id as OutputId] ?? 0) > 0)
+  const wastageKg = hasWastage ? (wastageInput ?? 0) : 0
+  const wastageMissing = hasWastage && (!wastageType || !wastageInput)
+  const usedKg = rawMaterialUsed(outputKg, wastageKg)
   const returned = returnedKg ?? 0
-  const returnedTooMuch = returned >= b.calculatedKg && returned > 0
-  // Stock goes down by products + 2%, less anything put back.
-  const stockOutKg = Math.max(b.calculatedKg - returned, 0)
+  const returnedTooMuch = returned >= usedKg && returned > 0
+  // Stock goes down by products + wastage, less anything put back.
+  const stockOutKg = Math.max(usedKg - returned, 0)
   const overStock = !!material && stockOutKg > available
-  const canNext = [!!company, anyOutput, !!material && !overStock && !b.tooLow && !returnedTooMuch, true][step]
+  const canNext = [!!company, anyOutput, !!material && !overStock && !wastageMissing && !returnedTooMuch, true][step]
 
   const go = (n: number) => {
     setStep(n)
@@ -81,8 +85,9 @@ export default function NewProduction() {
 
   const reset = () => {
     setMaterial(undefined)
-    setTotalKg(null)
-    setEditingInput(false)
+    setHasWastage(false)
+    setWastageType(undefined)
+    setWastageInput(null)
     setReturnedKg(null)
     setOut({})
     setCrew([])
@@ -96,7 +101,8 @@ export default function NewProduction() {
         body: {
           entry_date: date.format('YYYY-MM-DD'),
           material: material!,
-          wastage_on_kg: totalKg,
+          wastage_kg: hasWastage ? wastageKg : null,
+          wastage_type: hasWastage ? wastageType! : null,
           returned_kg: returned,
           shift,
           crew_ids: crew,
@@ -129,7 +135,7 @@ export default function NewProduction() {
       <PageHeader
         eyebrow="Production"
         title="Record production"
-        subtitle="First enter what came out. The app adds 2% wastage and works out how much raw material was used. That much is taken out of stock when the Manager approves."
+        subtitle="First enter what came out, then any wastage. Products + wastage is the raw material used. That much is taken out of stock when the Manager approves."
         extra={
           <Button icon={<ArrowLeftOutlined />} onClick={() => navigate('/production')}>
             Back to production
@@ -144,7 +150,7 @@ export default function NewProduction() {
           items={[
             { title: 'Company, date & shift', content: company?.name },
             { title: 'What came out', content: outputKg ? formatKg(outputKg) : undefined },
-            { title: 'Raw material', content: material && step > 2 ? formatKg(stockOutKg) : undefined },
+            { title: 'Raw material & wastage', content: material && step > 2 ? formatKgFine(stockOutKg) : undefined },
             { title: 'Check & save' },
           ]}
         />
@@ -214,7 +220,7 @@ export default function NewProduction() {
             </div>
             {anyOutput && (
               <div style={{ marginTop: 22 }}>
-                <MassBalance b={b} />
+                <MassBalance outputKg={outputKg} />
               </div>
             )}
           </>
@@ -244,78 +250,44 @@ export default function NewProduction() {
               ))}
             </div>
 
-            <div style={{ marginTop: 26 }}>
-              <MassBalance b={balanceOf(outputKg)} />
+            <div className="grid grid-2" style={{ marginTop: 26, gap: 24, alignItems: 'start' }}>
+              <div>
+                <Checkbox checked={hasWastage} onChange={(e) => setHasWastage(e.target.checked)} style={{ fontWeight: 700 }}>
+                  Add wastage
+                </Checkbox>
+                {hasWastage && (
+                  <div style={{ display: 'flex', gap: 10, marginTop: 10, flexWrap: 'wrap' }}>
+                    <Segmented<WastageType> size="large" value={wastageType} onChange={setWastageType} options={WASTAGE_TYPES.map((w) => ({ value: w, label: wastageTypeLabel[w] }))} />
+                    <InputNumber<number> size="large" value={wastageInput} onChange={setWastageInput} style={{ flex: 1, minWidth: 140 }} placeholder="0" status={wastageMissing && wastageType ? 'error' : undefined} {...kgInputProps} />
+                  </div>
+                )}
+                <div className="faint" style={{ fontSize: 12.5, marginTop: 6 }}>
+                  {hasWastage ? (wastageType ? 'Added to raw material used. Not added to products.' : 'Choose gas, liquid or solid, then enter the kg.') : 'Tick if some raw material was lost as gas, liquid or solid.'}
+                </div>
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                  Returned to stock <span className="opt-mark">(optional)</span>
+                </div>
+                <InputNumber<number> size="large" value={returnedKg} onChange={setReturnedKg} style={{ width: '100%' }} placeholder="0" status={returnedTooMuch ? 'error' : undefined} {...kgInputProps} />
+                <div className="faint" style={{ fontSize: 12.5, marginTop: 6 }}>
+                  Raw material not used and put back. It is added back to stock.
+                </div>
+              </div>
             </div>
 
-            <div className="grid grid-2" style={{ marginTop: 20, gap: 24, alignItems: 'start' }}>
-            <div>
-              <div style={{ fontWeight: 700, marginBottom: 6 }}>Total raw material</div>
-              {editingInput ? (
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <InputNumber<number>
-                    size="large"
-                    autoFocus
-                    value={totalKg ?? b.calculatedKg}
-                    onChange={setTotalKg}
-                    style={{ flex: 1 }}
-                    status={b.tooLow ? 'error' : undefined}
-                    {...kgInputProps}
-                  />
-                  <Button
-                    size="large"
-                    icon={<UndoOutlined />}
-                    onClick={() => {
-                      setTotalKg(null)
-                      setEditingInput(false)
-                    }}
-                  >
-                    Use {formatKg(b.calculatedKg)}
-                  </Button>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                  <span className="num strong" style={{ fontSize: 22 }}>
-                    {formatKg(b.totalKg)}
-                  </span>
-                  <Button icon={<EditOutlined />} onClick={() => setEditingInput(true)}>
-                    Change
-                  </Button>
-                </div>
-              )}
-              <div className="faint" style={{ fontSize: 12.5, marginTop: 6 }}>
-                If you change this total, only the wastage changes. It cannot be less than {formatKg(b.calculatedKg)}.
-              </div>
-            </div>
-            <div>
-              <div style={{ fontWeight: 700, marginBottom: 6 }}>
-                Returned to stock <span className="opt-mark">(optional)</span>
-              </div>
-              <InputNumber<number> size="large" value={returnedKg} onChange={setReturnedKg} style={{ width: '100%' }} placeholder="0" status={returnedTooMuch ? 'error' : undefined} {...kgInputProps} />
-              <div className="faint" style={{ fontSize: 12.5, marginTop: 6 }}>
-                Raw material not used and put back. It is added back to stock.
-              </div>
-            </div>
+            <div style={{ marginTop: 20 }}>
+              <MassBalance outputKg={outputKg} wastageKg={wastageKg} wastageType={wastageType} />
             </div>
 
             <div style={{ marginTop: 16, background: '#f7f8fa', borderRadius: 12, padding: '12px 18px', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
               <span className="muted">Stock goes down by</span>
               <b className="num">
-                {returned > 0 ? `${formatKg(b.calculatedKg)} − ${formatKg(returned)} returned = ${formatKg(stockOutKg)}` : formatKg(stockOutKg)}
+                {returned > 0 ? `${formatKgFine(usedKg)} − ${formatKgFine(returned)} returned = ${formatKgFine(stockOutKg)}` : formatKgFine(stockOutKg)}
               </b>
             </div>
 
-            {b.tooLow && <Alert type="error" showIcon style={{ marginTop: 16 }} title={`It cannot be less than ${formatKg(b.calculatedKg)}.`} description={`Products ${formatKg(outputKg)} + ${WASTAGE_ALERT_PCT}% wastage needs at least this much raw material.`} />}
-            {!b.tooLow && totalKg !== null && totalKg !== b.calculatedKg && (
-              <Alert
-                type="info"
-                showIcon
-                style={{ marginTop: 16 }}
-                title={`Wastage is now ${WASTAGE_ALERT_PCT}% of ${formatKg(b.totalKg)} = ${formatKgFine(b.wastageKg)}`}
-                description={`Stock still goes down by ${formatKg(stockOutKg)} only. Products stay ${formatKg(outputKg)}. The ${formatKg(b.totalKg)} is used only to work out the wastage.`}
-              />
-            )}
-            {returnedTooMuch && <Alert type="error" showIcon style={{ marginTop: 16 }} title={`Returned to stock must be less than ${formatKg(b.calculatedKg)}.`} />}
+            {returnedTooMuch && <Alert type="error" showIcon style={{ marginTop: 16 }} title={`Returned to stock must be less than ${formatKgFine(usedKg)}.`} />}
             {overStock && (
               <Alert type="error" showIcon style={{ marginTop: 16 }} title={`Only ${formatKg(available)} of Grade A ${itemName(material!).toLowerCase()} is in stock.`} description="Check the weights, enter the missing purchase, or ask the Manager to get a Grade B purchase changed to Grade A." />
             )}
@@ -334,10 +306,10 @@ export default function NewProduction() {
                     ...(crew.length ? [['Operators', String(crew.length)]] : []),
                     ...(hours ? [['Running hours', `${hours} h · ${formatPercent((hours / SHIFT_HOURS) * 100, 0)} of the shift`]] : []),
                     ...process.outputs.filter((o) => out[o.id as OutputId]).map((o) => [o.name, formatQty(out[o.id as OutputId] ?? 0, o.unit)]),
-                    ['Products total', formatKg(outputKg)],
-                    [`Wastage (${WASTAGE_ALERT_PCT}% of ${formatKg(totalKg ?? outputKg)})`, formatKgFine(b.wastageKg)],
-                    ...(returned ? [['Raw material used', formatKg(b.calculatedKg)], ['Returned to stock', formatKg(returned)]] : []),
-                    ['Taken out of stock', `${formatKg(stockOutKg)} of ${itemName(material)}`],
+                    ['Products total', formatKgFine(outputKg)],
+                    ...(wastageKg ? [[`Wastage · ${wastageTypeLabel[wastageType!]}`, formatKgFine(wastageKg)], ['Raw material used', formatKgFine(usedKg)]] : []),
+                    ...(returned ? [['Returned to stock', formatKgFine(returned)]] : []),
+                    ['Taken out of stock', `${formatKgFine(stockOutKg)} of ${itemName(material)}`],
                   ] as [string, string][]
                 ).map(([k, v]) => (
                   <div className="summary-line" key={k}>
@@ -349,7 +321,7 @@ export default function NewProduction() {
                 ))}
               </div>
               <div>
-                <Alert type="info" showIcon title={`${formatKg(stockOutKg)} of ${itemName(material).toLowerCase()} will be taken out of stock`} description="It goes to the Manager first. Stock changes when the Manager approves. It becomes final after Finance approves." />
+                <Alert type="info" showIcon title={`${formatKgFine(stockOutKg)} of ${itemName(material).toLowerCase()} will be taken out of stock`} description="It goes to the Manager first. Stock changes when the Manager approves. It becomes final after Finance approves." />
                 <div style={{ marginTop: 12 }}>
                   <div style={{ fontWeight: 700, marginBottom: 6 }}>Notes (optional)</div>
                   <Input.TextArea rows={3} value={notes} maxLength={2000} onChange={(e) => setNotes(e.target.value)} placeholder="e.g. Reactor 2 down for an hour" />

@@ -12,6 +12,7 @@ from app.models.enums import (
     EntryStatus,
     EntryType,
     Grade,
+    WastageType,
 )
 
 # Limits match the database columns (see models/entries.py), so nothing is silently rounded.
@@ -137,10 +138,11 @@ class ProductionInput(EntryInput):
     and outputs are allowed comes from the company's configuration."""
 
     material: Item
-    # Stock goes down by the outputs + 2%, worked out by the server. A bigger total entered by
-    # the in-charge is used only to work out the wastage; it is not saved.
-    wastage_on_kg: Kg | None = None
-    # Raw material put back into stock after the run; stock goes down by outputs + 2% minus this.
+    # Wastage on the run, if any, and what form it took. Stock goes down by outputs + wastage;
+    # the wastage is never counted in the outputs.
+    wastage_kg: Kg | None = None
+    wastage_type: WastageType | None = None
+    # Raw material put back into stock after the run; stock goes down by outputs + wastage - this.
     returned_kg: KgOrZero = Decimal(0)
     shift: int | None = Field(default=None, ge=1, le=3)
     # Operators on the shift (operator ids), picked by the production in-charge.
@@ -162,6 +164,8 @@ class ProductionInput(EntryInput):
             raise ValueError("each output can appear only once")
         if not any(o.qty > 0 for o in self.outputs):
             raise ValueError("enter at least one output")
+        if (self.wastage_kg is None) != (self.wastage_type is None):
+            raise ValueError("give both the wastage kg and its type, or neither")
         return self
 
 
@@ -359,10 +363,11 @@ class EntryDetail(BaseModel):
     shift: int | None = None
     returned_kg: float | None = None
     processed_kg: float | None = None
-    # Products + the wastage rate: what stock went down by. NULL on runs saved before this rule.
+    # Products + wastage: what stock went down by. NULL on runs saved before this rule.
     calculated_input_kg: float | None = None
     output_kg: float | None = None
     wastage_kg: float | None = None
+    wastage_type: WastageType | None = None
     wastage_pct: float | None = None
     crew: list[CrewMember] = []
     running_hours: float | None = None

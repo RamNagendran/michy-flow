@@ -311,6 +311,7 @@ async def detail(
             calculated_input_kg=entry.calculated_input_kg,
             output_kg=entry.output_kg,
             wastage_kg=entry.wastage_kg,
+            wastage_type=entry.wastage_type,
             wastage_pct=entry.wastage_pct,
             **await _production_extras(db, entry),
             outputs=[

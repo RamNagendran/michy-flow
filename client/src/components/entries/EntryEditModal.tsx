@@ -1,13 +1,13 @@
 import { Alert, DatePicker, Form, Input, InputNumber, Modal, Select } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
-import { companyItems, toKg, unitOf, WASTAGE_ALERT_PCT } from '../../data/catalog'
+import { companyItems, toKg, unitOf } from '../../data/catalog'
 import { itemAllowed, itemsFor } from '../../data/grades'
 import { useParties } from '../../hooks/queries/parties'
 import { useUpdateEntry } from '../../hooks/queries/entries'
 import { errorMessage } from '../../services/apiError'
-import type { EntryDetail, Grade } from '../../types/entries'
-import { formatKg, kgInputProps, perUnit, qtyInputProps, unitWord } from '../../utils/format'
-import { calculatedInput } from '../../utils/production'
+import type { EntryDetail, Grade, WastageType } from '../../types/entries'
+import { formatKgFine, kgInputProps, perUnit, qtyInputProps, unitWord } from '../../utils/format'
+import { rawMaterialUsed, WASTAGE_TYPES, wastageTypeLabel } from '../../utils/production'
 import { useAccess } from '../../hooks/useAccess'
 import GradePicker from './GradePicker'
 import VehicleNumbersInput from './VehicleNumbersInput'
@@ -19,8 +19,9 @@ interface Values {
   grade: Grade
   item: string
   qty: number
-  /** Production: a total bigger than products + 2%, used only for the wastage. */
-  wastage_on?: number | null
+  /** Production: wastage on the run and its type, both or neither. */
+  wastage_type?: WastageType | null
+  wastage_kg?: number | null
   returned_kg?: number | null
   rate?: number
   invoice_no?: string
@@ -39,13 +40,13 @@ export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail;
   const item: string | undefined = Form.useWatch('item', form) ?? entry.item
   const company = useAccess().accessFor(entry.company_id)?.company ?? { category: 'crumb' as const }
   const process = companyItems(company)
-  // Production: stock goes down by products + 2%; a bigger total only changes the wastage.
+  // Production: stock goes down by products + wastage; the wastage is not a product.
   const outputs: Values['outputs'] = Form.useWatch('outputs', form)
+  const wastageType: WastageType | null | undefined = Form.useWatch('wastage_type', form)
+  const wastageKg: number | null | undefined = Form.useWatch('wastage_kg', form)
   const density = 'oil_density' in company ? company.oil_density : undefined
   const outputKg = Object.entries(outputs ?? {}).reduce((s, [id, q]) => s + toKg(id, q ?? 0, density), 0)
-  const leastInput = calculatedInput(outputKg)
-  // The total is not saved; work it back from the wastage when it was bigger than products + 2%.
-  const savedTotal = entry.calculated_input_kg !== null && entry.wastage_kg && entry.wastage_pct ? Math.round((entry.wastage_kg * 100) / entry.wastage_pct) : null
+  const usedKg = rawMaterialUsed(outputKg, wastageType ? (wastageKg ?? 0) : 0)
   const parties = useParties(isProduction ? undefined : entry.company_id, entry.type === 'sale' ? 'buyer' : 'supplier')
   const purchase = useUpdateEntry('purchase')
   const sale = useUpdateEntry('sale')
@@ -59,7 +60,9 @@ export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail;
     item: entry.item,
     qty: entry.qty,
     returned_kg: entry.returned_kg || null,
-    wastage_on: savedTotal !== null && entry.calculated_input_kg !== null && savedTotal > entry.calculated_input_kg ? savedTotal : null,
+    // Older runs have a 2% wastage with no type: it stays only if a type is chosen.
+    wastage_type: entry.wastage_type,
+    wastage_kg: entry.wastage_kg || null,
     rate: entry.rate ?? undefined,
     invoice_no: entry.invoice_no ?? undefined,
     vehicle_nos: entry.vehicle_nos ?? [],
@@ -78,7 +81,7 @@ export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail;
       sale.mutate({ ...target, body: { ...base, buyer_id: v.party_id!, grade: v.grade, product: v.item, qty: v.qty, rate: v.rate!, invoice_no: v.invoice_no! } }, { onSuccess: onClose })
     } else {
       const outs = Object.entries(v.outputs ?? {}).map(([product, qty]) => ({ product, qty: qty ?? 0 }))
-      production.mutate({ ...target, body: { ...base, material: v.item, wastage_on_kg: v.wastage_on ?? null, returned_kg: v.returned_kg ?? 0, shift: v.shift ?? null, crew_ids: entry.crew.map((c) => c.id), running_hours: entry.running_hours, outputs: outs } }, { onSuccess: onClose })
+      production.mutate({ ...target, body: { ...base, material: v.item, wastage_kg: v.wastage_type ? (v.wastage_kg ?? null) : null, wastage_type: v.wastage_type ?? null, returned_kg: v.returned_kg ?? 0, shift: v.shift ?? null, crew_ids: entry.crew.map((c) => c.id), running_hours: entry.running_hours, outputs: outs } }, { onSuccess: onClose })
     }
   }
 
@@ -126,14 +129,15 @@ export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail;
             </>
           )}
           {isProduction ? (
-            <Form.Item
-              label="Total raw material (kg)"
-              name="wastage_on"
-              dependencies={['outputs']}
-              rules={[{ validator: async (_: unknown, v?: number | null) => (v == null || v >= leastInput ? undefined : Promise.reject(new Error(`It cannot be less than ${formatKg(leastInput)}`))) }]}
-              extra={`${formatKg(leastInput)} (products + ${WASTAGE_ALERT_PCT}%) is taken out of stock. Leave empty to use it. A bigger total only changes the wastage.`}
-            >
-              <InputNumber<number> style={{ width: '100%' }} placeholder={String(leastInput)} {...kgInputProps} />
+            <Form.Item label="Wastage" style={{ marginBottom: 0 }} extra={`Raw material used: ${formatKgFine(usedKg)} (products + wastage)`}>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <Form.Item name="wastage_type" noStyle>
+                  <Select<WastageType> allowClear placeholder="No wastage" style={{ width: 140 }} options={WASTAGE_TYPES.map((w) => ({ value: w, label: wastageTypeLabel[w] }))} />
+                </Form.Item>
+                <Form.Item name="wastage_kg" noStyle dependencies={['wastage_type']} rules={[{ validator: async (_: unknown, v?: number | null) => (!form.getFieldValue('wastage_type') || (v ?? 0) > 0 ? undefined : Promise.reject(new Error('Enter the wastage kg'))) }]}>
+                  <InputNumber<number> style={{ flex: 1 }} placeholder="0" disabled={!wastageType} {...kgInputProps} />
+                </Form.Item>
+              </div>
             </Form.Item>
           ) : (
             <Form.Item label={`Quantity (${unitWord(unit)})`} name="qty" rules={[{ required: true, type: 'number', min: 0.001 }]}>
@@ -155,8 +159,8 @@ export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail;
             <Form.Item
               label="Returned to stock (kg)"
               name="returned_kg"
-              dependencies={['outputs']}
-              rules={[{ validator: async (_: unknown, v?: number | null) => (!v || v < leastInput ? undefined : Promise.reject(new Error(`Must be less than ${formatKg(leastInput)}`))) }]}
+              dependencies={['outputs', 'wastage_type', 'wastage_kg']}
+              rules={[{ validator: async (_: unknown, v?: number | null) => (!v || v < usedKg ? undefined : Promise.reject(new Error(`Must be less than ${formatKgFine(usedKg)}`))) }]}
               extra="Added back to stock"
             >
               <InputNumber<number> style={{ width: '100%' }} placeholder="0" {...kgInputProps} />

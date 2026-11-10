@@ -9,6 +9,7 @@ import { DebitNoteGroup, OpenDebitNotes } from '../debitNotes/DebitNoteList'
 import { useAdjustDebitNotes } from '../../hooks/queries/debitNotes'
 import type { EntryAction, EntryDetail, EntryType } from '../../types/entries'
 import { formatDate, formatINR, formatKg, formatKgFine, formatPercent, formatQty, formatRateIn } from '../../utils/format'
+import { wastageTypeLabel } from '../../utils/production'
 import { GradeTag, StatusTag } from '../ui'
 import { statusMeta } from '../../utils/entryStatus'
 import BillFileModal from '../bill/BillFileModal'
@@ -107,11 +108,8 @@ function PurchaseDebitNotes({ e, onRaise }: { e: EntryDetail; onRaise: () => voi
 }
 
 function Production({ e }: { e: EntryDetail }) {
-  // Runs saved under the fixed 2% rule: stock went down by products + 2%.
+  // Stock went down by products + wastage (on older runs, a fixed 2% wastage).
   if (e.calculated_input_kg !== null) {
-    const pct = e.wastage_pct ?? 2
-    // Wastage is 2% of the products, or of a bigger total the in-charge typed (not saved).
-    const wastageOn = ((e.wastage_kg ?? 0) * 100) / pct
     return (
       <div style={{ marginTop: 16 }}>
         <div className="strong" style={{ marginBottom: 8 }}>
@@ -130,27 +128,27 @@ function Production({ e }: { e: EntryDetail }) {
           <span className="muted">Products total</span>
           <b className="num">{formatKg(e.output_kg ?? 0)}</b>
         </div>
-        <div className="summary-line">
-          <span className="muted">
-            Wastage ({formatPercent(pct, 0)} of {formatKgFine(wastageOn)})
-          </span>
-          <b className="num">{formatKgFine(e.wastage_kg ?? 0)}</b>
-        </div>
-        {!!e.returned_kg && (
+        {!!e.wastage_kg && (
           <>
             <div className="summary-line">
-              <span className="muted">Raw material used (products + {formatPercent(pct, 0)})</span>
-              <b className="num">{formatKg(e.calculated_input_kg)}</b>
+              <span className="muted">Wastage{e.wastage_type ? ` · ${wastageTypeLabel[e.wastage_type]}` : ''}</span>
+              <b className="num">{formatKgFine(e.wastage_kg)}</b>
             </div>
             <div className="summary-line">
-              <span className="muted">Returned to stock</span>
-              <b className="num">{formatKg(e.returned_kg)}</b>
+              <span className="muted">Raw material used (products + wastage)</span>
+              <b className="num">{formatKgFine(e.calculated_input_kg)}</b>
             </div>
           </>
         )}
+        {!!e.returned_kg && (
+          <div className="summary-line">
+            <span className="muted">Returned to stock</span>
+            <b className="num">{formatKgFine(e.returned_kg)}</b>
+          </div>
+        )}
         <div className="summary-line">
           <span className="strong">Taken out of stock</span>
-          <b className="num strong">{formatKg(e.calculated_input_kg - (e.returned_kg ?? 0))}</b>
+          <b className="num strong">{formatKgFine(e.calculated_input_kg - (e.returned_kg ?? 0))}</b>
         </div>
       </div>
     )

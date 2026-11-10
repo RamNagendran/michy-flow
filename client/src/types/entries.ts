@@ -151,10 +151,12 @@ export interface EntryDetail {
   /** Production: put back into stock unprocessed. */
   returned_kg: number | null
   processed_kg: number | null
-  /** Products + 2%, worked out on save: what stock went down by. Null on runs saved before this rule. */
+  /** Products + wastage, worked out on save: what stock went down by. Null on very old runs. */
   calculated_input_kg: number | null
   output_kg: number | null
   wastage_kg: number | null
+  /** Null when there was no wastage, and on runs saved before the type was asked. */
+  wastage_type: WastageType | null
   wastage_pct: number | null
   crew: CrewMember[]
   running_hours: number | null
@@ -201,11 +203,14 @@ export interface SaleBody extends EntryBody {
   bill_party_gstin?: string | null
 }
 
+export type WastageType = 'gas' | 'liquid' | 'solid'
+
 export interface ProductionBody extends EntryBody {
   material: string
-  /** A total bigger than products + 2%, used only to work out the wastage. Not saved. */
-  wastage_on_kg: number | null
-  /** Put back into stock after the run; stock goes down by products + 2% minus this. */
+  /** Wastage on the run and its type, both or neither. Never counted in the outputs. */
+  wastage_kg: number | null
+  wastage_type: WastageType | null
+  /** Put back into stock after the run; stock goes down by products + wastage minus this. */
   returned_kg: number
   shift: number | null
   crew_ids: number[]

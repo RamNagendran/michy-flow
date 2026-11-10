@@ -100,15 +100,17 @@ async def production(
     t: Team,
     token: str,
     outputs: dict[str, str],
-    wastage_on_kg: str | None = None,
+    wastage_kg: str | None = None,
     returned_kg: str = "0",
     approve: bool = True,
+    wastage_type: str | None = None,
 ):  # noqa: ANN201
-    """A run of truck tyres. Stock goes down by the outputs + 2%."""
+    """A run of truck tyres. Stock goes down by the outputs + any wastage."""
     body = {
         "entry_date": TODAY,
         "material": "truck",
-        "wastage_on_kg": wastage_on_kg,
+        "wastage_kg": wastage_kg,
+        "wastage_type": wastage_type or ("solid" if wastage_kg else None),
         "returned_kg": returned_kg,
         "shift": 1,
         "outputs": [{"product": p, "qty": q} for p, q in outputs.items()],

@@ -5,7 +5,7 @@ import dayjs from 'dayjs'
 import CompanyPicker from '../../components/CompanyPicker'
 import WastageChart from '../../components/charts/WastageChart'
 import { HintButton, PageHeader, SectionTitle } from '../../components/ui'
-import { itemName, WASTAGE_ALERT_PCT } from '../../data/catalog'
+import { itemName } from '../../data/catalog'
 import { useStocks } from '../../hooks/queries/stock'
 import { useStockChecks, useWastageMonths } from '../../hooks/queries/wastage'
 import { useAccess } from '../../hooks/useAccess'
@@ -69,7 +69,7 @@ export default function Wastage() {
         extra={
           <Space>
             <HintButton title="How monthly wastage works">
-              <p>Every production run counts {WASTAGE_ALERT_PCT}% of its output as wastage.</p>
+              <p>On each production run, the in-charge enters any wastage (gas, liquid or solid) in kg. It is added to the raw material used, not to the products.</p>
               <p>When a month ends, its total goes to the Super Admin. The next month starts fresh at once; it does not wait for approval.</p>
               <p>The Super Admin can approve one month or several together, ask the Manager a question, or change the wastage. The Manager replies and sends it back.</p>
               <p>If the Super Admin changes the wastage, the difference is taken out of (or put back into) raw stock by share of tyres used in that month. It happens only on approval.</p>

@@ -15,11 +15,13 @@ RANGE = "?date_from=2026-08-01&date_to=2026-10-31"
 
 
 async def _run(client: AsyncClient, t: Team, day: str, rubber: str, material: str = "truck"):  # noqa: ANN202
-    """A run approved by the Manager. Wastage is 2% of the output."""
+    """A run approved by the Manager, with 2% of the output entered as wastage."""
     body = {
         "entry_date": day,
         "material": material,
         "outputs": [{"product": "rubber", "qty": rubber}],
+        "wastage_kg": str(Decimal(rubber) * 2 / 100),
+        "wastage_type": "solid",
     }
     res = await client.post(t.url("/production"), json=body, headers=bearer(t.admin))
     assert res.status_code == 201, res.text
@@ -110,8 +112,8 @@ async def test_escalation_and_a_changed_figure_spread_over_the_tyres(client: Asy
     t = await team(client)
     await purchase(client, t, t.admin, "2000", entry_date=SEP)
     await purchase(client, t, t.admin, "2000", entry_date=SEP, material="car", n=2)
-    await _run(client, t, SEP, "588")  # 600 kg of truck tyres used, 11.76 kg wastage
-    await _run(client, t, SEP, "392", "car")  # 400 kg of car tyres, 7.84 kg
+    await _run(client, t, SEP, "588")  # 599.76 kg of truck tyres used, 11.76 kg wastage
+    await _run(client, t, SEP, "392", "car")  # 399.84 kg of car tyres, 7.84 kg
     month = t.url("/wastage/months/2026-09-01")
     step = lambda action: f"{month}/actions/{action}"  # noqa: E731
     note = {"comment": "Why so low for September?"}
@@ -147,9 +149,9 @@ async def test_escalation_and_a_changed_figure_spread_over_the_tyres(client: Asy
     assert m["calculated_kg"] == 19.6 and m["wastage_kg"] == 119.6 and m["changed"] is True
     spread = {a["item"]: a for a in m["adjustments"]}
     assert spread["truck"]["qty"] == 60 and spread["truck"]["share_pct"] == 60
-    assert spread["car"]["qty"] == 40 and spread["car"]["stock_after"] == 1560
+    assert spread["car"]["qty"] == 40 and spread["car"]["stock_after"] == 1560.16
     # Nothing moves in stock before approval.
-    assert (await stock_of(client, t, "truck"))["provisional"]["balance"] == 1400
+    assert (await stock_of(client, t, "truck"))["provisional"]["balance"] == 1400.24
 
     approve = t.url("/wastage/approve")
     stale = {"months": [{"month": SEP, "wastage_kg": "19.6"}]}
@@ -159,9 +161,9 @@ async def test_escalation_and_a_changed_figure_spread_over_the_tyres(client: Asy
     assert (await client.post(approve, json=seen, headers=bearer(t.super_admin))).status_code == 200
 
     truck = await stock_of(client, t, "truck")
-    assert truck["provisional"]["balance"] == 1340 and truck["wastage_adjustment"] == 60
+    assert truck["provisional"]["balance"] == 1340.24 and truck["wastage_adjustment"] == 60
     car = await stock_of(client, t, "car")
-    assert car["provisional"]["out_qty"] == 440 and car["confirmed"]["out_qty"] == 40
+    assert car["provisional"]["out_qty"] == 439.84 and car["confirmed"]["out_qty"] == 40
     assert (await client.put(month, json=change, headers=bearer(t.super_admin))).status_code == 422
 
     detail = (await client.get(month, headers=bearer(t.finance))).json()

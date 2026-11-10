@@ -1,17 +1,21 @@
 import { Formula } from '../../components/ui'
-import { WASTAGE_ALERT_PCT } from '../../data/catalog'
-import { formatKg, formatKgFine } from '../../utils/format'
-import type { Balance } from '../../utils/production'
+import type { WastageType } from '../../types/entries'
+import { formatKgFine } from '../../utils/format'
+import { rawMaterialUsed, wastageTypeLabel } from '../../utils/production'
 
-/** Products + 2% wastage = raw material used, worked out from what came out. */
-export default function MassBalance({ b }: { b: Balance }) {
+/** Products + wastage = raw material used. Without wastage, only the products total. */
+export default function MassBalance({ outputKg, wastageKg = 0, wastageType }: { outputKg: number; wastageKg?: number; wastageType?: WastageType | null }) {
   return (
     <div style={{ background: '#f7f8fa', borderRadius: 12, padding: '14px 18px' }}>
       <Formula
         parts={[
-          { label: 'Products total', value: formatKgFine(b.outputKg), kind: 'in' },
-          { op: '+', label: `Wastage ${WASTAGE_ALERT_PCT}%`, value: formatKgFine(b.outputWastageKg), kind: 'out' },
-          { op: '=', label: `Raw material used · ${formatKgFine(b.outputKg + b.outputWastageKg)} rounded`, value: formatKg(b.calculatedKg), kind: 'result' },
+          { label: 'Products total', value: formatKgFine(outputKg), kind: wastageKg ? 'in' : 'result' },
+          ...(wastageKg
+            ? [
+                { op: '+' as const, label: `Wastage${wastageType ? ` · ${wastageTypeLabel[wastageType]}` : ''}`, value: formatKgFine(wastageKg), kind: 'out' as const },
+                { op: '=' as const, label: 'Raw material used', value: formatKgFine(rawMaterialUsed(outputKg, wastageKg)), kind: 'result' as const },
+              ]
+            : []),
         ]}
       />
     </div>

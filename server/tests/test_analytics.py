@@ -15,6 +15,8 @@ async def test_trends_are_continuous_and_split_units(client: AsyncClient) -> Non
         "entry_date": TODAY,
         "material": "car",
         "outputs": [{"product": "oil", "qty": "400"}, {"product": "steel", "qty": "150"}],
+        "wastage_kg": "11",
+        "wastage_type": "gas",
     }
     made = await client.post(t.url("/production"), json=body, headers=bearer(t.admin))
     assert (await approve_new(client, t, made)).status_code == 201
@@ -24,7 +26,7 @@ async def test_trends_are_continuous_and_split_units(client: AsyncClient) -> Non
     assert [r["period"] for r in rows] == ["2026-09-01", "2026-10-01"]
     sept, octo = rows
     assert sept["purchase_amount"] == 0
-    assert octo["purchase_kg"] == 1000 and octo["processed_kg"] == 577  # 566 + 2%
+    assert octo["purchase_kg"] == 1000 and octo["processed_kg"] == 577  # 566 out + 11 kg wastage
     assert octo["output_kg"] == 566  # 400 L × 1.04 + 150 kg
     assert (
         await client.get(t.url(f"/trends?{RANGE}"), headers=bearer(t.operator))
@@ -38,13 +40,15 @@ async def test_oil_kpi_is_for_the_ceo_and_managers(client: AsyncClient) -> None:
         "entry_date": TODAY,
         "material": "truck",
         "outputs": [{"product": "oil", "qty": "450"}, {"product": "carbon", "qty": "400"}],
+        "wastage_kg": "17",
+        "wastage_type": "gas",
     }
     await approve_new(
         client, t, await client.post(t.url("/production"), json=body, headers=bearer(t.admin))
     )
     url = t.url(f"/oil-kpi?{RANGE}&bucket=month")
     kpi = (await client.get(url, headers=bearer(t.manager))).json()
-    # 450 L × 1.04 = 468 kg of oil from 885 kg used (868 kg out + 2%).
+    # 450 L × 1.04 = 468 kg of oil from 885 kg used (868 kg out + 17 kg wastage).
     assert kpi["pct"] == 52.88 and kpi["status"] == "green" and kpi["applicable"] is True
     assert (await client.get(url, headers=bearer(t.operator))).status_code == 403
     assert (await client.get(url, headers=bearer(t.finance))).status_code == 403

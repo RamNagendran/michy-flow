@@ -1,37 +1,12 @@
-import { WASTAGE_ALERT_PCT } from '../data/catalog'
+import type { WastageType } from '../types/entries'
 
-export interface Balance {
-  /** Weight of everything that came out (oil by its density). */
-  outputKg: number
-  /** WASTAGE_ALERT_PCT of the output, before rounding. */
-  outputWastageKg: number
-  /** Output + wastage, to the nearest kg. Stock goes down by this. */
-  calculatedKg: number
-  /** The total wastage is worked out on: the calculated weight, or what the in-charge typed. */
-  totalKg: number
-  /** WASTAGE_ALERT_PCT of the output, or of the total if the in-charge changed it. */
-  wastageKg: number
-  /** The in-charge typed less than the calculated weight, which is not allowed. */
-  tooLow: boolean
-}
+export const WASTAGE_TYPES: WastageType[] = ['gas', 'liquid', 'solid']
 
-/** Output + the wastage rate, to the nearest kg. Same as the server's calculated_input(). */
-export const calculatedInput = (outputKg: number) => Math.round(outputKg * (1 + WASTAGE_ALERT_PCT / 100))
+export const wastageTypeLabel: Record<WastageType, string> = { gas: 'Gas', liquid: 'Liquid', solid: 'Solid' }
 
 /**
- * In-charges weigh only what came out. Stock goes down by products + 2% and wastage is 2% of
- * the products. If they change the total, it is used only to work out the wastage: the stock and
- * the products stay the same, and the total is not saved. The server works this out again.
+ * In-charges weigh what came out, and add any wastage they saw (kg and its type). Raw material
+ * used = products + wastage; stock goes down by that. The wastage is never part of the products.
+ * The server works this out again.
  */
-export function balanceOf(outputKg: number, totalKg?: number | null): Balance {
-  const calculatedKg = calculatedInput(outputKg)
-  const outputWastageKg = (outputKg * WASTAGE_ALERT_PCT) / 100
-  return {
-    outputKg,
-    outputWastageKg,
-    calculatedKg,
-    totalKg: totalKg ?? calculatedKg,
-    wastageKg: totalKg == null ? outputWastageKg : (totalKg * WASTAGE_ALERT_PCT) / 100,
-    tooLow: totalKg != null && totalKg < calculatedKg,
-  }
-}
+export const rawMaterialUsed = (outputKg: number, wastageKg: number) => outputKg + wastageKg

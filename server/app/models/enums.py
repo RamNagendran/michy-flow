@@ -57,6 +57,14 @@ class PartyKind(StrEnum):
     BUYER = "buyer"
 
 
+class WastageType(StrEnum):
+    """What form the wastage on a production run took."""
+
+    GAS = "gas"
+    LIQUID = "liquid"
+    SOLID = "solid"
+
+
 class Grade(StrEnum):
     """How a purchase or sale moves goods (see models/grades.py for the rules).
 
