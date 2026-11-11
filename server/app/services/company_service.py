@@ -102,6 +102,7 @@ async def update(
         # A new type starts from its own default inputs and outputs.
         defaults = defaults_for(changes["category"])
         company.input_items, company.output_items = list(defaults.inputs), list(defaults.outputs)
+    before = audit_service.changes_of(company, changes)
     for key, value in changes.items():
         setattr(company, key, value)
     try:
@@ -117,7 +118,7 @@ async def update(
         entity_type="company",
         entity_id=company.id,
         company_id=company.id,
-        details={"changes": changes},
+        details={"name": company.name, "changes": before},
         request=request,
     )
     await db.commit()
@@ -139,6 +140,7 @@ async def configure(
     changes = {k: v for k, v in values.items() if getattr(company, k) != v}
     if not changes:
         return company
+    before = audit_service.changes_of(company, changes)
     for key, value in changes.items():
         setattr(company, key, value)
     audit_service.record(
@@ -149,9 +151,7 @@ async def configure(
         entity_type="company",
         entity_id=company.id,
         company_id=company.id,
-        details={
-            "changes": {k: str(v) if not isinstance(v, list) else v for k, v in changes.items()}
-        },
+        details={"name": company.name, "changes": before},
         request=request,
     )
     await db.commit()

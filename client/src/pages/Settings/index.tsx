@@ -2,7 +2,6 @@ import { useSearchParams } from 'react-router-dom'
 import { Tabs } from 'antd'
 import { PageHeader } from '../../components/ui'
 import { useAccess } from '../../hooks/useAccess'
-import AuditTab from './AuditTab'
 import CompaniesTab from './CompaniesTab'
 import { ProductsTab } from './MasterListsTab'
 import RolesTable from '../../components/RolesTable'
@@ -16,7 +15,6 @@ export default function Settings() {
     canSystem('manage_users') && { key: 'users', label: 'People & access', children: <UsersTab /> },
     canSystem('manage_companies') && { key: 'companies', label: 'Companies', children: <CompaniesTab /> },
     { key: 'roles', label: 'What each role can do', children: <RolesTable /> },
-    canSystem('view_audit') && { key: 'audit', label: 'Audit log', children: <AuditTab /> },
     canSystem('manage_config') && { key: 'products', label: 'Company types & items', children: <ProductsTab /> },
   ].filter((i) => !!i)
   const active = items.some((i) => i.key === params.get('tab')) ? params.get('tab')! : items[0].key

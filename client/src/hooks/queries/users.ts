@@ -1,13 +1,12 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../../services/api'
 import { API_ROUTES } from '../../utils/apiRoutes'
-import type { AccessInput, AuditLog, ManagedUser, Paginated, UserCreateRequest, UserUpdateRequest, UserWithPassword } from '../../types/auth'
+import type { AccessInput, ManagedUser, UserCreateRequest, UserUpdateRequest, UserWithPassword } from '../../types/auth'
 import { useNotify } from '../useNotify'
 
 export const userKeys = {
   all: ['users'] as const,
   list: () => [...userKeys.all, 'list'] as const,
-  audit: (page: number, entityType?: string) => ['audit-logs', page, entityType ?? 'all'] as const,
 }
 
 export function useUsers() {
@@ -60,14 +59,5 @@ export function useResetPassword() {
     mutationFn: async (id: number) => (await api.post<UserWithPassword>(API_ROUTES.users.resetPassword(id))).data,
     onSuccess: () => invalidate(),
     onError: (err) => notify.error(err, 'Could not reset the password'),
-  })
-}
-
-export function useAuditLogs(page: number, entityType?: string) {
-  return useQuery({
-    queryKey: userKeys.audit(page, entityType),
-    queryFn: async () =>
-      (await api.get<Paginated<AuditLog>>(API_ROUTES.auditLogs, { params: { page, page_size: 20, entity_type: entityType } })).data,
-    placeholderData: keepPreviousData,
   })
 }

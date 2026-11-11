@@ -27,7 +27,6 @@ export type CompanyPermission =
   | 'manage_grades'
   | 'view_finance'
   | 'view_oil_kpi'
-  | 'view_audit'
 
 export interface Account {
   id: number
@@ -142,6 +141,7 @@ export interface AuditLog {
   actor_id: number | null
   actor_name: string | null
   company_id: number | null
+  company_name: string | null
   action: string
   entity_type: string
   entity_id: number | null

@@ -11,6 +11,7 @@ class AuditLogRead(BaseModel):
     actor_id: int | None
     actor_name: str | None
     company_id: int | None
+    company_name: str | None = None
     action: str
     entity_type: str
     entity_id: int | None

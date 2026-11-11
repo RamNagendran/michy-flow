@@ -200,7 +200,8 @@ async def test_every_step_is_in_the_audit_log(client: AsyncClient) -> None:
     await _escalate(client, t, entry, t.finance, "Why this rate?")
     await _say(client, t, entry, t.manager, "New supplier rate")
     await act(client, t, t.finance, entry, "verify")
-    logs = (await client.get(t.url("/audit-logs"), headers=bearer(t.manager))).json()["items"]
+    url = f"/audit-logs?area=entries&q={entry['ref_no']}"
+    logs = (await client.get(url, headers=bearer(t.super_admin))).json()["items"]
     steps = [log["action"] for log in logs if log["entity_id"] == entry["id"]]
     for step in (
         "entry.created",

@@ -43,7 +43,7 @@ const titles: [string, string][] = [
   ['/reports', 'Reports'],
   ['/pricing', 'Purchase prices'],
   ['/wastage', 'Wastage control'],
-  ['/records', 'All records'],
+  ['/audit', 'Audit trail'],
   ['/settings', 'Settings'],
   ['/review', 'Approvals'],
   ['/parties', 'Suppliers & buyers'],
@@ -65,7 +65,7 @@ export default function MainLayout() {
   const sees = (screen: keyof typeof SCREEN_ACCESS) => access.canAnywhere(...SCREEN_ACCESS[screen])
   const seesDashboard = sees('dashboard')
   // Search opens the widest list this person may see.
-  const searchScreen = (['records', 'purchases', 'sales', 'production'] as const).find((s) => sees(s))
+  const searchScreen = (['purchases', 'sales', 'production'] as const).find((s) => sees(s))
   const queue = useQueueCounts()
   // Item names, units and company types: every screen reads them, so they load first.
   const catalog = useCatalog()

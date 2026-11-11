@@ -150,6 +150,7 @@ async def update(
         await _keep_one_super_admin(db, user)
     if "full_name" in changes:
         changes["full_name"] = changes["full_name"].strip()
+    before = audit_service.changes_of(user, changes)
     for key, value in changes.items():
         setattr(user, key, value)
     if "is_active" in changes:
@@ -161,7 +162,7 @@ async def update(
         action="user_updated",
         entity_type="user",
         entity_id=user.id,
-        details={"changes": changes},
+        details={"name": user.full_name, "changes": before},
         request=request,
     )
     return await _commit_and_reload(db, user)

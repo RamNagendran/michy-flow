@@ -127,10 +127,11 @@ async def list_stock_checks(
 @router.post("/stock-checks", status_code=status.HTTP_201_CREATED)
 async def record_stock_check(
     data: StockCheckInput,
+    request: Request,
     ctx: CompanyContext = Depends(_count),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, int | date]:
     """The Super Admin's physical count. Differences from the book stock adjust it from now on."""
-    check = await wastage_service.record_check(db, ctx, data)
+    check = await wastage_service.record_check(db, ctx, data, request)
     await events.stock_checked(ctx.company, ctx.user)
     return {"id": check.id, "counted_on": check.counted_on}

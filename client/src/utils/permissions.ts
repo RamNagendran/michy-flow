@@ -26,7 +26,6 @@ export const SCREEN_ACCESS = {
   reports: ['view_all_entries'],
   pricing: ['view_finance'],
   wastage: ['view_all_entries'],
-  records: ['view_finance', 'edit_entry', 'verify_entry'],
   enterAny: ['enter_purchase', 'enter_sales', 'enter_production'],
 } as const satisfies Record<string, readonly CompanyPermission[]>
 
@@ -92,6 +91,6 @@ export const ROLE_MATRIX: [string, Partial<Record<MatrixColumn, true | 'duty'>>]
   ['Manage grade A / B / C stock', { super_admin: true, manager: true }],
   ['See finance and reports', { super_admin: true, ceo: true, manager: true, finance: true }],
   ['See oil production KPI', { super_admin: true, ceo: true, manager: true }],
-  ['See the audit log', { super_admin: true, manager: true }],
+  ['See the audit trail', { super_admin: true }],
   ['Manage companies, users and item lists', { super_admin: true }],
 ]

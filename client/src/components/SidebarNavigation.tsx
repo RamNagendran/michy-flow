@@ -101,7 +101,7 @@ export default function SidebarNavigation() {
       sees('wastage') && { key: '/wastage', icon: <AlertOutlined />, label: withBadge('Wastage control', queue.wastage) },
       sees('pricing') && { key: '/pricing', icon: <DollarOutlined />, label: 'Purchase prices' },
       sees('finance') && { key: '/finance', icon: <LineChartOutlined />, label: 'Finance' },
-      sees('records') && { key: '/records', icon: <DatabaseOutlined />, label: 'All records' },
+      access.canSystem('view_audit') && { key: '/audit', icon: <DatabaseOutlined />, label: 'Audit trail' },
     ]),
     ...(showSettings ? [{ key: '/settings', icon: <SettingOutlined />, label: 'Settings' }] : []),
   ]

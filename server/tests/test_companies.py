@@ -132,18 +132,19 @@ async def test_ceo_sees_every_active_company_read_only(client: AsyncClient) -> N
     assert codes == ["A", "Z"]
 
 
-async def test_company_audit_log_needs_the_manager(client: AsyncClient) -> None:
+async def test_only_the_super_admin_sees_the_audit_log(client: AsyncClient) -> None:
     admin = (await signup(client))["access_token"]
     a = await create_company(client, admin, code="A")
     member = lambda role: [{"company_id": a["id"], "role": role}]  # noqa: E731
-    company_admin = await login_new_user(
+    manager = await login_new_user(
         client, await create_user(client, admin, "mgr@example.com", memberships=member("manager"))
     )
-    finance = await login_new_user(
-        client, await create_user(client, admin, "fin@example.com", memberships=member("finance"))
-    )
-    url = f"/companies/{a['id']}/audit-logs"
-    ok = await client.get(url, headers=bearer(company_admin))
+    url = f"/audit-logs?company_id={a['id']}"
+    ok = await client.get(url, headers=bearer(admin))
     assert ok.status_code == 200
-    assert ok.json()["items"][0]["action"] == "company_created"
-    assert (await client.get(url, headers=bearer(finance))).status_code == 403
+    first = ok.json()["items"][-1]
+    assert first["action"] == "company_created" and first["company_name"] == a["name"]
+    assert (await client.get(url, headers=bearer(manager))).status_code == 403
+    assert (
+        await client.get(f"/companies/{a['id']}/audit-logs", headers=bearer(admin))
+    ).status_code == 404

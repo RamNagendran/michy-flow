@@ -230,7 +230,8 @@ async def test_a_misread_gst_number_can_be_corrected(client: AsyncClient) -> Non
     steps = [(e["action"], e["comment"]) for e in res.json()["events"]]
     assert steps[0][0] == "created" and steps[1][0] == "gstin_corrected"
     assert misread in steps[1][1] and SELLER_GSTIN in steps[1][1]
-    logs = (await client.get(t.url("/audit-logs"), headers=bearer(t.manager))).json()["items"]
+    url = f"/audit-logs?company_id={t.company['id']}"
+    logs = (await client.get(url, headers=bearer(t.super_admin))).json()["items"]
     assert any(log["action"] == "bill_gstin_corrected" for log in logs)
     # A typed number must still be in GST number format.
     bad = {**body, "bill_party_gstin": "33AAJCR851", "invoice_no": "X-2"}

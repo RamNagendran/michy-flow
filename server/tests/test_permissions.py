@@ -32,7 +32,7 @@ def test_company_people_have_no_system_permissions() -> None:
 def test_manager_checks_entries_and_runs_the_company() -> None:
     perms = membership_permissions("manager", [])
     assert {P.VIEW_ALL_ENTRIES, P.VIEW_STOCK, P.APPROVE_ENTRY, P.MANAGE_PARTIES} <= perms
-    assert {P.ADJUST_WASTAGE, P.MANAGE_GRADES, P.VIEW_OIL_KPI, P.VIEW_AUDIT} <= perms
+    assert {P.ADJUST_WASTAGE, P.MANAGE_GRADES, P.VIEW_OIL_KPI} <= perms
     # Never enters, edits, rejects or gives Finance's approval.
     assert not {P.ENTER_PURCHASE, P.ENTER_SALES, P.ENTER_PRODUCTION} & perms
     assert not {P.EDIT_ENTRY, P.REJECT_ENTRY, P.VERIFY_ENTRY} & perms

@@ -87,18 +87,23 @@ async def entry_status_summary(
 
 
 async def _created(
-    db: AsyncSession, ctx: CompanyContext, entry_type: EntryType, data
+    db: AsyncSession, ctx: CompanyContext, entry_type: EntryType, data, request: Request
 ) -> EntryDetail:  # noqa: ANN001
-    entry = await entry_service.create(db, ctx, entry_type, data)
+    entry = await entry_service.create(db, ctx, entry_type, data, request)
     detail = await entry_query.detail(db, ctx, entry_type, entry)
     await events.entry_changed(entry_type, entry, "created", ctx.user)
     return detail
 
 
 async def _updated(
-    db: AsyncSession, ctx: CompanyContext, entry_type: EntryType, entry_id: int, data
-) -> EntryDetail:  # noqa: ANN001
-    entry = await entry_service.update(db, ctx, entry_type, entry_id, data)
+    db: AsyncSession,
+    ctx: CompanyContext,
+    entry_type: EntryType,
+    entry_id: int,
+    data,  # noqa: ANN001
+    request: Request,
+) -> EntryDetail:
+    entry = await entry_service.update(db, ctx, entry_type, entry_id, data, request)
     detail = await entry_query.detail(db, ctx, entry_type, entry)
     await events.entry_changed(entry_type, entry, "edited", ctx.user)
     return detail
@@ -119,17 +124,18 @@ async def create_purchase(
     ctx: CompanyContext = Depends(require_company_permission(P.ENTER_PURCHASE)),
     db: AsyncSession = Depends(get_db),
 ) -> EntryDetail:
-    return await _created(db, ctx, EntryType.PURCHASE, data)
+    return await _created(db, ctx, EntryType.PURCHASE, data, request)
 
 
 @router.put("/companies/{company_id}/purchases/{entry_id}", response_model=EntryDetail)
 async def update_purchase(
+    request: Request,
     data: PurchaseUpdate,
     entry_id: int = _EntryId,
     ctx: CompanyContext = Depends(require_company_permission(P.EDIT_ENTRY)),
     db: AsyncSession = Depends(get_db),
 ) -> EntryDetail:
-    return await _updated(db, ctx, EntryType.PURCHASE, entry_id, data)
+    return await _updated(db, ctx, EntryType.PURCHASE, entry_id, data, request)
 
 
 @router.post(
@@ -142,17 +148,18 @@ async def create_sale(
     ctx: CompanyContext = Depends(require_company_permission(P.ENTER_SALES)),
     db: AsyncSession = Depends(get_db),
 ) -> EntryDetail:
-    return await _created(db, ctx, EntryType.SALE, data)
+    return await _created(db, ctx, EntryType.SALE, data, request)
 
 
 @router.put("/companies/{company_id}/sales/{entry_id}", response_model=EntryDetail)
 async def update_sale(
+    request: Request,
     data: SaleUpdate,
     entry_id: int = _EntryId,
     ctx: CompanyContext = Depends(require_company_permission(P.EDIT_ENTRY)),
     db: AsyncSession = Depends(get_db),
 ) -> EntryDetail:
-    return await _updated(db, ctx, EntryType.SALE, entry_id, data)
+    return await _updated(db, ctx, EntryType.SALE, entry_id, data, request)
 
 
 @router.post(
@@ -167,17 +174,18 @@ async def create_production(
     ctx: CompanyContext = Depends(require_company_permission(P.ENTER_PRODUCTION)),
     db: AsyncSession = Depends(get_db),
 ) -> EntryDetail:
-    return await _created(db, ctx, EntryType.PRODUCTION, data)
+    return await _created(db, ctx, EntryType.PRODUCTION, data, request)
 
 
 @router.put("/companies/{company_id}/production/{entry_id}", response_model=EntryDetail)
 async def update_production(
+    request: Request,
     data: ProductionUpdate,
     entry_id: int = _EntryId,
     ctx: CompanyContext = Depends(require_company_permission(P.EDIT_ENTRY)),
     db: AsyncSession = Depends(get_db),
 ) -> EntryDetail:
-    return await _updated(db, ctx, EntryType.PRODUCTION, entry_id, data)
+    return await _updated(db, ctx, EntryType.PRODUCTION, entry_id, data, request)
 
 
 # One entry: detail, workflow steps and comments. Entries are never deleted.

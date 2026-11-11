@@ -8,6 +8,7 @@
 
 from decimal import Decimal
 
+from fastapi import Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,7 +23,7 @@ from app.schemas.wastage import (
     StockCheckInput,
     StockCheckRead,
 )
-from app.services import stock_service
+from app.services import audit_service, stock_service
 from app.services.access_service import CompanyContext
 
 HARD_LIMIT = Decimal(str(settings.WASTAGE_ALERT_PCT))
@@ -39,7 +40,9 @@ def _require(ctx: CompanyContext) -> None:
 # ---------------------------------------------------------------------------
 
 
-async def record_check(db: AsyncSession, ctx: CompanyContext, data: StockCheckInput) -> StockCheck:
+async def record_check(
+    db: AsyncSession, ctx: CompanyContext, data: StockCheckInput, request: Request | None = None
+) -> StockCheck:
     """Compare the Super Admin's physical count with the book stock and record the differences."""
     _require(ctx)
     if data.counted_on > today():
@@ -73,6 +76,27 @@ async def record_check(db: AsyncSession, ctx: CompanyContext, data: StockCheckIn
             )
         )
     db.add(check)
+    await db.flush()
+    audit_service.record(
+        db,
+        account_id=ctx.user.account_id,
+        actor=ctx.user,
+        action="stock_counted",
+        entity_type="stock_check",
+        entity_id=check.id,
+        company_id=ctx.company.id,
+        details={
+            "counted_on": data.counted_on.isoformat(),
+            "note": data.note,
+            # Only the items whose count differs from the book.
+            "differences": {
+                ln.item: [str(ln.book_qty), str(ln.counted_qty)]
+                for ln in check.lines
+                if ln.difference
+            },
+        },
+        request=request,
+    )
     await stock_service.assert_stock_not_negative(db, ctx.company.id)
     await db.commit()
     return check

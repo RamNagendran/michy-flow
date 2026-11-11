@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
+from fastapi import Request
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -206,6 +207,7 @@ async def create(
     ctx: CompanyContext,
     entry_type: EntryType,
     data: PurchaseInput | SaleInput | ProductionInput,
+    request: Request | None = None,
 ) -> Entry:
     kind = KINDS[entry_type]
     if not ctx.can(kind.enter):
@@ -230,7 +232,7 @@ async def create(
     db.add(entry)
     await _flush(db, kind)
     workflow_service.add_event(
-        db, entry_type=entry_type, entry=entry, actor=ctx.user, action="created"
+        db, entry_type=entry_type, entry=entry, actor=ctx.user, action="created", request=request
     )
     if isinstance(data, PurchaseInput | SaleInput) and data.document_id:
         corrected = await document_service.attach(
@@ -253,11 +255,14 @@ async def create(
                 entry=entry,
                 actor=ctx.user,
                 action="gstin_corrected",
+                request=request,
                 comment=f"Bill was read as {change['read'] or 'no number'} for the {who} GST "
                 f"number; corrected to {change['entered']}",
             )
     if isinstance(data, PurchaseInput) and data.debit_note_ids:
-        await debit_note_service.adjust(db, ctx, entry, data.debit_note_ids, commit=False)
+        await debit_note_service.adjust(
+            db, ctx, entry, data.debit_note_ids, commit=False, request=request
+        )
     # It does not count in stock until the Manager approves, but it must fit in stock now.
     await stock_service.assert_stock_not_negative(db, ctx.company.id, (kind.model, entry.id))
     await db.commit()
@@ -280,6 +285,7 @@ async def update(
     entry_type: EntryType,
     entry_id: int,
     data: PurchaseUpdate | SaleUpdate | ProductionUpdate,
+    request: Request | None = None,
 ) -> Entry:
     kind = KINDS[entry_type]
     entry = await get_entry(db, ctx, entry_type, entry_id)
@@ -322,6 +328,7 @@ async def update(
         action="edited",
         comment=data.comment,
         changes=changes,
+        request=request,
     )
     also = None if entry.approved_at else (kind.model, entry.id)
     await stock_service.assert_stock_not_negative(db, ctx.company.id, also)

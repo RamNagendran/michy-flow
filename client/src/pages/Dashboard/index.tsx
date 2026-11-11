@@ -24,17 +24,11 @@ import StockNow from './StockNow'
 import TradeAnalysis from './TradeAnalysis'
 
 function RecentEntries({ companyIds }: { companyIds: number[] }) {
-  const navigate = useNavigate()
   const recent = useEntries({ company_id: companyIds, page_size: 7 })
   return (
     <div className="surface" style={{ padding: '20px 22px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <div className="strong" style={{ fontSize: 16 }}>
-          Latest entries
-        </div>
-        <Button type="link" onClick={() => navigate('/records')} style={{ paddingInline: 0 }}>
-          All records
-        </Button>
+      <div className="strong" style={{ fontSize: 16 }}>
+        Latest entries
       </div>
       {recent.data?.items.length ? (
         <Timeline

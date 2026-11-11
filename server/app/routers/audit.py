@@ -1,3 +1,6 @@
+from datetime import date
+from typing import Literal
+
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -18,10 +21,18 @@ async def list_audit_logs(
     page_size: int = Query(50, ge=1, le=200),
     company_id: int | None = Query(None, gt=0),
     entity_type: str | None = Query(None, max_length=50),
+    area: Literal[
+        "entries", "wastage", "parties", "documents", "people", "sign_in", "companies", "items"
+    ]
+    | None = None,
+    actor_id: int | None = Query(None, gt=0),
+    date_from: date | None = None,
+    date_to: date | None = None,
+    q: str | None = Query(None, max_length=100),
     actor: User = Depends(require_system_permission(SystemPermission.VIEW_AUDIT)),
     db: AsyncSession = Depends(get_db),
 ) -> Paginated[AuditLogRead]:
-    """Everything that happened in the organisation, newest first."""
+    """Everything that happened in the organisation, newest first. Super Admin only."""
     return await audit_service.list_logs(
         db,
         account_id=actor.account_id,
@@ -29,4 +40,9 @@ async def list_audit_logs(
         page_size=page_size,
         company_id=company_id,
         entity_type=entity_type,
+        area=area,
+        actor_id=actor_id,
+        date_from=date_from,
+        date_to=date_to,
+        q=q,
     )

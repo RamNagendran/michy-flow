@@ -40,7 +40,6 @@ class CompanyPermission(StrEnum):
     MANAGE_GRADES = "manage_grades"
     VIEW_FINANCE = "view_finance"
     VIEW_OIL_KPI = "view_oil_kpi"
-    VIEW_AUDIT = "view_audit"
 
 
 _CP = CompanyPermission
@@ -72,7 +71,6 @@ COMPANY_ROLE_PERMISSIONS: dict[CompanyRole, frozenset[CompanyPermission]] = {
         _CP.MANAGE_GRADES,
         _CP.VIEW_FINANCE,
         _CP.VIEW_OIL_KPI,
-        _CP.VIEW_AUDIT,
     },
     # Final approval after the Manager, or escalates back to the Manager. Cannot edit.
     CompanyRole.FINANCE: _SEE_AND_DISCUSS | {_CP.VERIFY_ENTRY, _CP.VIEW_FINANCE},

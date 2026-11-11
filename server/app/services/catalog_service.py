@@ -270,12 +270,11 @@ async def update_item(
             "setting cannot change. You can still rename it.",
             code="item_in_use",
         )
+    details = {"name": item.name, "changes": audit_service.changes_of(item, changes)}
     for k, v in changes.items():
         setattr(item, k, v)
     _bump(actor)
-    _audit(
-        db, actor, "item_updated", "item", item.id, {"key": item.key, "changes": changes}, request
-    )
+    _audit(db, actor, "item_updated", "item", item.id, details, request)
     await db.commit()
     return item
 
@@ -338,10 +337,10 @@ async def update_type(
             for t in await _types(db, actor.account_id)
         ):
             raise ConflictError(f"A company type called {changes['name']} already exists")
+        details = {"name": row.name, "changes": audit_service.changes_of(row, changes)}
         for k, v in changes.items():
             setattr(row, k, v)
         _bump(actor)
-        details = {"key": row.key, "changes": changes}
         _audit(db, actor, "company_type_updated", "company_type", row.id, details, request)
         await db.commit()
     count = await db.scalar(

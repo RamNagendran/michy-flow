@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import (
@@ -10,11 +10,9 @@ from app.auth.permissions import CompanyPermission, SystemPermission
 from app.core.db import get_db
 from app.models import Company, Operator, User
 from app.realtime import events
-from app.schemas.audit import AuditLogRead
-from app.schemas.common import Paginated
 from app.schemas.company import CompanyConfig, CompanyCreate, CompanyRead, CompanyUpdate
 from app.schemas.operator import OperatorInput, OperatorRead
-from app.services import audit_service, company_service, operator_service
+from app.services import company_service, operator_service
 from app.services.access_service import CompanyContext, accessible_companies
 
 router = APIRouter(prefix="/companies", tags=["companies"])
@@ -98,20 +96,3 @@ async def create_operator(
 ) -> Operator:
     """Add an operator (name and shift) straight from the production form. No login."""
     return await operator_service.create(db, ctx, data, request)
-
-
-@router.get("/{company_id}/audit-logs", response_model=Paginated[AuditLogRead])
-async def company_audit_logs(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=200),
-    ctx: CompanyContext = Depends(require_company_permission(CompanyPermission.VIEW_AUDIT)),
-    db: AsyncSession = Depends(get_db),
-) -> Paginated[AuditLogRead]:
-    """The Manager's view of who did what in their company."""
-    return await audit_service.list_logs(
-        db,
-        account_id=ctx.user.account_id,
-        company_id=ctx.company.id,
-        page=page,
-        page_size=page_size,
-    )

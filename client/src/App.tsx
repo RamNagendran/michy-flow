@@ -34,7 +34,7 @@ const CompanyDetail = page(() => import('./pages/companies/CompanyDetail'))
 const SalesList = page(() => import('./pages/sales/SalesList'))
 const NewSale = page(() => import('./pages/sales/NewSale'))
 const Finance = page(() => import('./pages/Finance'))
-const Records = page(() => import('./pages/Records'))
+const Audit = page(() => import('./pages/Audit'))
 const Settings = page(() => import('./pages/Settings'))
 const Review = page(() => import('./pages/Review'))
 const Parties = page(() => import('./pages/Parties'))
@@ -114,7 +114,7 @@ export default function App() {
                   <Route path="wastage" element={<Screen name="wastage"><Wastage /></Screen>} />
                   <Route path="review" element={<Screen name="review"><Review /></Screen>} />
                   <Route path="parties" element={<Screen name="parties"><Parties /></Screen>} />
-                  <Route path="records" element={<Screen name="records"><Records /></Screen>} />
+                  <Route path="audit" element={<ProtectedRoute system="view_audit"><Audit /></ProtectedRoute>} />
                   <Route path="settings" element={<ProtectedRoute system="manage_users"><Settings /></ProtectedRoute>} />
                   <Route path="*" element={<NotFound />} />
                 </Route>

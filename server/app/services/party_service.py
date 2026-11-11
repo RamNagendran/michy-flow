@@ -67,14 +67,15 @@ async def save(
     if party_id is None:
         party = Party(company_id=ctx.company.id, **data.model_dump())
         db.add(party)
-        changes = data.model_dump()
+        changes = {k: str(v) for k, v in data.model_dump().items()}
     else:
         party = await get_party(db, ctx.company.id, party_id)
         if data.kind != party.kind:
             raise AppError("A supplier cannot be turned into a buyer, or the other way round")
-        changes = {k: v for k, v in data.model_dump().items() if getattr(party, k) != v}
-        for key, value in changes.items():
-            setattr(party, key, value)
+        values = data.model_dump()
+        changes = audit_service.changes_of(party, values)
+        for key in changes:
+            setattr(party, key, values[key])
     await db.flush()
     if changes:
         audit_service.record(
@@ -85,7 +86,7 @@ async def save(
             entity_type="party",
             entity_id=party.id,
             company_id=ctx.company.id,
-            details={"changes": {k: str(v) for k, v in changes.items()}},
+            details={"name": party.name, "changes": changes},
             request=request,
         )
     await db.commit()
