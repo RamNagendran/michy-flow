@@ -10,8 +10,9 @@ from app.models.base import Base
 class Document(Base):
     """An uploaded bill (PDF or photo), what was read from it, and the entry it became.
 
-    The file is kept in the database so it travels with the data and its backups. `content`
-    is deferred: listing or linking documents never loads the file bytes.
+    The file is kept in the database only while it is being checked: it is dropped once the
+    purchase or sale is saved, and bills never saved are removed after a day.
+    `content` is deferred: listing or linking documents never loads the file bytes.
     """
 
     __tablename__ = "documents"
@@ -28,7 +29,7 @@ class Document(Base):
     content_type: Mapped[str] = mapped_column(String(50))
     size_bytes: Mapped[int] = mapped_column(Integer)
     sha256: Mapped[str] = mapped_column(String(64))
-    content: Mapped[bytes] = deferred(mapped_column(LargeBinary))
+    content: Mapped[bytes | None] = deferred(mapped_column(LargeBinary))
     method: Mapped[str] = mapped_column(String(20))  # pdf_text | ocr | none
     pages: Mapped[int] = mapped_column(Integer, default=1)
     parsed: Mapped[dict] = mapped_column(JSONB, default=dict)

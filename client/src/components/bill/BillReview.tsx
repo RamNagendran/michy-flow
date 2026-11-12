@@ -133,7 +133,7 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
   const blocking = checks.filter((c) => !c.ok && BLOCKING.has(c.key))
   const warnings = checks.filter((c) => !c.ok && !BLOCKING.has(c.key))
   const verifiedCount = Object.values(verified).filter(Boolean).length
-  const complete = !!partyId && !!invoiceNo.trim() && !!item && qty > 0 && rate >= 0
+  const complete = !!partyId && !!invoiceNo.trim() && !!item && qty > 0 && rate >= 0 && (!isPurchase || vehicleNos.length > 0)
   const ready = complete && blocking.length === 0 && verifiedCount === 3 && !doc.duplicate_of
   const progress = Math.round(((checks.length - blocking.length) / checks.length) * 50 + (verifiedCount / 3) * 50)
   // The bill was in tonnes or kilolitres and has been converted.
@@ -251,7 +251,7 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
             </div>
             {isPurchase && (
               <div>
-                <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 6 }}>Vehicle numbers (optional)</div>
+                <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 6 }}>Vehicle numbers</div>
                 <VehicleNumbersInput value={vehicleNos} onChange={setVehicleNos} />
               </div>
             )}
@@ -329,7 +329,7 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
           <Button size="large" icon={<DeleteOutlined />} onClick={onDiscard}>
             Discard
           </Button>
-          <Tooltip title={ready ? '' : 'Fill every value, fix the checks and tick the 3 key values'}>
+          <Tooltip title={ready ? '' : 'Fill every value (with the vehicle number), fix the checks and tick the 3 key values'}>
             <Button
               type="primary"
               size="large"

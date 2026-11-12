@@ -96,7 +96,7 @@ class Purchase(WorkflowMixin, Base):
     rate: Mapped[Decimal] = mapped_column(RATE)
     amount: Mapped[Decimal] = mapped_column(MONEY)
     invoice_no: Mapped[str] = mapped_column(String(50))
-    # Lorries / vehicles the goods came in, for the record only.
+    # Lorries / vehicles the goods came in (at least one on new purchases).
     vehicle_nos: Mapped[list[str]] = mapped_column(
         ARRAY(String(20)), default=list, server_default="{}"
     )

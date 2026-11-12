@@ -79,6 +79,7 @@ async def test_new_items_and_types_flow_into_companies_and_entries(client: Async
     bill = {
         "entry_date": TODAY,
         "supplier_id": supplier.json()["id"],
+        "vehicle_nos": ["TN38AB1234"],
         "material": "conveyor_belts",
         "qty": "500",
         "rate": "9",

@@ -78,6 +78,7 @@ async def test_admin_can_reclassify_a_purchase(client: AsyncClient) -> None:
         "entry_date": TODAY,
         "supplier_id": t.supplier,
         "material": "truck",
+        "vehicle_nos": ["TN38AB1234"],
         "qty": "1000",
         "rate": "14.5",
         "invoice_no": entry["invoice_no"],

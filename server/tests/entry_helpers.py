@@ -87,6 +87,7 @@ async def purchase(  # noqa: ANN201
         "supplier_id": t.supplier,
         "material": "truck",
         "qty": qty,
+        "vehicle_nos": ["TN38AB1234"],
         "rate": "14.5",
         "invoice_no": f"INV-{qty}-{len(token) % 97}-{extra.pop('n', 1)}",
         **extra,

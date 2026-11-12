@@ -31,6 +31,7 @@ def _purchase_body(entry: dict, t, qty: str, comment: str = "Corrected") -> dict
         "entry_date": entry["entry_date"],
         "supplier_id": t.supplier,
         "grade": "A",
+        "vehicle_nos": ["TN38AB1234"],
         "material": "truck",
         "qty": qty,
         "rate": "14.5",

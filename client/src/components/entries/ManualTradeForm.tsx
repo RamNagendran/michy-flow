@@ -116,7 +116,7 @@ export default function ManualTradeForm({ kind, saving, onSaved, back }: { kind:
             </Form.Item>
           </div>
           {isPurchase && (
-            <Form.Item label="Vehicle numbers" name="vehicleNos" extra="Optional. The lorry or vehicle numbers the goods came in.">
+            <Form.Item label="Vehicle numbers" name="vehicleNos" extra="The lorry or vehicle numbers the goods came in." rules={[{ required: true, type: 'array', min: 1, message: 'Enter the vehicle number' }]}>
               <VehicleNumbersInput />
             </Form.Item>
           )}

@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import require_company_permission
 from app.auth.permissions import CompanyPermission as P
 from app.core.db import get_db
+from app.core.errors import NotFoundError
 from app.core.rate_limit import limiter
 from app.schemas.document import DocumentRead
 from app.services import document_service
@@ -49,6 +50,8 @@ async def download_bill(
 ) -> Response:
     doc = await document_service.get_visible(db, ctx, document_id)
     await db.refresh(doc, ["content"])  # the file bytes are deferred; load them only here
+    if doc.content is None:
+        raise NotFoundError("The bill file is not kept after the entry is saved")
     return Response(
         content=doc.content,
         # Only types we checked from the file's own bytes at upload.

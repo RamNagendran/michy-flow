@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Button, Drawer, Input, Modal, Skeleton, Space } from 'antd'
-import { CheckOutlined, FileExclamationOutlined, FlagOutlined, CloseOutlined, EditOutlined, FileSearchOutlined, SafetyCertificateOutlined, SendOutlined } from '@ant-design/icons'
+import { CheckOutlined, FileExclamationOutlined, FlagOutlined, CloseOutlined, EditOutlined, SafetyCertificateOutlined, SendOutlined } from '@ant-design/icons'
 import { itemName } from '../../data/catalog'
 import { gradeInfo } from '../../data/grades'
 import { useEntry, useEntryAction, useEscalation } from '../../hooks/queries/entries'
@@ -12,7 +12,6 @@ import { formatDate, formatINR, formatKg, formatKgFine, formatPercent, formatQty
 import { wastageTypeLabel } from '../../utils/production'
 import { GradeTag, StatusTag } from '../ui'
 import { statusMeta } from '../../utils/entryStatus'
-import BillFileModal from '../bill/BillFileModal'
 import EntryEditModal from './EntryEditModal'
 import EntryTimeline from './EntryTimeline'
 
@@ -197,7 +196,6 @@ export default function EntryDrawer({ entryRef, onClose }: { entryRef: EntryRef 
   const [noteFor, setNoteFor] = useState<EntryDetail | null>(null)
   const [comment, setComment] = useState('')
   const [editing, setEditing] = useState(false)
-  const [showBill, setShowBill] = useState(false)
   const e = entry.data
 
   const confirmAction = () => {
@@ -256,11 +254,6 @@ export default function EntryDrawer({ entryRef, onClose }: { entryRef: EntryRef 
             </div>
           )}
           {e.type === 'purchase' && <PurchaseDebitNotes e={e} onRaise={() => setNoteFor(e)} />}
-          {e.document_id && (
-            <Button icon={<FileSearchOutlined />} style={{ marginTop: 12 }} onClick={() => setShowBill(true)}>
-              Original bill
-            </Button>
-          )}
           <Facts e={e} />
           {e.type === 'production' && <Production e={e} />}
           <div className="strong" style={{ margin: '24px 0 12px' }}>
@@ -290,7 +283,6 @@ export default function EntryDrawer({ entryRef, onClose }: { entryRef: EntryRef 
       </Modal>
       {e && editing && <EntryEditModal entry={e} onClose={() => setEditing(false)} />}
       <DebitNoteModal purchase={noteFor} onClose={() => setNoteFor(null)} />
-      {e?.document_id && showBill && <BillFileModal companyId={e.company_id} documentId={e.document_id} title={`Bill for ${e.ref_no}`} onClose={() => setShowBill(false)} />}
     </Drawer>
   )
 }

@@ -4,12 +4,14 @@ import asyncio
 import dataclasses
 import hashlib
 import logging
+from datetime import timedelta
 
 from fastapi import Request, UploadFile
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.permissions import CompanyPermission as P
+from app.core import clock
 from app.core.errors import AppError, ConflictError, ForbiddenError, NotFoundError
 from app.models import Company, Document, Party, Purchase, Sale
 from app.models.enums import EntryStatus, PartyKind
@@ -33,6 +35,8 @@ _MAX_STORED_LINES = 300
 _CHUNK = 1024 * 1024
 _ENTER = {"purchase": P.ENTER_PURCHASE, "sale": P.ENTER_SALES}
 _MODEL = {"purchase": Purchase, "sale": Sale}
+# A bill is kept only while it is being checked; one never saved is removed after this.
+_UNSAVED_BILL_TTL = timedelta(hours=24)
 
 
 async def _read_limited(upload: UploadFile) -> bytes:
@@ -185,6 +189,7 @@ async def upload(
     file_kind = sniff(content[:16])
     digest = hashlib.sha256(content).hexdigest()
 
+    await _drop_unsaved_bills(db, company_id)
     # Always read the bill now; nothing from an earlier upload is reused.
     reading = await _read(content, file_kind, kind)
     method, pages, stored = _stored_reading(reading)
@@ -221,6 +226,17 @@ async def upload(
     )
     await db.commit()
     return doc
+
+
+async def _drop_unsaved_bills(db: AsyncSession, company_id: int) -> None:
+    """Bills uploaded but never saved as a purchase or sale are not kept."""
+    await db.execute(
+        delete(Document).where(
+            Document.company_id == company_id,
+            Document.entry_id.is_(None),
+            Document.created_at < clock.now() - _UNSAVED_BILL_TTL,
+        )
+    )
 
 
 async def get_visible(db: AsyncSession, ctx: CompanyContext, document_id: int) -> Document:
@@ -306,4 +322,8 @@ async def attach(
         )
     doc.entry_id = entry.id
     entry.document_id = doc.id
+    # Once the entry is saved the bill is not kept: only its fingerprint (to stop the same
+    # file being entered twice) and the values read from it stay.
+    doc.content = None
+    doc.parsed = {**doc.parsed, "lines": []}
     return corrected

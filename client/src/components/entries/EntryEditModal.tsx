@@ -122,7 +122,7 @@ export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail;
                 <Input />
               </Form.Item>
               {entry.type === 'purchase' && (
-                <Form.Item label="Vehicle numbers" name="vehicle_nos" style={{ gridColumn: '1 / -1' }}>
+                <Form.Item label="Vehicle numbers" name="vehicle_nos" style={{ gridColumn: '1 / -1' }} rules={[{ required: true, type: 'array', min: 1, message: 'Enter the vehicle number' }]}>
                   <VehicleNumbersInput />
                 </Form.Item>
               )}

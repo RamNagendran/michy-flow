@@ -5,7 +5,7 @@ from httpx import AsyncClient
 from tests import bill_samples
 from tests.bill_samples import SELLER_GSTIN
 from tests.conftest import bearer, make_gstin
-from tests.entry_helpers import Team, party, team
+from tests.entry_helpers import Team, party, production, purchase, team
 
 
 async def _with_bill_supplier(client: AsyncClient) -> Team:
@@ -35,6 +35,7 @@ def _purchase_body(t: Team, doc: dict) -> dict:
     return {
         "entry_date": p["invoice_date"]["value"],
         "supplier_id": doc["party_id"],
+        "vehicle_nos": ["TN38AB1234"],
         "material": p["item"]["value"],
         "qty": str(p["qty"]["value"]),
         "rate": str(p["rate"]["value"]),
@@ -73,6 +74,9 @@ async def test_confirmed_bill_becomes_a_pending_entry(client: AsyncClient) -> No
     assert entry["source"] == "ai"  # shown as "read from the bill"
     assert entry["document_id"] == doc["id"]
     assert entry["amount"] == 120132.0
+    # Once saved, the bill file is not kept.
+    gone = await client.get(t.url(f"/documents/{doc['id']}/file"), headers=bearer(t.admin))
+    assert gone.status_code == 404
 
     # The same file again is read afresh as a new upload, flagged, and cannot become a second entry.
     again = (await _upload(client, t, t.operator, pdf)).json()
@@ -82,6 +86,39 @@ async def test_confirmed_bill_becomes_a_pending_entry(client: AsyncClient) -> No
         body = {**_purchase_body(t, d), "invoice_no": "OTHER-1"}
         dup = await client.post(t.url("/purchases"), json=body, headers=bearer(t.operator))
         assert dup.status_code == 409
+
+
+async def test_saved_sale_does_not_keep_its_bill(client: AsyncClient) -> None:
+    t = await team(client)
+    await purchase(client, t, t.admin)
+    await production(client, t, t.admin, {"rubber": "600"})
+    doc = (await _upload(client, t, t.operator, bill_samples.pdf(), kind="sale")).json()
+    url = t.url(f"/documents/{doc['id']}/file")
+    assert (await client.get(url, headers=bearer(t.operator))).status_code == 200
+    body = {
+        "entry_date": "2026-10-01",
+        "buyer_id": t.buyer,
+        "product": "rubber",
+        "qty": "100",
+        "rate": "30",
+        "invoice_no": "MR-1",
+        "document_id": doc["id"],
+        # The sample bill is a purchase bill: give the GST numbers a sale bill would show.
+        "bill_company_gstin": t.company["gstin"],
+        "bill_party_gstin": make_gstin("buyer-Apex Mouldings"),
+    }
+    res = await client.post(t.url("/sales"), json=body, headers=bearer(t.operator))
+    assert res.status_code == 201, res.text
+    assert (await client.get(url, headers=bearer(t.operator))).status_code == 404
+
+
+async def test_purchase_needs_a_vehicle_number(client: AsyncClient) -> None:
+    t = await _with_bill_supplier(client)
+    doc = (await _upload(client, t, t.operator, bill_samples.pdf())).json()
+    for vehicles in ([], ["  "]):
+        body = {**_purchase_body(t, doc), "vehicle_nos": vehicles}
+        res = await client.post(t.url("/purchases"), json=body, headers=bearer(t.operator))
+        assert res.status_code == 422
 
 
 async def test_a_rejected_entry_frees_its_bill(client: AsyncClient) -> None:
@@ -128,6 +165,7 @@ async def test_upload_needs_the_matching_duty(client: AsyncClient) -> None:
         "supplier_id": t.supplier,
         "material": "truck",
         "qty": "100",
+        "vehicle_nos": ["TN38AB1234"],
         "rate": "10",
         "invoice_no": "X-1",
         "document_id": sale_doc.json()["id"],
