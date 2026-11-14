@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, Space, Table } from 'antd'
+import { Button, Skeleton, Space, Table } from 'antd'
 import { AuditOutlined, CalendarOutlined, CheckCircleOutlined, FieldTimeOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import WastageChart from '../../components/charts/WastageChart'
@@ -18,7 +18,7 @@ import MonthTable from './MonthTable'
 import StockCheckModal from './StockCheckModal'
 import { approvable } from './wastageMeta'
 
-function Card({ icon, tone, label, value, sub, action }: { icon: React.ReactNode; tone: string; label: string; value: React.ReactNode; sub: React.ReactNode; action?: React.ReactNode }) {
+function Card({ icon, tone, label, value, sub, action, loading }: { icon: React.ReactNode; tone: string; label: string; value: React.ReactNode; sub: React.ReactNode; action?: React.ReactNode; loading?: boolean }) {
   return (
     <div className="surface stat-tile lift" style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -27,9 +27,15 @@ function Card({ icon, tone, label, value, sub, action }: { icon: React.ReactNode
         </span>
         <span className="label">{label}</span>
       </div>
-      <div className="value num">{value}</div>
-      <div className="sub">{sub}</div>
-      {action && <div style={{ marginTop: 10 }}>{action}</div>}
+      {loading ? (
+        <Skeleton active title={{ width: '50%' }} paragraph={{ rows: 1, width: '80%' }} style={{ marginTop: 8 }} />
+      ) : (
+        <>
+          <div className="value num">{value}</div>
+          <div className="sub">{sub}</div>
+          {action && <div style={{ marginTop: 10 }}>{action}</div>}
+        </>
+      )}
     </div>
   )
 }
@@ -47,14 +53,17 @@ export default function Wastage() {
   const from = range[0] < yearBack ? range[0] : yearBack
   const months = useWastageMonths(cid, [from, dayjs().format('YYYY-MM-DD')])
   const checks = useStockChecks(cid)
-  const stocks = useStocks(company ? [company] : [])
+  const stocks = useStocks(company ? [company] : [], { fresh: true })
   const stock = cid ? stocks.byCompany.get(cid) : undefined
   const [counting, setCounting] = useState(false)
   const [openMonth, setOpenMonth] = useState<string | null>(null)
   const [selected, setSelected] = useState<string[]>([])
   const [approving, setApproving] = useState(false)
 
-  const all = months.data ?? []
+  // Saved copies are shown only once the server has answered since the page opened.
+  const monthsLoading = months.isLoading || !months.isFetchedAfterMount
+  const checksLoading = checks.isLoading || !checks.isFetchedAfterMount
+  const all = monthsLoading ? [] : (months.data ?? [])
   const waiting = all.filter((m) => m.status === 'pending')
   const withManager = all.filter((m) => m.status === 'escalated')
   const running = all.find((m) => m.status === 'open')
@@ -83,6 +92,7 @@ export default function Wastage() {
         <Card
           icon={<FieldTimeOutlined />}
           tone="#2F6FEB"
+          loading={monthsLoading}
           label={`This month · ${dayjs().format('MMMM')}`}
           value={formatKgFine(running?.wastage_kg ?? 0)}
           sub={running ? `${running.runs} run${running.runs === 1 ? '' : 's'} so far · goes for approval on ${dayjs().add(1, 'month').startOf('month').format('DD MMM')}` : 'No production yet'}
@@ -90,6 +100,7 @@ export default function Wastage() {
         <Card
           icon={<CheckCircleOutlined />}
           tone={waiting.length ? '#D98A0B' : '#1F9D6B'}
+          loading={monthsLoading}
           label="Waiting for Super Admin"
           value={`${waiting.length} month${waiting.length === 1 ? '' : 's'}`}
           sub={withManager.length ? `${withManager.length} with the Manager for a reply` : 'None with the Manager'}
@@ -105,6 +116,7 @@ export default function Wastage() {
         <Card
           icon={<AuditOutlined />}
           tone={stock?.check_overdue ? '#D4380D' : '#1F9D6B'}
+          loading={stocks.isLoading}
           label={`Stock check · every ${stock?.check_every_months ?? 1} month${stock?.check_every_months === 3 ? 's' : ''}`}
           value={stock ? (stock.check_overdue ? <span style={{ color: '#D4380D' }}>Overdue</span> : formatDate(stock.next_check_due)) : '—'}
           sub={stock?.last_check_on ? `Last counted ${formatDate(stock.last_check_on)}` : 'Not counted yet'}
@@ -113,17 +125,17 @@ export default function Wastage() {
       </div>
 
       <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.25fr)', gap: 16, marginTop: 16 }}>
-        <WastageChart months={all} loading={months.isLoading} refreshing={months.isPlaceholderData} />
-        <MonthTable months={all} loading={months.isLoading} canApprove={canApprove} selected={selected} onSelect={setSelected} onOpen={setOpenMonth} onApprove={() => setApproving(true)} />
+        <WastageChart months={all} loading={monthsLoading} refreshing={months.isFetching && !monthsLoading} />
+        <MonthTable months={all} loading={monthsLoading} canApprove={canApprove} selected={selected} onSelect={setSelected} onOpen={setOpenMonth} onApprove={() => setApproving(true)} />
       </div>
 
       <SectionTitle title="Stock checks" hint="stock counted by the Super Admin · any difference corrects the stock" />
       <div className="surface table-card">
         <Table<StockCheck>
           rowKey="id"
-          loading={checks.isLoading}
+          loading={checksLoading}
           pagination={{ pageSize: 6, hideOnSinglePage: true }}
-          dataSource={checks.data}
+          dataSource={checksLoading ? [] : checks.data}
           locale={{ emptyText: 'No stock checks yet' }}
           expandable={{
             expandedRowRender: (c) => (

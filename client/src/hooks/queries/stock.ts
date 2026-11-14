@@ -5,15 +5,17 @@ import type { Company } from '../../types/auth'
 import type { CompanyStock, CompanySummary, GradeTotal, ItemTotal, MoneyTotals, StockLine, StockSection } from '../../types/entries'
 
 /** Stock for each company, as a map by company id. One request per company, cached separately. */
-export function useStocks(companies: Pick<Company, 'id'>[]) {
+/** `fresh`: ask again when the screen opens, and count as loading until that answer arrives. */
+export function useStocks(companies: Pick<Company, 'id'>[], { fresh = false } = {}) {
   return useQueries({
     queries: companies.map((c) => ({
       queryKey: ['stock', c.id],
       queryFn: async () => (await api.get<CompanyStock>(API_ROUTES.stock(c.id))).data,
+      ...(fresh ? { refetchOnMount: 'always' as const } : {}),
     })),
     combine: (results) => ({
       byCompany: new Map(results.flatMap((r) => (r.data ? [[r.data.company_id, r.data] as const] : []))),
-      isLoading: results.some((r) => r.isLoading),
+      isLoading: results.some((r) => r.isLoading || (fresh && !r.isFetchedAfterMount)),
     }),
   })
 }

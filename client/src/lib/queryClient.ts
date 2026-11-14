@@ -33,7 +33,7 @@ export const persistOptions: Omit<PersistQueryClientOptions, 'queryClient'> = {
   persister: queryPersister,
   maxAge: KEEP_MS,
   // Bump when the shape of an API response changes, so old saved data is thrown away.
-  buster: 'v2',
+  buster: 'v3',
   dehydrateOptions: {
     // Bill files are blobs: they cannot be saved as text, and are large.
     shouldDehydrateQuery: (q) => defaultShouldDehydrateQuery(q) && q.queryKey[0] !== 'document-file',

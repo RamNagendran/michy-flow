@@ -113,7 +113,8 @@ export default function MonthDrawer({ companyId, month, onClose }: { companyId: 
   const [changing, setChanging] = useState(false)
   const [newKg, setNewKg] = useState<number | null>(null)
   const [approving, setApproving] = useState(false)
-  const m = detail.data
+  // Only the server's answer since the drawer opened, never a saved copy.
+  const m = detail.isFetchedAfterMount ? detail.data : undefined
   const can = (a: string) => !!m?.actions.includes(a as never)
 
   const open = (s: Step) => {

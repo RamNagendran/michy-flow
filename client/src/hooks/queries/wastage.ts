@@ -13,6 +13,8 @@ export function useWastageMonths(companyId: number | undefined, [from, to]: Rang
     queryFn: async () => (await api.get<WastageMonth[]>(API_ROUTES.wastage.months(companyId!), { params: { date_from: from, date_to: to, bucket: 'month' } })).data,
     enabled: !!companyId,
     placeholderData: keepPreviousData,
+    // Always asked again when the page opens: the saved copy may be out of date.
+    refetchOnMount: 'always',
   })
 }
 
@@ -22,6 +24,7 @@ export function useWastageMonth(companyId: number | undefined, month: string | n
     queryKey: ['wastage', companyId, 'month', month],
     queryFn: async () => (await api.get<WastageMonthDetail>(API_ROUTES.wastage.month(companyId!, month!))).data,
     enabled: !!companyId && !!month,
+    refetchOnMount: 'always',
   })
 }
 
@@ -40,6 +43,7 @@ export function useStockChecks(companyId: number | undefined) {
     queryKey: ['stock-checks', companyId],
     queryFn: async () => (await api.get<StockCheck[]>(API_ROUTES.wastage.stockChecks(companyId!))).data,
     enabled: !!companyId,
+    refetchOnMount: 'always',
   })
 }
 
