@@ -5,12 +5,13 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.core import gstin as gst
-from app.models.catalog import OIL_DENSITY_MAX, OIL_DENSITY_MIN
+from app.models.catalog import KG_PER_LITRE_MAX, KG_PER_LITRE_MIN
 
 _CODE = re.compile(r"^[A-Z0-9]{1,10}$")
 # A company type's key (company_types.key); checked against the account's types by the service.
 Category = Annotated[str, Field(min_length=1, max_length=20)]
 ItemKey = Annotated[str, Field(min_length=1, max_length=20)]
+KgPerLitre = Annotated[Decimal, Field(ge=KG_PER_LITRE_MIN, le=KG_PER_LITRE_MAX, decimal_places=3)]
 
 
 def _clean_code(value: str) -> str:
@@ -35,7 +36,8 @@ class CompanyRead(CompanyBrief):
     # Inventory configuration: what this company processes and makes.
     input_items: list[str]
     output_items: list[str]
-    oil_density: float  # kg per litre of oil
+    # This company's own kg per litre for litres items; items left out use the item's number.
+    kg_per_litre: dict[str, float]
     stock_check_months: int
     is_active: bool
 
@@ -46,10 +48,9 @@ class CompanyConfig(BaseModel):
     # Checked against the account's items by the service (catalog_service.check_lists).
     input_items: list[ItemKey] = Field(min_length=1, max_length=100)
     output_items: list[ItemKey] = Field(min_length=1, max_length=100)
-    # Left out (e.g. the company makes no oil): the current factor is kept.
-    oil_density: Decimal | None = Field(
-        default=None, ge=OIL_DENSITY_MIN, le=OIL_DENSITY_MAX, decimal_places=3
-    )
+    # This company's own kg per litre, for litres items it uses. Items left out use the item's
+    # number. The whole set is replaced; left out entirely, the saved numbers are kept.
+    kg_per_litre: dict[ItemKey, KgPerLitre] | None = Field(default=None, max_length=50)
     stock_check_months: Literal[1, 3] = 1
 
     @model_validator(mode="after")

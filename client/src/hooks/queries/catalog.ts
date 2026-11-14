@@ -7,7 +7,7 @@ import { useNotify } from '../useNotify'
 
 export const catalogKeys = { all: ['catalog'] as const }
 
-export type ItemInput = Pick<CatalogItemRow, 'name' | 'description' | 'kind' | 'unit' | 'stocked' | 'color'>
+export type ItemInput = Pick<CatalogItemRow, 'name' | 'description' | 'kind' | 'unit' | 'stocked' | 'kg_per_litre' | 'color'>
 export type TypeInput = Pick<CompanyTypeRow, 'name' | 'example' | 'input_items' | 'output_items'>
 
 /** The account's items and company types. Loaded once before any screen shows (MainLayout). */

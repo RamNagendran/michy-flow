@@ -36,6 +36,7 @@ from app.core.errors import ConflictError, ForbiddenError, InvalidError, NotFoun
 from app.core.periods import truncate
 from app.models import (
     Production,
+    ProductionMaterial,
     User,
     WastageAdjustment,
     WastageMonthEvent,
@@ -87,29 +88,32 @@ class _Totals:
 
 
 async def _totals(db: AsyncSession, company_id: int, first: date, last: date) -> dict:
-    """{month: _Totals} for every month from `first` to `last` with production. One query,
-    grouped by month and raw material, on the (company, date) index."""
+    """{month: _Totals} for every month from `first` to `last` with production. Two queries,
+    on the (company, date) index: the month's totals, and its processed kg per raw material."""
     month = truncate(Production.entry_date, "month")
+    live = (*_live(company_id), Production.entry_date.between(first, _month_end(last)))
     rows = await db.execute(
         select(
             month,
-            Production.material,
             func.count(),
             func.sum(Production.input_kg - Production.returned_kg),
             func.sum(Production.output_kg),
             func.sum(Production.wastage_kg),
         )
-        .where(*_live(company_id), Production.entry_date.between(first, _month_end(last)))
-        .group_by(month, Production.material)
+        .where(*live)
+        .group_by(month)
     )
     out: dict[date, _Totals] = defaultdict(_Totals)
-    for key, material, runs, processed, output, wastage in rows:
-        t = out[key]
-        t.runs += runs
-        t.processed += processed
-        t.output += output
-        t.wastage += wastage
-        t.shares[material] = t.shares.get(material, _ZERO) + processed
+    for key, runs, processed, output, wastage in rows:
+        out[key] = _Totals(runs=runs, processed=processed, output=output, wastage=wastage)
+    shares = await db.execute(
+        select(month, ProductionMaterial.material, func.sum(ProductionMaterial.qty_kg))
+        .join(ProductionMaterial, ProductionMaterial.production_id == Production.id)
+        .where(*live)
+        .group_by(month, ProductionMaterial.material)
+    )
+    for key, material, processed in shares:
+        out[key].shares[material] = processed
     return out
 
 

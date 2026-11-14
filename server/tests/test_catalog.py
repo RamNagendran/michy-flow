@@ -18,7 +18,7 @@ async def test_a_new_account_starts_with_the_usual_items_and_types(client: Async
     keys = [i["key"] for i in cat["items"]]
     assert keys[:2] == ["truck", "car"] and "oil" in keys and "waste" in keys
     oil = next(i for i in cat["items"] if i["key"] == "oil")
-    assert oil["unit"] == "L" and oil["kind"] == "product"
+    assert oil["unit"] == "L" and oil["kind"] == "product" and oil["kg_per_litre"] == 1.04
     types = {ty["key"]: ty for ty in cat["types"]}
     assert set(types) == {"pyrolysis", "crumb", "steel"}
     assert types["crumb"]["companies"] == 1
@@ -47,6 +47,15 @@ async def test_new_items_and_types_flow_into_companies_and_entries(client: Async
         "/catalog/items", json={"name": "rubber POWDER", "kind": "product"}, headers=bearer(sa)
     )
     powder = res.json()
+    # A litres item needs the weight of one litre.
+    liquid = {"name": "Light oil", "kind": "product", "unit": "L"}
+    res = await client.post("/catalog/items", json=liquid, headers=bearer(sa))
+    assert res.status_code == 422
+    res = await client.post(
+        "/catalog/items", json={**liquid, "kg_per_litre": "0.85"}, headers=bearer(sa)
+    )
+    assert res.status_code == 201, res.text
+    assert res.json()["kg_per_litre"] == 0.85
 
     # A type may only use items the catalogue has, and must stock at least one output.
     bad = {"name": "Belt recycling", "input_items": ["belts"], "output_items": ["waste"]}
@@ -125,10 +134,19 @@ async def test_items_in_use_keep_their_unit_and_cannot_be_deleted(client: AsyncC
         "/catalog/items", json={"name": "Bead wire", "kind": "product"}, headers=bearer(sa)
     )
     wire = res.json()
-    res = await client.patch(
-        f"/catalog/items/{wire['id']}", json={"unit": "L", "stocked": False}, headers=bearer(sa)
-    )
+    # Litres needs the weight of one litre.
+    to_litres = {"unit": "L", "stocked": False}
+    res = await client.patch(f"/catalog/items/{wire['id']}", json=to_litres, headers=bearer(sa))
+    assert res.status_code == 422
+    to_litres["kg_per_litre"] = "0.9"
+    res = await client.patch(f"/catalog/items/{wire['id']}", json=to_litres, headers=bearer(sa))
     assert res.status_code == 200 and res.json()["unit"] == "L"
+    assert res.json()["kg_per_litre"] == 0.9
+    # Back to kg drops it.
+    res = await client.patch(
+        f"/catalog/items/{wire['id']}", json={"unit": "kg"}, headers=bearer(sa)
+    )
+    assert res.status_code == 200 and res.json()["kg_per_litre"] is None
     res = await client.delete(f"/catalog/items/{wire['id']}", headers=bearer(sa))
     assert res.status_code == 204
     assert "bead_wire" not in [i["key"] for i in (await _catalog(client, sa))["items"]]

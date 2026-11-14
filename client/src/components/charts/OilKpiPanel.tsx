@@ -1,6 +1,6 @@
 import { ChartFrame, flowColors, LineChart } from '../../charts'
 import { HintButton, SectionTitle } from '../ui'
-import { OIL_DENSITY } from '../../data/catalog'
+import { kgPerLitre } from '../../data/catalog'
 import type { Bucket, OilKpi, OilStatus } from '../../types/reports'
 import { periodLabel } from '../../utils/period'
 import { formatKg, formatPercent, formatQty } from '../../utils/format'
@@ -22,7 +22,7 @@ function OilKpiHint({ kpi, bucket }: { kpi: OilKpi | null; bucket: Bucket }) {
   const oilKg = kpi?.oil_kg ?? 0
   const processed = kpi?.processed_kg ?? 0
   // The weight per litre actually used; each company has its own, so all companies together is a mix.
-  const density = oilL ? oilKg / oilL : OIL_DENSITY.default
+  const density = oilL ? oilKg / oilL : kgPerLitre('oil')
   return (
     <HintButton title="Oil KPI · how it works">
       <h4>What it shows</h4>
@@ -45,7 +45,7 @@ function OilKpiHint({ kpi, bucket }: { kpi: OilKpi | null; bucket: Bucket }) {
             This period: {formatQty(oilL, 'L')} × {density.toFixed(3)} kg = <b>{formatKg(oilKg)}</b>.{' '}
           </>
         ) : null}
-        The weight of 1 litre is set for each company by the Super Admin (between {OIL_DENSITY.min} and {OIL_DENSITY.max} kg, normally {OIL_DENSITY.default} kg).
+        The weight of 1 litre is set on the Oil item (Settings → Company types & items). A company can have its own number in its Stock settings.
       </p>
 
       <h4>Weight processed</h4>

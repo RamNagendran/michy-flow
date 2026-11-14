@@ -6,12 +6,14 @@ services/catalog_service.py). The signed-in request loads them once into `Catalo
 the rest of the request, so these lookups stay plain function calls.
 
 Quantities are stored in each item's own unit: litres or kg.
-Production balances by weight, so litres are turned into kg with the company's oil density.
+Production balances by weight, so litres are turned into kg: each litres item has its own kg
+per litre, and a company may set its own number for any of them (companies.kg_per_litre).
 
 Each company type has default inputs and outputs; the Super Admin can then set a company's own
 lists (its inventory configuration, stored on the company).
 """
 
+from collections.abc import Mapping
 from contextvars import ContextVar
 from dataclasses import dataclass
 from decimal import Decimal
@@ -27,10 +29,9 @@ KINDS = (MATERIAL, PRODUCT)
 # The oil KPI (litres per kg of tyres) follows the item with this key.
 OIL = "oil"
 
-# kg per litre of oil: the allowed range, and the default for a new company.
-OIL_DENSITY_MIN = Decimal("1.030")
-OIL_DENSITY_MAX = Decimal("1.050")
-OIL_DENSITY_DEFAULT = Decimal("1.040")
+# kg per litre of a litres item: the allowed range.
+KG_PER_LITRE_MIN = Decimal("0.500")
+KG_PER_LITRE_MAX = Decimal("2.000")
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,6 +40,8 @@ class ItemSpec:
     kind: str = PRODUCT
     # Kept in stock and can be sold. Weighed waste is recorded but never stocked.
     stocked: bool = True
+    # Litres items only: how many kg one litre weighs.
+    kg_per_litre: Decimal | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,6 +91,9 @@ DEFAULT_ITEMS: tuple[tuple[str, str, str, str, str, bool, str], ...] = (
     ("waste", "Waste", "Weighed waste for disposal: recorded, never stocked or sold", PRODUCT, KG, False, "#A1A1AA"),
 )  # fmt: skip
 
+# kg per litre of the default litres items.
+DEFAULT_KG_PER_LITRE = {"oil": Decimal("1.040")}
+
 _TYRES = ("truck", "car", "tractor", "twowheeler", "otr")
 DEFAULT_TYPES: tuple[tuple[str, str, str, tuple[str, ...], tuple[str, ...]], ...] = (
     # key, name, example, inputs, outputs
@@ -97,7 +103,10 @@ DEFAULT_TYPES: tuple[tuple[str, str, str, tuple[str, ...], tuple[str, ...]], ...
 )  # fmt: skip
 
 DEFAULT_CATALOG = Catalog(
-    items={k: ItemSpec(unit, kind, stocked) for k, _, _, kind, unit, stocked, _ in DEFAULT_ITEMS},
+    items={
+        k: ItemSpec(unit, kind, stocked, DEFAULT_KG_PER_LITRE.get(k))
+        for k, _, _, kind, unit, stocked, _ in DEFAULT_ITEMS
+    },
     types={k: Process(i, o) for k, _, _, i, o in DEFAULT_TYPES},
 )
 
@@ -171,6 +180,12 @@ def is_stocked(item: str) -> bool:
     return _spec(item).stocked
 
 
-def to_kg(item: str, qty: Decimal, oil_density: Decimal) -> Decimal:
-    """Weight of `qty` of `item` (in its own unit). Litres are weighed with the density."""
-    return qty * oil_density if _spec(item).unit == LITRE else qty
+def kg_per_litre(item: str, company_factors: Mapping[str, str] | None = None) -> Decimal:
+    """How many kg one litre of `item` weighs: the company's own number, or else the item's."""
+    own = (company_factors or {}).get(item)
+    return Decimal(own) if own else (_spec(item).kg_per_litre or Decimal(1))
+
+
+def to_kg(item: str, qty: Decimal, company_factors: Mapping[str, str] | None = None) -> Decimal:
+    """Weight of `qty` of `item` (in its own unit). Litres are weighed by kg per litre."""
+    return qty * kg_per_litre(item, company_factors) if _spec(item).unit == LITRE else qty

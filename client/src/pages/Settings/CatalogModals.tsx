@@ -1,7 +1,9 @@
-import { Alert, ColorPicker, Form, Input, Modal, Radio, Select, Switch } from 'antd'
-import { inputChoices, outputChoices, type CatalogItem, type CatalogItemRow, type CompanyTypeRow } from '../../data/catalog'
+import { Alert, ColorPicker, Form, Input, InputNumber, Modal, Radio, Select } from 'antd'
+import { HintButton } from '../../components/ui'
+import { inputChoices, KG_PER_LITRE, outputChoices, type CatalogItem, type CatalogItemRow, type CompanyTypeRow } from '../../data/catalog'
 import { useSaveItem, useSaveType, type ItemInput, type TypeInput } from '../../hooks/queries/catalog'
 import { errorMessage } from '../../services/apiError'
+import { formatKg } from '../../utils/format'
 import { requiredMark } from '../../utils/formMarks'
 
 /** Colours to pick from quickly; any other colour can still be chosen. */
@@ -18,12 +20,15 @@ export function ItemModal({ item, onClose }: { item?: CatalogItemRow; onClose: (
   const [form] = Form.useForm<ItemInput>()
   const save = useSaveItem()
   const kind = Form.useWatch('kind', form) ?? item?.kind ?? 'material'
+  const unit = Form.useWatch('unit', form) ?? item?.unit ?? 'kg'
+  const kgPerLitre: number | null | undefined = Form.useWatch('kg_per_litre', form)
   const initial: ItemInput = item ?? {
     name: '',
     description: '',
     kind: 'material',
     unit: 'kg',
     stocked: true,
+    kg_per_litre: null,
     color: PRESETS[0],
   }
 
@@ -33,6 +38,7 @@ export function ItemModal({ item, onClose }: { item?: CatalogItemRow; onClose: (
       name: v.name.trim(),
       description: (v.description ?? '').trim(),
       stocked: v.kind === 'material' ? true : v.stocked,
+      kg_per_litre: v.unit === 'L' ? (v.kg_per_litre ?? null) : null,
     }
     const diff = changed(item, body)
     if (item && !Object.keys(diff).length) return onClose()
@@ -69,8 +75,8 @@ export function ItemModal({ item, onClose }: { item?: CatalogItemRow; onClose: (
           <Radio.Group
             optionType="button"
             options={[
-              { value: 'material', label: 'Raw material (goes in)' },
-              { value: 'product', label: 'Product (comes out)' },
+              { value: 'material', label: 'INPUT (RM)' },
+              { value: 'product', label: 'OUTPUT (FG)' },
             ]}
           />
         </Form.Item>
@@ -85,11 +91,43 @@ export function ItemModal({ item, onClose }: { item?: CatalogItemRow; onClose: (
             />
           </Form.Item>
           {kind === 'product' && (
-            <Form.Item label="Kept in stock" name="stocked" valuePropName="checked">
-              <Switch checkedChildren="Yes" unCheckedChildren="No" />
+            <Form.Item
+              label={
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  After production
+                  <HintButton title="After production" label="What is this?">
+                    <p>
+                      <b>Goes to stock:</b> what production makes is added to stock. You can sell it, and it shows in stock and in stock checks. For example oil, steel, crumb.
+                    </p>
+                    <p>
+                      <b>Only recorded:</b> the weight is saved in the production entry and counted in the weight balance, but it never goes into stock and cannot be sold. For example waste for disposal.
+                    </p>
+                    <p>INPUT (RM) items always go to stock.</p>
+                  </HintButton>
+                </span>
+              }
+              name="stocked"
+            >
+              <Radio.Group
+                optionType="button"
+                options={[
+                  { value: true, label: 'Goes to stock' },
+                  { value: false, label: 'Only recorded' },
+                ]}
+              />
             </Form.Item>
           )}
         </div>
+        {unit === 'L' && (
+          <Form.Item
+            label="Weight of 1 litre"
+            name="kg_per_litre"
+            rules={[{ required: true, type: 'number', min: KG_PER_LITRE.min, max: KG_PER_LITRE.max, message: `Enter between ${KG_PER_LITRE.min} and ${KG_PER_LITRE.max} kg` }]}
+            extra={kgPerLitre ? `1,000 litres = ${formatKg(1000 * kgPerLitre)}. A company can use its own number in its Stock settings.` : 'Production is weighed in kg, so litres are changed to kg with this. Oil is about 1.040.'}
+          >
+            <InputNumber<number> min={KG_PER_LITRE.min} max={KG_PER_LITRE.max} step={0.001} precision={3} suffix="kg per litre" placeholder="e.g. 1.040" style={{ width: 220 }} />
+          </Form.Item>
+        )}
       </Form>
     </Modal>
   )
@@ -97,7 +135,7 @@ export function ItemModal({ item, onClose }: { item?: CatalogItemRow; onClose: (
 
 const option = (i: CatalogItem) => ({
   value: i.id,
-  label: `${i.name}${i.unit === 'L' ? ' (litres)' : ''}${i.stocked ? '' : ' · not stocked'}`,
+  label: `${i.name}${i.unit === 'L' ? ' (litres)' : ''}${i.stocked ? '' : ' · only recorded'}`,
 })
 
 /** Add or change a company type: its name and default inputs and outputs. */
@@ -149,7 +187,7 @@ export function TypeModal({ row, onClose }: { row?: CompanyTypeRow; onClose: () 
           </Form.Item>
         </div>
         <Form.Item
-          label="Processes (input)"
+          label="INPUT (RM): what it processes"
           name="input_items"
           rules={[
             {
@@ -163,7 +201,7 @@ export function TypeModal({ row, onClose }: { row?: CompanyTypeRow; onClose: () 
           <Select mode="multiple" options={inputChoices().map(option)} placeholder="e.g. Truck tyres, Scrap steel" optionFilterProp="label" />
         </Form.Item>
         <Form.Item
-          label="Makes (output)"
+          label="OUTPUT (FG): what it makes"
           name="output_items"
           rules={[
             {
@@ -174,7 +212,7 @@ export function TypeModal({ row, onClose }: { row?: CompanyTypeRow; onClose: () 
             },
             {
               validator: async (_, v: string[] | undefined) =>
-                !v?.length || v.some((id) => stockedOutput.has(id)) ? undefined : Promise.reject(new Error('Pick at least one item that is kept in stock. Waste alone is not enough.')),
+                !v?.length || v.some((id) => stockedOutput.has(id)) ? undefined : Promise.reject(new Error('Pick at least one item that goes to stock. Waste alone is not enough.')),
             },
           ]}
         >

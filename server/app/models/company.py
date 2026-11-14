@@ -1,7 +1,5 @@
-from decimal import Decimal
-
-from sqlalchemy import Boolean, ForeignKey, Integer, Numeric, String, UniqueConstraint, true
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy import Boolean, ForeignKey, Integer, String, UniqueConstraint, true
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TimestampMixin
@@ -33,10 +31,9 @@ class Company(TimestampMixin, Base):
     output_items: Mapped[list[str]] = mapped_column(
         ARRAY(String(20)), default=list, server_default="{}"
     )
-    # kg per litre of oil, used to weigh oil output. Changing it never rewrites saved runs.
-    oil_density: Mapped[Decimal] = mapped_column(
-        Numeric(5, 3), default=Decimal("1.040"), server_default="1.040"
-    )
+    # This company's own kg per litre for litres items, e.g. {"oil": "1.045"}. Items left out
+    # use the item's number. Changing it never rewrites saved runs.
+    kg_per_litre: Mapped[dict[str, str]] = mapped_column(JSONB, default=dict, server_default="{}")
     # Months between the Super Admin's physical stock checks (1 or 3).
     stock_check_months: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())

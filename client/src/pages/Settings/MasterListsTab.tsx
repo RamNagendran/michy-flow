@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { App, Button, Space, Table, Tag } from 'antd'
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
 import { HintButton, SectionTitle } from '../../components/ui'
-import { OIL_DENSITY, processOf, type CatalogItem, type CatalogItemRow, type CompanyTypeRow } from '../../data/catalog'
+import { processOf, type CatalogItem, type CatalogItemRow, type CompanyTypeRow } from '../../data/catalog'
 import { useCatalog, useDeleteItem, useDeleteType } from '../../hooks/queries/catalog'
 import { ItemModal, TypeModal } from './CatalogModals'
 
@@ -58,9 +58,7 @@ export function ProductsTab() {
             <HintButton title="How company types and items work">
               <p>Each company gets one type when it is added (Settings → Companies). The type fills in what the company processes and makes. You can then change one company with Stock settings.</p>
               <p>Changing a type changes only companies added after that. Companies already added keep their own settings.</p>
-              <p>
-                Items measured in litres are changed to kg with the company's oil factor ({OIL_DENSITY.default} kg per litre by default) when production is weighed.
-              </p>
+              <p>Items measured in litres are changed to kg when production is weighed. Each litres item has its own kg per litre. A company can use its own number in its Stock settings.</p>
               <p>Once an item is used in any entry, company or type, its kind, unit and stock setting are locked and it cannot be deleted. You can still rename it or change its colour.</p>
               <p>A type cannot be deleted while a company uses it.</p>
             </HintButton>
@@ -146,15 +144,15 @@ export function ProductsTab() {
           },
           {
             title: 'Kind',
-            render: (_, i) => (i.kind === 'material' ? <Tag color="blue">Raw material</Tag> : <Tag color="green">Product</Tag>),
+            render: (_, i) => (i.kind === 'material' ? <Tag color="blue">INPUT (RM)</Tag> : <Tag color="green">OUTPUT (FG)</Tag>),
           },
           {
             title: 'Measured in',
-            render: (_, i) => (i.unit === 'L' ? 'litres' : 'kg'),
+            render: (_, i) => (i.unit === 'L' ? `litres (1 L = ${i.kg_per_litre} kg)` : 'kg'),
           },
           {
             title: 'Stock',
-            render: (_, i) => (i.stocked ? 'Kept in stock' : <span className="faint">Not stocked</span>),
+            render: (_, i) => (i.stocked ? 'Goes to stock' : <span className="faint">Only recorded</span>),
           },
           {
             key: 'actions',

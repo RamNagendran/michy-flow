@@ -164,6 +164,8 @@ export interface EntryDetail {
   kg_per_hour: number | null
   /** qty is in the product's unit; qty_kg is its weight. */
   outputs: { product: string; qty: number; unit: Unit; qty_kg: number }[]
+  /** Production: each raw material used and the kg its stock went down by. */
+  materials: { material: string; kg: number }[]
 }
 
 interface EntryBody {
@@ -206,7 +208,8 @@ export interface SaleBody extends EntryBody {
 export type WastageType = 'gas' | 'liquid' | 'solid'
 
 export interface ProductionBody extends EntryBody {
-  material: string
+  /** The raw materials used; their kg add up to products + wastage − returned. */
+  materials: { material: string; kg: number }[]
   /** Wastage on the run and its type, both or neither. Never counted in the outputs. */
   wastage_kg: number | null
   wastage_type: WastageType | null

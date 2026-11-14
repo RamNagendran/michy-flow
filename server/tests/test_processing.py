@@ -80,6 +80,38 @@ async def test_wastage_is_used_but_not_an_output(client: AsyncClient) -> None:
     assert rubber["provisional"]["balance"] == 700
 
 
+async def test_a_run_may_use_several_raw_materials(client: AsyncClient) -> None:
+    t = await team(client)
+    await purchase(client, t, t.admin, "1000")
+    await purchase(client, t, t.admin, "1000", material="car", n=2)
+    # 480 kg out + 20 kg wastage = 500 kg, split 300 truck + 200 car.
+    split = [{"material": "truck", "kg": "300"}, {"material": "car", "kg": "200"}]
+    extra = {"wastage_kg": "20", "wastage_type": "gas"}
+    wrong = [{"material": "truck", "kg": "300"}, {"material": "car", "kg": "100"}]
+    res = await _run(client, t, "truck", {"rubber": "480"}, materials=wrong, **extra)
+    assert res.status_code == 422 and res.json()["code"] == "materials_mismatch"
+    twice = [{"material": "car", "kg": "250"}, {"material": "car", "kg": "250"}]
+    assert (
+        await _run(client, t, "car", {"rubber": "480"}, materials=twice, **extra)
+    ).status_code == 422
+
+    res = await _run(client, t, "truck", {"rubber": "480"}, materials=split, **extra)
+    assert res.status_code == 201, res.text
+    run = res.json()
+    assert run["item"] == "truck" and run["processed_kg"] == 500
+    assert run["materials"] == [{"material": "truck", "kg": 300}, {"material": "car", "kg": 200}]
+    assert (await stock_of(client, t, "truck"))["provisional"]["balance"] == 700
+    assert (await stock_of(client, t, "car"))["provisional"]["balance"] == 800
+
+    # Changing the split moves the stock and is kept in the run's history.
+    moved = [{"material": "truck", "kg": "100"}, {"material": "car", "kg": "400"}]
+    body = {"entry_date": TODAY, "outputs": [{"product": "rubber", "qty": "480"}], **extra}
+    edit = {**body, "materials": moved, "comment": "Weighed again"}
+    res = await client.put(t.url(f"/production/{run['id']}"), json=edit, headers=bearer(t.admin))
+    assert res.status_code == 200, res.text
+    assert res.json()["item"] == "car" and "materials" in res.json()["events"][-1]["changes"]
+
+
 async def test_each_type_makes_only_its_own_products(client: AsyncClient) -> None:
     crumb = await team(client)
     await purchase(client, crumb, crumb.admin, "1000")

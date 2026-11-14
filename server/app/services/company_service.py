@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import ConflictError, InvalidError, NotFoundError
 from app.models import Company, Production, Purchase, Sale, User, catalog
-from app.models.catalog import defaults_for
+from app.models.catalog import LITRE, defaults_for, unit_of
 from app.schemas.company import CompanyConfig, CompanyCreate, CompanyUpdate
 from app.services import audit_service
 from app.services.catalog_service import check_lists
@@ -132,11 +132,19 @@ async def configure(
     data: CompanyConfig,
     request: Request | None = None,
 ) -> Company:
-    """Set what the company processes and makes, the oil density and the stock-check cycle.
-    Entries already saved keep their items and weights; only new entries follow the change."""
+    """Set what the company processes and makes, its own kg per litre and the stock-check
+    cycle. Entries already saved keep their items and weights; only new entries follow."""
     check_lists(data.input_items, data.output_items)
     company = await get_in_account(db, actor.account_id, company_id)
     values = data.model_dump(exclude_none=True)
+    if data.kg_per_litre is not None:
+        used = set(data.input_items) | set(data.output_items)
+        if bad := [k for k in data.kg_per_litre if k not in used or unit_of(k) != LITRE]:
+            raise InvalidError(
+                f"kg per litre is only for litres items this company uses: {', '.join(bad)}"
+            )
+        # Kept as text so 1.040 stays exactly 1.040.
+        values["kg_per_litre"] = {k: str(v) for k, v in data.kg_per_litre.items()}
     changes = {k: v for k, v in values.items() if getattr(company, k) != v}
     if not changes:
         return company

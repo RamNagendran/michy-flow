@@ -4,7 +4,8 @@
  * the helpers below. Mirrors server/app/models/catalog.py.
  *
  * Quantities are in each item's own unit: litres or kg.
- * Production balances by weight, so litres are turned into kg with the company's oil density.
+ * Production balances by weight, so litres are turned into kg: each litres item has its own kg
+ * per litre, and a company may set its own number for any of them.
  */
 
 /** An item's key (e.g. "truck"). Saved on every entry; it never changes once the item is made. */
@@ -24,6 +25,8 @@ export interface CatalogItem<T extends string = ItemId> {
   kind: ItemKind
   /** Kept in stock and can be sold. Weighed waste is recorded but never stocked. */
   stocked: boolean
+  /** Litres items only: how many kg one litre weighs. */
+  kg_per_litre: number | null
   color: string
 }
 
@@ -36,6 +39,7 @@ export interface CatalogItemRow {
   kind: ItemKind
   unit: Unit
   stocked: boolean
+  kg_per_litre: number | null
   color: string
 }
 export interface CompanyTypeRow {
@@ -94,6 +98,7 @@ export function setCatalog(data: CatalogData) {
     unit: r.unit,
     kind: r.kind,
     stocked: r.stocked,
+    kg_per_litre: r.kg_per_litre,
     color: r.color,
   }))
   byId = new Map(all.map((i) => [i.id, i]))
@@ -126,10 +131,14 @@ export const stockedItems = () => all.filter((i) => i.stocked)
 export const inputChoices = () => all.filter((i) => i.stocked)
 export const outputChoices = () => all.filter((i) => i.kind === 'product')
 
-/** kg per litre of oil: the allowed range and a new company's default (server/app/models/catalog.py). */
-export const OIL_DENSITY = { min: 1.03, max: 1.05, default: 1.04 }
-/** Weight of `qty` of an item; litres are weighed with the company's oil density. */
-export const toKg = (id: string, qty: number, density: number = OIL_DENSITY.default) => (unitOf(id) === 'L' ? qty * density : qty)
+/** The allowed kg per litre of a litres item (server/app/models/catalog.py). */
+export const KG_PER_LITRE = { min: 0.5, max: 2 }
+/** A company's own kg per litre, by item (companies.kg_per_litre). */
+export type LitreFactors = Record<string, number>
+/** How many kg one litre of an item weighs: the company's own number, or else the item's. */
+export const kgPerLitre = (id: string, factors?: LitreFactors) => factors?.[id] ?? byId.get(id)?.kg_per_litre ?? 1
+/** Weight of `qty` of an item; litres are weighed by kg per litre. */
+export const toKg = (id: string, qty: number, factors?: LitreFactors) => (unitOf(id) === 'L' ? qty * kgPerLitre(id, factors) : qty)
 
 /** The hard wastage limit (% of the processed weight). Same as the server setting WASTAGE_ALERT_PCT. */
 export const WASTAGE_ALERT_PCT = 2

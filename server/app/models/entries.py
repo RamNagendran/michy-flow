@@ -156,6 +156,7 @@ class Sale(WorkflowMixin, Base):
 class Production(WorkflowMixin, Base):
     __tablename__ = "production"
 
+    # The main raw material (the biggest share); every one used is in `materials`.
     material: Mapped[str] = mapped_column(String(20))
     # Taken out of stock for the run.
     input_kg: Mapped[Decimal] = mapped_column(KG)
@@ -168,7 +169,7 @@ class Production(WorkflowMixin, Base):
     running_hours: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
     # In-charges weigh only what came out, and may add a wastage (kg and its type) if there was
     # any. The server works out the rest:
-    #   output = weight of all outputs (oil via its density); the wastage is never part of it;
+    #   output = weight of all outputs (litres by kg per litre); the wastage is never part of it;
     #   calculated input = output + wastage; this is input_kg, what stock goes down by;
     #   returned_kg is put back into stock, so stock goes down by input - returned.
     # Runs saved before 10 Nov 2026 used wastage = 2% of the output (or of a bigger total), and
@@ -183,6 +184,26 @@ class Production(WorkflowMixin, Base):
     outputs: Mapped[list["ProductionOutput"]] = relationship(
         cascade="all, delete-orphan", lazy="selectin", order_by="ProductionOutput.id"
     )
+    materials: Mapped[list["ProductionMaterial"]] = relationship(
+        cascade="all, delete-orphan", lazy="selectin", order_by="ProductionMaterial.id"
+    )
+
+
+class ProductionMaterial(Base):
+    """One raw material a run used, and how much of it stock goes down by. A run's lines add
+    up to input_kg - returned_kg."""
+
+    __tablename__ = "production_materials"
+    __table_args__ = (
+        UniqueConstraint("production_id", "material", name="uq_production_materials_material"),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    production_id: Mapped[int] = mapped_column(
+        ForeignKey("production.id", ondelete="CASCADE"), index=True
+    )
+    material: Mapped[str] = mapped_column(String(20))
+    qty_kg: Mapped[Decimal] = mapped_column(KG)
 
 
 class ProductionOutput(Base):

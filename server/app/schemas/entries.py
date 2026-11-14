@@ -135,12 +135,22 @@ class OutputInput(BaseModel):
     qty: QtyOrZero  # in the product's unit: litres for oil, kg for the rest
 
 
+class MaterialInput(BaseModel):
+    material: Item
+    # What stock of this material goes down by. The lines of a run add up to products +
+    # wastage - returned.
+    kg: Kg
+
+
 class ProductionInput(EntryInput):
     """What went in and what came out. The server works out the weight balance and wastage
-    (oil needs the company's density, so that check is in entry_service), and which materials
+    (litres need the kg per litre, so that check is in entry_service), and which materials
     and outputs are allowed comes from the company's configuration."""
 
-    material: Item
+    # The raw materials used and how the stock out is split over them. One material may be
+    # sent alone in `material` instead: it then takes the whole stock out.
+    materials: list[MaterialInput] = Field(default=[], max_length=20)
+    material: Item | None = None
     # Wastage on the run, if any, and what form it took. Stock goes down by outputs + wastage;
     # the wastage is never counted in the outputs.
     wastage_kg: Kg | None = None
@@ -169,6 +179,11 @@ class ProductionInput(EntryInput):
             raise ValueError("enter at least one output")
         if (self.wastage_kg is None) != (self.wastage_type is None):
             raise ValueError("give both the wastage kg and its type, or neither")
+        if not self.materials and not self.material:
+            raise ValueError("choose the raw material used")
+        used = [m.material for m in self.materials]
+        if len(used) != len(set(used)):
+            raise ValueError("each raw material can appear only once")
         return self
 
 
@@ -293,6 +308,11 @@ class OutputRead(BaseModel):
     qty_kg: float  # its weight
 
 
+class MaterialRead(BaseModel):
+    material: str
+    kg: float  # what stock of it went down by
+
+
 class CrewMember(BaseModel):
     id: int
     name: str
@@ -377,3 +397,4 @@ class EntryDetail(BaseModel):
     efficiency_pct: float | None = None  # running hours / shift hours
     kg_per_hour: float | None = None  # processed weight per running hour
     outputs: list[OutputRead] = []
+    materials: list[MaterialRead] = []

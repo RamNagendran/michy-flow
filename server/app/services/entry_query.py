@@ -33,6 +33,7 @@ from app.schemas.entries import (
     EntryDetail,
     EntryRow,
     EventRead,
+    MaterialRead,
     OutputRead,
     StatusCount,
 )
@@ -299,7 +300,7 @@ async def detail(
     }
     if isinstance(entry, Production):
         if not just_loaded:
-            await db.refresh(entry, ["outputs"])
+            await db.refresh(entry, ["outputs", "materials"])
         return EntryDetail(
             **base,
             item=entry.material,
@@ -318,6 +319,7 @@ async def detail(
                 OutputRead(product=o.product, qty=o.qty, unit=unit_of(o.product), qty_kg=o.qty_kg)
                 for o in entry.outputs
             ],
+            materials=[MaterialRead(material=m.material, kg=m.qty_kg) for m in entry.materials],
         )
     party = await db.get(
         Party, entry.supplier_id if isinstance(entry, Purchase) else entry.buyer_id

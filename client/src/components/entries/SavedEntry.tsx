@@ -20,7 +20,9 @@ export default function SavedEntry({ entry, again }: { entry: EntryDetail; again
           ['Products total', formatKg(entry.output_kg ?? 0)],
           [`Wastage (${(entry.wastage_pct ?? 0).toFixed(0)}%)`, formatKgFine(entry.wastage_kg ?? 0)],
           ...(entry.returned_kg ? ([['Returned to stock', formatKg(entry.returned_kg)]] as [string, string][]) : []),
-          ['Taken out of stock', `${formatKg(entry.processed_kg ?? entry.qty)} · ${itemName(entry.item)}`],
+          ...(entry.materials.length > 1
+            ? [['Taken out of stock', formatKg(entry.processed_kg ?? entry.qty)] as [string, string], ...entry.materials.map((m) => [`· ${itemName(m.material)}`, formatKg(m.kg)] as [string, string])]
+            : [['Taken out of stock', `${formatKg(entry.processed_kg ?? entry.qty)} · ${itemName(entry.item)}`] as [string, string]]),
         ]
       : [
           [entry.type === 'sale' ? 'Buyer' : 'Supplier', entry.party_name ?? '—'],

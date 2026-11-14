@@ -149,6 +149,13 @@ function Production({ e }: { e: EntryDetail }) {
           <span className="strong">Taken out of stock</span>
           <b className="num strong">{formatKgFine(e.calculated_input_kg - (e.returned_kg ?? 0))}</b>
         </div>
+        {e.materials.length > 1 &&
+          e.materials.map((m) => (
+            <div className="summary-line" key={m.material}>
+              <span className="muted">· {itemName(m.material)}</span>
+              <b className="num">{formatKg(m.kg)}</b>
+            </div>
+          ))}
       </div>
     )
   }

@@ -21,6 +21,7 @@ from app.models import (
     CompanyType,
     DebitNote,
     Production,
+    ProductionMaterial,
     ProductionOutput,
     Purchase,
     Sale,
@@ -29,7 +30,14 @@ from app.models import (
     WastageAdjustment,
     catalog,
 )
-from app.models.catalog import DEFAULT_ITEMS, DEFAULT_TYPES, Catalog, ItemSpec, Process
+from app.models.catalog import (
+    DEFAULT_ITEMS,
+    DEFAULT_KG_PER_LITRE,
+    DEFAULT_TYPES,
+    Catalog,
+    ItemSpec,
+    Process,
+)
 from app.schemas.catalog import (
     CatalogRead,
     ItemCreate,
@@ -52,7 +60,7 @@ async def use_for(db: AsyncSession, account: Account) -> Catalog:
         items = await _items(db, account.id)
         types = await _types(db, account.id)
         cached = Catalog(
-            items={i.key: ItemSpec(i.unit, i.kind, i.stocked) for i in items},
+            items={i.key: ItemSpec(i.unit, i.kind, i.stocked, i.kg_per_litre) for i in items},
             types={t.key: Process(tuple(t.input_items), tuple(t.output_items)) for t in types},
             version=account.catalog_version,
         )
@@ -73,6 +81,7 @@ def seed(db: AsyncSession, account_id: int) -> None:
                 kind=kind,
                 unit=unit,
                 stocked=stocked,
+                kg_per_litre=DEFAULT_KG_PER_LITRE.get(key),
                 color=color,
                 position=pos,
             )
@@ -185,6 +194,11 @@ async def _item_used_by(db: AsyncSession, account_id: int, key: str) -> list[str
             or_(
                 Production.material == key,
                 Production.id.in_(
+                    select(ProductionMaterial.production_id).where(
+                        ProductionMaterial.material == key
+                    )
+                ),
+                Production.id.in_(
                     select(ProductionOutput.production_id).where(ProductionOutput.product == key)
                 ),
             ),
@@ -234,7 +248,7 @@ async def create_item(
     db.add(item)
     _bump(actor)
     await db.flush()
-    _audit(db, actor, "item_created", "item", item.id, data.model_dump(), request)
+    _audit(db, actor, "item_created", "item", item.id, data.model_dump(mode="json"), request)
     await db.commit()
     return item
 
@@ -270,6 +284,16 @@ async def update_item(
             "setting cannot change. You can still rename it.",
             code="item_in_use",
         )
+    unit = changes.get("unit", item.unit)
+    if unit == "L" and changes.get("kg_per_litre", item.kg_per_litre) is None:
+        raise InvalidError("Enter how many kg one litre weighs")
+    if unit == "kg":
+        # Only litres items have a kg per litre.
+        changes.pop("kg_per_litre", None)
+        if item.kg_per_litre is not None:
+            changes["kg_per_litre"] = None
+        if not changes:
+            return item
     details = {"name": item.name, "changes": audit_service.changes_of(item, changes)}
     for k, v in changes.items():
         setattr(item, k, v)

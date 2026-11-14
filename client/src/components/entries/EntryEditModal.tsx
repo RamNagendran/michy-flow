@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Alert, DatePicker, Form, Input, InputNumber, Modal, Select } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
 import { companyItems, toKg, unitOf } from '../../data/catalog'
@@ -7,9 +8,10 @@ import { useUpdateEntry } from '../../hooks/queries/entries'
 import { errorMessage } from '../../services/apiError'
 import type { EntryDetail, Grade, WastageType } from '../../types/entries'
 import { formatKgFine, kgInputProps, perUnit, qtyInputProps, unitWord } from '../../utils/format'
-import { rawMaterialUsed, WASTAGE_TYPES, wastageTypeLabel } from '../../utils/production'
+import { rawMaterialUsed, splitMaterials, splitProblem, WASTAGE_TYPES, wastageTypeLabel } from '../../utils/production'
 import { useAccess } from '../../hooks/useAccess'
 import GradePicker from './GradePicker'
+import MaterialSplit from './MaterialSplit'
 import VehicleNumbersInput from './VehicleNumbersInput'
 import { requiredMark } from '../../utils/formMarks'
 
@@ -18,11 +20,12 @@ interface Values {
   party_id?: number
   grade: Grade
   item: string
+  /** Production: the raw materials used. */
+  items?: string[]
   qty: number
   /** Production: wastage on the run and its type, both or neither. */
   wastage_type?: WastageType | null
   wastage_kg?: number | null
-  returned_kg?: number | null
   rate?: number
   invoice_no?: string
   vehicle_nos?: string[]
@@ -44,9 +47,16 @@ export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail;
   const outputs: Values['outputs'] = Form.useWatch('outputs', form)
   const wastageType: WastageType | null | undefined = Form.useWatch('wastage_type', form)
   const wastageKg: number | null | undefined = Form.useWatch('wastage_kg', form)
-  const density = 'oil_density' in company ? company.oil_density : undefined
-  const outputKg = Object.entries(outputs ?? {}).reduce((s, [id, q]) => s + toKg(id, q ?? 0, density), 0)
+  const factors = 'kg_per_litre' in company ? company.kg_per_litre : undefined
+  const outputKg = Object.entries(outputs ?? {}).reduce((s, [id, q]) => s + toKg(id, q ?? 0, factors), 0)
   const usedKg = rawMaterialUsed(outputKg, wastageType ? (wastageKg ?? 0) : 0)
+  // Production: how the stock out is split over the raw materials. The last one takes the rest.
+  const items_: string[] = Form.useWatch('items', form) ?? []
+  // Older runs may have raw material put back into stock; it is kept as it was.
+  const stockOutKg = Math.max(usedKg - (entry.returned_kg ?? 0), 0)
+  const [typed, setTyped] = useState<Record<string, number | null>>(() => Object.fromEntries(entry.materials.slice(0, -1).map((m) => [m.material, Math.round(m.kg)])))
+  const split = splitMaterials(stockOutKg, items_, typed)
+  const problem = isProduction && items_.length > 1 ? splitProblem(stockOutKg, split) : null
   const parties = useParties(isProduction ? undefined : entry.company_id, entry.type === 'sale' ? 'buyer' : 'supplier')
   const purchase = useUpdateEntry('purchase')
   const sale = useUpdateEntry('sale')
@@ -58,8 +68,8 @@ export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail;
     party_id: entry.party_id ?? undefined,
     grade: entry.grade,
     item: entry.item,
+    items: entry.materials.length ? entry.materials.map((m) => m.material) : [entry.item],
     qty: entry.qty,
-    returned_kg: entry.returned_kg || null,
     // Older runs have a 2% wastage with no type: it stays only if a type is chosen.
     wastage_type: entry.wastage_type,
     wastage_kg: entry.wastage_kg || null,
@@ -79,9 +89,9 @@ export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail;
       purchase.mutate({ ...target, body: { ...base, supplier_id: v.party_id!, grade: v.grade, material: v.item, qty: v.qty, rate: v.rate!, invoice_no: v.invoice_no!, vehicle_nos: v.vehicle_nos ?? [] } }, { onSuccess: onClose })
     } else if (entry.type === 'sale') {
       sale.mutate({ ...target, body: { ...base, buyer_id: v.party_id!, grade: v.grade, product: v.item, qty: v.qty, rate: v.rate!, invoice_no: v.invoice_no! } }, { onSuccess: onClose })
-    } else {
+    } else if (!problem) {
       const outs = Object.entries(v.outputs ?? {}).map(([product, qty]) => ({ product, qty: qty ?? 0 }))
-      production.mutate({ ...target, body: { ...base, material: v.item, wastage_kg: v.wastage_type ? (v.wastage_kg ?? null) : null, wastage_type: v.wastage_type ?? null, returned_kg: v.returned_kg ?? 0, shift: v.shift ?? null, crew_ids: entry.crew.map((c) => c.id), running_hours: entry.running_hours, outputs: outs } }, { onSuccess: onClose })
+      production.mutate({ ...target, body: { ...base, materials: (v.items ?? []).map((m) => ({ material: m, kg: split[m] })), wastage_kg: v.wastage_type ? (v.wastage_kg ?? null) : null, wastage_type: v.wastage_type ?? null, returned_kg: entry.returned_kg ?? 0, shift: v.shift ?? null, crew_ids: entry.crew.map((c) => c.id), running_hours: entry.running_hours, outputs: outs } }, { onSuccess: onClose })
     }
   }
 
@@ -98,6 +108,7 @@ export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail;
         initialValues={initialValues}
         onFinish={onFinish}
         onValuesChange={(changed) => {
+          if (changed.items || changed.outputs || changed.wastage_kg || changed.wastage_type) setTyped({})
           if (entry.type !== 'production' && changed.grade && !itemAllowed(entry.type, changed.grade, company, form.getFieldValue('item'))) form.setFieldValue('item', undefined)
         }}
       >
@@ -110,9 +121,15 @@ export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail;
           <Form.Item label="Date" name="entry_date" rules={[{ required: true }]}>
             <DatePicker format="DD MMM YYYY" style={{ width: '100%' }} disabledDate={(d) => d.isAfter(dayjs(), 'day')} allowClear={false} />
           </Form.Item>
-          <Form.Item label={isProduction ? 'Raw material' : 'Item'} name="item" rules={[{ required: true }]}>
-            <Select options={items.map((i) => ({ value: i.id as string, label: i.name }))} />
-          </Form.Item>
+          {isProduction ? (
+            <Form.Item label="Raw materials" name="items" rules={[{ required: true, type: 'array', min: 1, message: 'Choose the raw material used' }]}>
+              <Select mode="multiple" options={items.map((i) => ({ value: i.id as string, label: i.name }))} />
+            </Form.Item>
+          ) : (
+            <Form.Item label="Item" name="item" rules={[{ required: true }]}>
+              <Select options={items.map((i) => ({ value: i.id as string, label: i.name }))} />
+            </Form.Item>
+          )}
           {!isProduction && (
             <>
               <Form.Item label={entry.type === 'sale' ? 'Buyer' : 'Supplier'} name="party_id" rules={[{ required: true }]}>
@@ -156,21 +173,18 @@ export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail;
         </div>
         {isProduction && (
           <div className="grid grid-3" style={{ columnGap: 12, rowGap: 0 }}>
-            <Form.Item
-              label="Returned to stock (kg)"
-              name="returned_kg"
-              dependencies={['outputs', 'wastage_type', 'wastage_kg']}
-              rules={[{ validator: async (_: unknown, v?: number | null) => (!v || v < usedKg ? undefined : Promise.reject(new Error(`Must be less than ${formatKgFine(usedKg)}`))) }]}
-              extra="Added back to stock"
-            >
-              <InputNumber<number> style={{ width: '100%' }} placeholder="0" {...kgInputProps} />
-            </Form.Item>
             {process.outputs.map((o) => (
               <Form.Item key={o.id} label={`${o.name} (${unitWord(o.unit)})`} name={['outputs', o.id]}>
                 <InputNumber<number> style={{ width: '100%' }} {...qtyInputProps(o.unit)} />
               </Form.Item>
             ))}
           </div>
+        )}
+        {isProduction && items_.length > 1 && (
+          <Form.Item label="How much of each raw material" extra="The others take the rest when you change one.">
+            <MaterialSplit total={stockOutKg} split={split} typed={typed} onTyped={setTyped} size="middle" />
+            {problem && <Alert type="error" showIcon title={problem} style={{ marginTop: 8 }} />}
+          </Form.Item>
         )}
         <Form.Item label="Notes" name="notes">
           <Input.TextArea rows={2} maxLength={2000} />

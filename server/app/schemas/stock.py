@@ -73,7 +73,7 @@ class ProductionTotals(BaseModel):
     input_kg: float
     returned_kg: float  # put back into stock unprocessed
     processed_kg: float
-    output_kg: float  # weight of everything that came out (oil by its density)
+    output_kg: float  # weight of everything that came out (litres weighed by kg per litre)
     wastage_kg: float
     flagged_count: int  # entries with wastage over the alert threshold
     by_item: list[ItemTotal]  # output per product in its unit (amount is always 0)

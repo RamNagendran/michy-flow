@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.permissions import CompanyPermission as P
 from app.auth.permissions import visible_entry_types
 from app.core.errors import ConflictError, ForbiddenError, InvalidError, NotFoundError
-from app.models import Production, ProductionOutput, Purchase, Sale, grades
+from app.models import Production, ProductionMaterial, ProductionOutput, Purchase, Sale, grades
 from app.models.catalog import process_of, to_kg
 from app.models.enums import EntrySource, EntryType, PartyKind
 from app.schemas.entries import (
@@ -107,14 +107,15 @@ async def _fields(
     common = {"entry_date": data.entry_date, "notes": data.notes}
     process = process_of(ctx.company)
     if entry_type == EntryType.PRODUCTION:
-        grades.check_production(process, data.material, list(_outputs(data)))
+        for material in _material_names(data):
+            grades.check_production(process, material, list(_outputs(data)))
         keep = frozenset(current.crew_ids) if isinstance(current, Production) else frozenset()
         await operator_service.require_crew(db, ctx.company.id, data.crew_ids, keep)
         # In-charges do not know exactly how much went in, only what came out, plus any
         # wastage they saw. Stock goes down by output + wastage; the wastage is not an output.
         # Anything put back into stock is added back: stock goes down by that minus the return.
-        density = ctx.company.oil_density
-        output = sum((_weight(p, q, density) for p, q in _outputs(data).items()), Decimal(0))
+        factors = ctx.company.kg_per_litre
+        output = sum((_weight(p, q, factors) for p, q in _outputs(data).items()), Decimal(0))
         wastage = data.wastage_kg or Decimal(0)
         calculated = output + wastage
         if data.returned_kg >= calculated:
@@ -122,9 +123,11 @@ async def _fields(
                 f"Returned to stock must be less than {calculated:,.0f} kg",
                 code="returned_too_much",
             )
+        lines = _materials(data, calculated - data.returned_kg)
         return {
             **common,
-            "material": data.material,
+            # The biggest share; the first one on a tie.
+            "material": max(lines, key=lines.__getitem__),
             "input_kg": calculated,
             "returned_kg": data.returned_kg,
             "shift": data.shift,
@@ -168,15 +171,49 @@ def _outputs(data: ProductionInput) -> dict[str, Decimal]:
     return {o.product: o.qty for o in data.outputs if o.qty > 0}
 
 
-def _output_row(product: str, qty: Decimal, density: Decimal) -> ProductionOutput:
-    return ProductionOutput(product=product, qty=qty, qty_kg=_weight(product, qty, density))
+def _material_names(data: ProductionInput) -> list[str]:
+    return [m.material for m in data.materials] or [data.material]  # type: ignore[list-item]
 
 
-def _weight(product: str, qty: Decimal, density: Decimal) -> Decimal:
-    return to_kg(product, qty, density).quantize(_GRAM, rounding=ROUND_HALF_UP)
+def _materials(data: ProductionInput, stock_out: Decimal) -> dict[str, Decimal]:
+    """{raw material: kg stock goes down by}. The lines are typed in whole kg, so they must add
+    up to the stock out to within a kg; that part of a kg goes to the biggest line, so they add
+    up exactly."""
+    if not data.materials:
+        return {data.material: stock_out}  # type: ignore[dict-item]
+    lines = {m.material: m.kg for m in data.materials}
+    gap = stock_out - sum(lines.values(), Decimal(0))
+    if abs(gap) >= 1:
+        raise InvalidError(
+            f"The raw materials must add up to {stock_out:,.0f} kg", code="materials_mismatch"
+        )
+    biggest = max(lines, key=lines.__getitem__)
+    lines[biggest] += gap
+    return lines
 
 
-def _sync_outputs(entry: Production, wanted: dict[str, Decimal], density: Decimal) -> None:
+def _sync_materials(entry: Production, wanted: dict[str, Decimal]) -> None:
+    """Make the raw material rows match `wanted`, changing only what differs."""
+    current = {m.material: m for m in entry.materials}
+    for material in current.keys() - wanted.keys():
+        entry.materials.remove(current[material])
+    for material, kg in wanted.items():
+        if material in current:
+            current[material].qty_kg = kg
+        else:
+            entry.materials.append(ProductionMaterial(material=material, qty_kg=kg))
+
+
+def _output_row(product: str, qty: Decimal, factors: dict[str, str]) -> ProductionOutput:
+    return ProductionOutput(product=product, qty=qty, qty_kg=_weight(product, qty, factors))
+
+
+def _weight(product: str, qty: Decimal, factors: dict[str, str]) -> Decimal:
+    """`factors`: the company's own kg per litre (companies.kg_per_litre)."""
+    return to_kg(product, qty, factors).quantize(_GRAM, rounding=ROUND_HALF_UP)
+
+
+def _sync_outputs(entry: Production, wanted: dict[str, Decimal], factors: dict[str, str]) -> None:
     """Make the output rows match `wanted`, changing only what differs."""
     current = {o.product: o for o in entry.outputs}
     for product in current.keys() - wanted.keys():
@@ -184,9 +221,9 @@ def _sync_outputs(entry: Production, wanted: dict[str, Decimal], density: Decima
     for product, qty in wanted.items():
         if product in current:
             current[product].qty = qty
-            current[product].qty_kg = _weight(product, qty, density)
+            current[product].qty_kg = _weight(product, qty, factors)
         else:
-            entry.outputs.append(_output_row(product, qty, density))
+            entry.outputs.append(_output_row(product, qty, factors))
 
 
 async def _flush(db: AsyncSession, kind: Kind) -> None:
@@ -224,8 +261,13 @@ async def create(
         **fields,
     )
     if isinstance(entry, Production):
-        density = ctx.company.oil_density
-        entry.outputs = [_output_row(p, q, density) for p, q in _outputs(data).items()]
+        factors = ctx.company.kg_per_litre
+        entry.outputs = [_output_row(p, q, factors) for p, q in _outputs(data).items()]
+        stock_out = entry.input_kg - entry.returned_kg
+        entry.materials = [
+            ProductionMaterial(material=m, qty_kg=kg)
+            for m, kg in _materials(data, stock_out).items()
+        ]
     elif isinstance(data, PurchaseInput | SaleInput):
         # Made from an uploaded bill means "read from the bill"; otherwise as sent.
         entry.source = EntrySource.AI if data.document_id else data.source
@@ -311,7 +353,15 @@ async def update(
                 {k: str(v) for k, v in before.items()},
                 {k: str(v) for k, v in after.items()},
             ]
-            _sync_outputs(entry, after, ctx.company.oil_density)
+            _sync_outputs(entry, after, ctx.company.kg_per_litre)
+        before = {m.material: m.qty_kg for m in entry.materials}
+        after = _materials(data, fields["input_kg"] - fields["returned_kg"])
+        if before != after:
+            changes["materials"] = [
+                {k: str(v) for k, v in before.items()},
+                {k: str(v) for k, v in after.items()},
+            ]
+            _sync_materials(entry, after)
     if not changes:
         return entry
     for key, value in fields.items():

@@ -23,6 +23,7 @@ from app.core.errors import ConflictError
 from app.models import (
     Company,
     Production,
+    ProductionMaterial,
     ProductionOutput,
     Purchase,
     Sale,
@@ -174,13 +175,14 @@ async def company_stock(
         union_all(
             grouped("bought", Purchase, Purchase.grade, Purchase.material, Purchase.qty),
             grouped("sold", Sale, Sale.grade, Sale.product, Sale.qty),
-            # What production used is what went in less what was put back.
+            # What production used is what went in less what was put back, per raw material.
             grouped(
                 "used",
                 Production,
                 Grade.A.value,
-                Production.material,
-                Production.input_kg - Production.returned_kg,
+                ProductionMaterial.material,
+                ProductionMaterial.qty_kg,
+                (ProductionMaterial, ProductionMaterial.production_id == Production.id),
             ),
             grouped(
                 "produced",

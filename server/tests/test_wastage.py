@@ -50,22 +50,24 @@ async def test_stock_check_adjusts_the_book_stock(client: AsyncClient) -> None:
     assert (await client.post(url, json=unknown, headers=bearer(t.admin))).status_code == 422
 
 
-async def test_super_admin_configures_items_and_density(client: AsyncClient) -> None:
+async def test_super_admin_configures_items_and_kg_per_litre(client: AsyncClient) -> None:
     t = await team(client, "pyrolysis")
     config = {
         "input_items": ["truck", "car", "rubber"],
         "output_items": ["oil", "carbon", "steel", "waste"],
-        "oil_density": "1.050",
+        "kg_per_litre": {"oil": "1.050"},
         "stock_check_months": 3,
     }
     url = t.url("/config")
     assert (await client.put(url, json=config, headers=bearer(t.manager))).status_code == 403
-    bad = {**config, "oil_density": "0.920"}
-    assert (await client.put(url, json=bad, headers=bearer(t.super_admin))).status_code == 422
+    for bad_factor in ({"oil": "2.5"}, {"carbon": "1.0"}, {"rubber": "1.0"}):
+        bad = {**config, "kg_per_litre": bad_factor}
+        res = await client.put(url, json=bad, headers=bearer(t.super_admin))
+        assert res.status_code == 422, bad_factor
     res = await client.put(url, json=config, headers=bearer(t.super_admin))
     assert res.status_code == 200 and res.json()["input_items"] == ["truck", "car", "rubber"]
 
-    # Rubber is now raw material here; oil is weighed at the new density.
+    # Rubber is now raw material here; oil is weighed at the company's own number.
     assert (await purchase(client, t, t.admin, "1000", material="rubber")).status_code == 201
     body = {
         "entry_date": TODAY,
@@ -78,11 +80,18 @@ async def test_super_admin_configures_items_and_density(client: AsyncClient) -> 
     stock = (await client.get(t.url("/stock"), headers=bearer(t.admin))).json()
     assert stock["check_every_months"] == 3
 
-    # Without oil the form has no density to send: the saved factor is kept.
+    # With no number of its own, the company uses the item's (oil: 1.040).
+    res = await client.put(url, json={**config, "kg_per_litre": {}}, headers=bearer(t.super_admin))
+    assert res.status_code == 200 and res.json()["kg_per_litre"] == {}
+    run = await client.post(t.url("/production"), json=body, headers=bearer(t.admin))
+    assert run.json()["output_kg"] == 936  # 900 L × 1.04
+    res = await client.put(url, json=config, headers=bearer(t.super_admin))
+
+    # Left out, the company's saved numbers are kept.
     no_oil = {"input_items": ["truck"], "output_items": ["steel"], "stock_check_months": 1}
     res = await client.put(url, json=no_oil, headers=bearer(t.super_admin))
     assert res.status_code == 200, res.text
-    assert res.json()["oil_density"] == 1.05
+    assert res.json()["kg_per_litre"] == {"oil": 1.05}
     only_waste = {**no_oil, "output_items": ["waste"]}
     assert (
         await client.put(url, json=only_waste, headers=bearer(t.super_admin))

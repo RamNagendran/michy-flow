@@ -48,8 +48,8 @@ export interface Company extends CompanyBrief {
   /** Inventory configuration: what this company processes and makes (set by the Super Admin). */
   input_items: string[]
   output_items: string[]
-  /** kg per litre of oil. */
-  oil_density: number
+  /** This company's own kg per litre for litres items; items left out use the item's number. */
+  kg_per_litre: Record<string, number>
   /** Months between the Super Admin's physical stock checks. */
   stock_check_months: 1 | 3
   is_active: boolean
@@ -58,7 +58,7 @@ export interface Company extends CompanyBrief {
 export interface CompanyConfig {
   input_items: string[]
   output_items: string[]
-  oil_density: number
+  kg_per_litre: Record<string, number>
   stock_check_months: 1 | 3
 }
 
@@ -183,4 +183,4 @@ export interface ChangePasswordRequest {
 }
 
 /** The bits of a company most screens need. */
-export type CompanyRef = Pick<Company, 'id' | 'code' | 'name' | 'city' | 'gstin' | 'category' | 'input_items' | 'output_items' | 'oil_density'>
+export type CompanyRef = Pick<Company, 'id' | 'code' | 'name' | 'city' | 'gstin' | 'category' | 'input_items' | 'output_items' | 'kg_per_litre'>

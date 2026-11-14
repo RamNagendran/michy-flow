@@ -4,7 +4,9 @@
 Entries store an item's `key`, never its id, so an item's key never changes once made.
 """
 
-from sqlalchemy import Boolean, ForeignKey, Integer, String, UniqueConstraint, true
+from decimal import Decimal
+
+from sqlalchemy import Boolean, ForeignKey, Integer, Numeric, String, UniqueConstraint, true
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -27,6 +29,8 @@ class CatalogItem(TimestampMixin, Base):
     unit: Mapped[str] = mapped_column(String(5), default="kg", server_default="kg")
     # Kept in stock and can be sold. Weighed waste is recorded but never stocked.
     stocked: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    # Litres items only: how many kg one litre weighs. A company may set its own number.
+    kg_per_litre: Mapped[Decimal | None] = mapped_column(Numeric(5, 3))
     color: Mapped[str] = mapped_column(String(7), default="#8A919E", server_default="#8A919E")
     position: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
 

@@ -68,7 +68,7 @@ async def configure_company(
     actor: User = Depends(require_system_permission(SystemPermission.MANAGE_CONFIG)),
     db: AsyncSession = Depends(get_db),
 ) -> Company:
-    """Inventory configuration: input and output items, oil density, stock-check cycle."""
+    """Inventory configuration: input and output items, kg per litre, stock-check cycle."""
     company = await company_service.configure(db, actor, company_id, data, request)
     await events.company_changed(company)
     return company
