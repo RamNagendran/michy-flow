@@ -263,8 +263,8 @@ async def detail(db: AsyncSession, ctx: CompanyContext, month: date) -> WastageM
     view = _view(month, totals, record, approver)
     if view.status != APPROVED and view.adjustments:
         # Show what each line does to the stock now, so it can be checked before approving.
-        stock = await stock_service.company_stock(db, cid)
-        balance = {line.item: line.provisional.balance for line in stock.raw}
+        stock = await stock_service.stock_lines(db, ctx.company)
+        balance = {line.item: line.provisional.balance for line in stock["raw"]}
         for share in view.adjustments:
             share.stock_now = balance.get(share.item, 0.0)
             share.stock_after = round(share.stock_now - share.qty, 3)

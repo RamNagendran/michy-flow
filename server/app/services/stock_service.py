@@ -165,6 +165,18 @@ async def company_stock(
 ) -> CompanyStock:
     company = await db.get(Company, company_id)
     assert company is not None
+    return CompanyStock(
+        company_id=company_id,
+        **await stock_lines(db, company, also),
+        **await _check_schedule(db, company),
+    )
+
+
+async def stock_lines(
+    db: AsyncSession, company: Company, also: tuple[Model, int] | None = None
+) -> dict[str, list[StockLine]]:
+    """The raw, output, resale and book stock lines, in one round trip."""
+    company_id = company.id
     process = process_of(company)
 
     def grouped(kind: str, model, grade, item, qty_col, *joins) -> Select:  # noqa: ANN001
@@ -238,14 +250,12 @@ async def company_stock(
     for section, item, _, diff in by_kind["counted"]:
         counted[section][item] = diff
     wasted = {item: qty for _, item, _, qty in by_kind["wasted"]}
-    return CompanyStock(
-        company_id=company_id,
-        raw=_lines(Grade.A, process.inputs, bought, used, counted.get("raw"), wasted),
-        output=_lines(Grade.A, process.products, produced, sold, counted.get("output")),
-        resale=_lines(Grade.B, process.inputs, bought, sold, counted.get("resale")),
-        books=_lines(Grade.C, (), bought, sold),
-        **await _check_schedule(db, company),
-    )
+    return {
+        "raw": _lines(Grade.A, process.inputs, bought, used, counted.get("raw"), wasted),
+        "output": _lines(Grade.A, process.products, produced, sold, counted.get("output")),
+        "resale": _lines(Grade.B, process.inputs, bought, sold, counted.get("resale")),
+        "books": _lines(Grade.C, (), bought, sold),
+    }
 
 
 _SHORT_HINT = {
@@ -263,8 +273,11 @@ async def assert_stock_not_negative(
     tyres that were bought to re-sell, rejecting a purchase that was already used, ...).
     `also` counts a new entry that is still waiting for the Manager."""
     await db.flush()
-    stock = await company_stock(db, company_id, also)
-    for line in [*stock.raw, *stock.output, *stock.resale, *stock.books]:
+    company = await db.get(Company, company_id)
+    assert company is not None
+    # Only the balances: the stock-count schedule would cost two more round trips.
+    sections = await stock_lines(db, company, also)
+    for line in (line for lines in sections.values() for line in lines):
         if line.provisional.balance < 0:
             raise ConflictError(
                 f"Not enough Grade {line.grade} {line.item} in stock: this would leave "

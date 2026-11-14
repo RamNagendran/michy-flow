@@ -6,8 +6,10 @@ from app.core.config import settings
 
 engine = create_async_engine(
     settings.DATABASE_URL,
-    pool_pre_ping=True,
-    pool_recycle=300,
+    # No pre-ping: it costs a round trip on every request (~90 ms to Supabase from India).
+    # A dropped connection fails one request and is replaced. Opening one takes ~800 ms, so
+    # keep them for 30 minutes.
+    pool_recycle=1800,
     pool_size=10,
     max_overflow=20,
     # pgbouncer (Supabase pooler) can't use asyncpg's prepared statement cache.

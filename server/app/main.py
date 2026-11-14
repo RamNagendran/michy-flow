@@ -1,4 +1,5 @@
 import logging
+import time
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 
@@ -40,6 +41,9 @@ logging.getLogger("sqlalchemy").setLevel(logging.WARNING)
 logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 logger = logging.getLogger("app")
+
+# Every API should answer in milliseconds; anything slower is logged.
+SLOW_REQUEST_MS = 1000
 
 SECURITY_HEADERS = {
     "X-Content-Type-Options": "nosniff",
@@ -124,7 +128,12 @@ def create_app() -> FastAPI:
     async def security_headers(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
     ) -> Response:
+        started = time.perf_counter()
         response = await call_next(request)
+        ms = (time.perf_counter() - started) * 1000
+        response.headers["Server-Timing"] = f"app;dur={ms:.0f}"
+        if ms > SLOW_REQUEST_MS:
+            logger.warning("Slow request: %s %s took %.0f ms", request.method, request.url.path, ms)
         for name, value in SECURITY_HEADERS.items():
             response.headers.setdefault(name, value)
         return response

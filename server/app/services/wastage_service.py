@@ -59,11 +59,11 @@ async def record_check(
             "Approve or reject them first, then count the stock.",
             code="entries_waiting",
         )
-    stock = await stock_service.company_stock(db, ctx.company.id)
+    stock = await stock_service.stock_lines(db, ctx.company)
     book = {
         (section, line.item): Decimal(str(line.provisional.balance))
         for section in ("raw", "output", "resale")
-        for line in getattr(stock, section)
+        for line in stock[section]
     }
     check = StockCheck(
         company_id=ctx.company.id,

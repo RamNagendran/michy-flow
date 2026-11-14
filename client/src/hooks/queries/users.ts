@@ -26,7 +26,8 @@ export function useCreateUser() {
   const invalidate = useInvalidateUsers()
   return useMutation({
     mutationFn: async (body: UserCreateRequest) => (await api.post<UserWithPassword>(API_ROUTES.users.list, body)).data,
-    onSuccess: () => invalidate(),
+    // Refresh lists in the background: the save is done, so the form can close now.
+    onSuccess: () => void invalidate(),
   })
 }
 
@@ -48,7 +49,8 @@ export function useSetUserAccess() {
   const invalidate = useInvalidateUsers()
   return useMutation({
     mutationFn: async ({ id, body }: { id: number; body: AccessInput }) => (await api.put<ManagedUser>(API_ROUTES.users.access(id), body)).data,
-    onSuccess: () => invalidate(),
+    // Refresh lists in the background: the save is done, so the form can close now.
+    onSuccess: () => void invalidate(),
   })
 }
 
@@ -57,7 +59,8 @@ export function useResetPassword() {
   const invalidate = useInvalidateUsers()
   return useMutation({
     mutationFn: async (id: number) => (await api.post<UserWithPassword>(API_ROUTES.users.resetPassword(id))).data,
-    onSuccess: () => invalidate(),
+    // Refresh lists in the background: the save is done, so the form can close now.
+    onSuccess: () => void invalidate(),
     onError: (err) => notify.error(err, 'Could not reset the password'),
   })
 }

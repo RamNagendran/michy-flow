@@ -68,7 +68,8 @@ export function useCreateEntry<T extends EntryType>(type: T) {
   return useMutation({
     mutationFn: async ({ companyId, body }: { companyId: number; body: EntryBodyFor[T] }) =>
       (await api.post<EntryDetail>(API_ROUTES.entries.create(companyId, type), body)).data,
-    onSuccess: () => invalidate(),
+    // Refresh lists in the background: the save is done, so the form can close now.
+    onSuccess: () => void invalidate(),
   })
 }
 
