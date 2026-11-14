@@ -44,7 +44,9 @@ class OilKpi(BaseModel):
 
 
 class SupplierPrice(BaseModel):
-    supplier_id: int
+    """One supplier (purchases) or buyer (sales) against the average."""
+
+    supplier_id: int  # the party id: a buyer on the sales side
     name: str
     bills: int
     qty: float
@@ -55,8 +57,10 @@ class SupplierPrice(BaseModel):
     last_rate: float
     last_date: date
     diff_pct: float  # vs the overall average: negative is cheaper
-    saving: float  # (average − theirs) × quantity: positive means they cost less
-    roi_pct: float  # saving as a share of what was paid them
+    # Purchases: (average − theirs) × quantity, positive means they cost less.
+    # Sales: (theirs − average) × quantity, positive means they paid more.
+    saving: float
+    roi_pct: float  # saving as a share of the bills' amount
 
 
 class PricePoint(BaseModel):
@@ -67,6 +71,7 @@ class PricePoint(BaseModel):
 
 
 class PriceHistory(BaseModel):
+    side: str = "purchase"  # or "sale"
     item: str
     unit: str
     avg_rate: float | None
@@ -74,7 +79,7 @@ class PriceHistory(BaseModel):
     max_rate: float | None
     qty: float
     amount: float
-    suppliers: list[SupplierPrice]  # cheapest first
+    suppliers: list[SupplierPrice]  # best first: cheapest supplier, or highest-paying buyer
     series: list[PricePoint]
 
 

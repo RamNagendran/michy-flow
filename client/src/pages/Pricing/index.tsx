@@ -7,29 +7,40 @@ import { companyItems, itemName } from '../../data/catalog'
 import { usePrices } from '../../hooks/queries/reports'
 import { usePeriod } from '../../hooks/usePeriod'
 import { useReportCompany } from '../../hooks/useReportCompany'
-import type { SupplierPrice } from '../../types/reports'
+import type { SupplierPrice, TradeSide } from '../../types/reports'
 import { formatINR, formatPercent, formatQty, formatRateIn } from '../../utils/format'
 import { bucketFor } from '../../utils/period'
 import SupplierDrawer from './SupplierDrawer'
 
-/** Car and truck tyres side by side when the company buys both; otherwise its first two inputs. */
+/** Car and truck tyres side by side when the company buys both; otherwise its first two items. */
 function comparedItems(inputs: string[]) {
   const preferred = ['car', 'truck'].filter((i) => inputs.includes(i))
   return preferred.length === 2 ? preferred : inputs.slice(0, 2)
 }
 
-/** Purchase price history: each supplier against the weighted average, per item. */
-export default function Pricing() {
+const WORDS = {
+  purchase: { title: 'Purchase prices', party: 'supplier', parties: 'Suppliers', low: 'Lowest paid', high: 'Highest paid', total: 'Bought', done: 'bought', gain: 'Saving · ROI', gainHint: '(average rate − their rate) × quantity. A plus figure means they are cheaper than average.' },
+  sale: { title: 'Sale prices', party: 'buyer', parties: 'Buyers', low: 'Lowest sold at', high: 'Highest sold at', total: 'Sold', done: 'sold', gain: 'Extra earned · ROI', gainHint: '(their rate − average rate) × quantity. A plus figure means they pay more than average.' },
+}
+
+/**
+ * Price history: each supplier (purchases) or buyer (sales) against the weighted average, per item.
+ * Purchases compare the company's raw materials, sales its products.
+ */
+export default function Pricing({ side = 'purchase' }: { side?: TradeSide }) {
+  const w = WORDS[side]
   const { label, range, subtitle } = usePeriod()
   const { company } = useReportCompany('view_finance')
-  const inputs = useMemo(() => (company ? companyItems(company).inputs.map((i) => i.id) : []), [company])
+  const inputs = useMemo(() => (company ? companyItems(company)[side === 'purchase' ? 'inputs' : 'products'].map((i) => i.id) : []), [company, side])
   const [pickedItem, setItem] = useState<string>()
   const item = pickedItem && inputs.includes(pickedItem) ? pickedItem : inputs[0]
   const [left, right] = comparedItems(inputs)
   const bucket = bucketFor(range, true)
-  const a = usePrices(company?.id, left, range)
-  const b = usePrices(company?.id, right, range)
-  const detail = usePrices(company?.id, item, range)
+  const a = usePrices(company?.id, left, range, side)
+  const b = usePrices(company?.id, right, range, side)
+  const detail = usePrices(company?.id, item, range, side)
+  // A lower rate is better when buying, a higher one when selling.
+  const good = (diff: number) => (side === 'purchase' ? diff <= 0 : diff >= 0)
   const [open, setOpen] = useState<SupplierPrice | null>(null)
   const h = detail.data
   const unit = h?.unit ?? 'kg'
@@ -37,8 +48,8 @@ export default function Pricing() {
   return (
     <div className="page">
       <PageHeader
-        title="Purchase prices"
-        subtitle={`Each supplier's rate compared to the average · ${label} (${subtitle}) · Grade C bills not included`}
+        title={w.title}
+        subtitle={`Each ${w.party}'s rate compared to the average · ${label} (${subtitle}) · Grade C bills not included`}
       />
 
       <div className={right ? 'grid grid-2' : 'grid'}>
@@ -47,17 +58,17 @@ export default function Pricing() {
       </div>
 
       <SectionTitle
-        title="Suppliers against the average"
-        hint="click a supplier for their price history"
+        title={`${w.parties} against the average`}
+        hint={`click a ${w.party} for their price history`}
         extra={inputs.length > 1 && <Segmented value={item} onChange={setItem} options={inputs.map((i) => ({ value: i, label: itemName(i) }))} />}
       />
       <div className="grid grid-4 stagger" style={{ marginBottom: 16 }}>
         {(
           [
             ['Average price', h?.avg_rate ? formatRateIn(h.avg_rate, unit) : '—', 'weighted by quantity'],
-            ['Lowest paid', h?.min_rate ? formatRateIn(h.min_rate, unit) : '—', 'single bill'],
-            ['Highest paid', h?.max_rate ? formatRateIn(h.max_rate, unit) : '—', 'single bill'],
-            ['Bought', formatQty(h?.qty ?? 0, unit), formatINR(h?.amount ?? 0)],
+            [w.low, h?.min_rate ? formatRateIn(h.min_rate, unit) : '—', 'single bill'],
+            [w.high, h?.max_rate ? formatRateIn(h.max_rate, unit) : '—', 'single bill'],
+            [w.total, formatQty(h?.qty ?? 0, unit), formatINR(h?.amount ?? 0)],
           ] as const
         ).map(([l, v, s]) => (
           <div key={l} className="surface stat-tile">
@@ -74,11 +85,11 @@ export default function Pricing() {
           pagination={false}
           dataSource={h?.suppliers}
           scroll={{ x: 'max-content' }}
-          locale={{ emptyText: `No ${itemName(item ?? '').toLowerCase()} bought in this period` }}
+          locale={{ emptyText: `No ${itemName(item ?? '').toLowerCase()} ${w.done} in this period` }}
           onRow={(s) => ({ onClick: () => setOpen(s), className: 'clickable' })}
           columns={[
             {
-              title: 'Supplier',
+              title: side === 'purchase' ? 'Supplier' : 'Buyer',
               render: (_, s, i) => (
                 <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <b>{s.name}</b>
@@ -93,14 +104,14 @@ export default function Pricing() {
               title: 'vs average',
               align: 'right',
               render: (_, s) => (
-                <span className="num strong" style={{ color: s.diff_pct <= 0 ? '#1F9D6B' : '#D4380D' }}>
+                <span className="num strong" style={{ color: good(s.diff_pct) ? '#1F9D6B' : '#D4380D' }}>
                   {s.diff_pct <= 0 ? <ArrowDownOutlined /> : <ArrowUpOutlined />} {formatPercent(Math.abs(s.diff_pct), 1)}
                 </span>
               ),
             },
             { title: 'Range', align: 'right', render: (_, s) => <span className="num faint">{`${formatRateIn(s.min_rate, unit)} – ${formatRateIn(s.max_rate, unit)}`}</span> },
             {
-              title: <Tooltip title="(average rate − their rate) × quantity. A plus figure means they are cheaper than average.">Saving · ROI</Tooltip>,
+              title: <Tooltip title={w.gainHint}>{w.gain}</Tooltip>,
               align: 'right',
               render: (_, s) => (
                 <span className="num" style={{ color: s.saving >= 0 ? '#1F9D6B' : '#D4380D', fontWeight: 800 }}>
@@ -113,7 +124,7 @@ export default function Pricing() {
           ]}
         />
       </div>
-      {company && <SupplierDrawer company={company} history={h} supplier={open} bucket={bucket} onClose={() => setOpen(null)} />}
+      {company && <SupplierDrawer side={side} company={company} history={h} supplier={open} bucket={bucket} onClose={() => setOpen(null)} />}
     </div>
   )
 }

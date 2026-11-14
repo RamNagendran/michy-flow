@@ -98,11 +98,11 @@ export function useOilKpi(companyIds: number[], range: Range) {
   })
 }
 
-export function usePrices(companyId: number | undefined, item: string | undefined, range: Range) {
+export function usePrices(companyId: number | undefined, item: string | undefined, range: Range, side: TradeSide = 'purchase') {
   const bucket = bucketFor(range, true)
   return useQuery({
-    queryKey: ['prices', companyId, item, range, bucket],
-    queryFn: async () => (await api.get<PriceHistory>(API_ROUTES.reports.prices(companyId!), { params: { ...params(range, bucket), item } })).data,
+    queryKey: ['prices', side, companyId, item, range, bucket],
+    queryFn: async () => (await api.get<PriceHistory>(API_ROUTES.reports.prices(companyId!), { params: { ...params(range, bucket), item, side } })).data,
     enabled: !!companyId && !!item,
     staleTime: STALE,
     placeholderData: keepPreviousData,

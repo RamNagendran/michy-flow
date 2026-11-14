@@ -189,7 +189,8 @@ export default function MonthDrawer({ companyId, month, onClose }: { companyId: 
               ['Production runs', m.runs],
               ['Processed', formatKg(m.processed_kg)],
               ['Total weight out', formatKg(m.output_kg)],
-              ['Wastage from production (2%)', formatKgFine(m.calculated_kg)],
+              ['Wastage from production', formatKgFine(m.calculated_kg - m.counted_kg)],
+              ...(m.counted_kg ? [[m.counted_kg > 0 ? 'Missing in stock count' : 'Extra found in stock count', formatKgFine(Math.abs(m.counted_kg))], ['Total wastage', formatKgFine(m.calculated_kg)]] : []),
               ...(m.changed ? [['Changed by the Super Admin to', formatKgFine(m.wastage_kg)]] : []),
               ...(m.approved_at ? [['Approved', `${m.approved_by_name ?? '—'} · ${dayjs(m.approved_at).format('DD MMM YYYY')}`]] : []),
             ].map(([k, v]) => (

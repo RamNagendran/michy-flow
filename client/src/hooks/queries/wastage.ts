@@ -100,7 +100,7 @@ export function useRecordStockCheck() {
   const notify = useNotify()
   const invalidate = useInvalidateEntries()
   return useMutation({
-    mutationFn: async ({ companyId, body }: { companyId: number; body: { counted_on: string; note: string; lines: { section: string; item: string; counted_qty: number }[] } }) => {
+    mutationFn: async ({ companyId, body }: { companyId: number; body: { note: string; lines: { section: string; item: string; counted_qty: number }[] } }) => {
       await api.post(API_ROUTES.wastage.stockChecks(companyId), body)
     },
     onSuccess: () => {

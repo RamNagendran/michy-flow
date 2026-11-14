@@ -39,7 +39,9 @@ export interface OilKpi {
   series: OilPoint[]
 }
 
+/** One supplier (purchases) or buyer (sales) against the average. */
 export interface SupplierPrice {
+  /** The party id: a buyer on the sales side. */
   supplier_id: number
   name: string
   bills: number
@@ -52,7 +54,7 @@ export interface SupplierPrice {
   last_date: string
   /** vs the overall average: negative is cheaper. */
   diff_pct: number
-  /** (average − theirs) × quantity: positive means they cost less. */
+  /** Purchases: (average − theirs) × quantity, positive means they cost less. Sales: (theirs − average) × quantity, positive means they paid more. */
   saving: number
   roi_pct: number
 }
@@ -65,6 +67,7 @@ export interface PricePoint {
 }
 
 export interface PriceHistory {
+  side: TradeSide
   item: string
   unit: Unit
   avg_rate: number | null
@@ -121,8 +124,10 @@ export interface WastageMonth {
   runs: number
   processed_kg: number
   output_kg: number
-  /** What the production entries add up to (2% of each run's output). */
+  /** Production wastage + raw material missing in the month's stock counts. */
   calculated_kg: number
+  /** Raw material missing in the month's stock counts (negative: more was found). Already out of stock. */
+  counted_kg: number
   /** The month's figure: the Super Admin's own if they changed it. */
   wastage_kg: number
   wastage_pct: number

@@ -42,6 +42,7 @@ const titles: [string, string][] = [
   ['/finance', 'Finance'],
   ['/reports', 'Reports'],
   ['/pricing', 'Purchase prices'],
+  ['/sale-pricing', 'Sale prices'],
   ['/wastage', 'Wastage control'],
   ['/audit', 'Audit trail'],
   ['/settings', 'Settings'],
@@ -54,7 +55,7 @@ const HEADER_THEME: ThemeConfig = { token: { controlHeight: 32, fontSize: 13 }, 
 
 const URGENT = new Set(['fromFinance', 'toIncharge', 'changes'])
 
-const PERIOD_PAGES = ['/finance', '/stock', '/companies', '/reports', '/pricing', '/wastage', '/purchases', '/sales', '/production']
+const PERIOD_PAGES = ['/finance', '/stock', '/companies', '/reports', '/pricing', '/sale-pricing', '/wastage', '/purchases', '/sales', '/production']
 
 export default function MainLayout() {
   const { user, logout } = useAuth()

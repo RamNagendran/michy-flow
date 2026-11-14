@@ -1,9 +1,13 @@
-"""Wastage control: the fixed wastage rate and the Super Admin's stock checks.
+"""Wastage control: the Super Admin's stock checks.
 
-- Every production run counts WASTAGE_ALERT_PCT of its output as wastage (entry_service).
-  Each month's total goes to the Super Admin for approval (wastage_month_service).
-- Stock checks: every 1 or 3 months the Super Admin counts the physical stock; each difference from
-  the book stock is recorded and adjusts the stock from then on.
+- Each production run's wastage is entered by the in-charge; each month's total goes to the
+  Super Admin for approval (wastage_month_service).
+- Stock checks: every 1 or 3 months the Super Admin counts the physical stock; each difference
+  from the book stock is recorded and corrects the stock at once. Raw material found missing is
+  also added to the month's wastage (without moving stock again), so the Super Admin does not
+  take it out a second time when approving the month.
+- A count is only for today, and only when no entry is waiting for the Manager: their goods may
+  already have moved while the stock does not show them yet, so they would be counted twice.
 """
 
 from decimal import Decimal
@@ -15,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.permissions import CompanyPermission as P
 from app.core.clock import today
 from app.core.config import settings
-from app.core.errors import ForbiddenError, InvalidError
+from app.core.errors import ConflictError, ForbiddenError, InvalidError
 from app.models import StockCheck, StockCheckLine, User
 from app.models.catalog import unit_of
 from app.schemas.wastage import (
@@ -45,9 +49,16 @@ async def record_check(
 ) -> StockCheck:
     """Compare the Super Admin's physical count with the book stock and record the differences."""
     _require(ctx)
-    if data.counted_on > today():
-        raise InvalidError("The count date cannot be in the future")
+    counted_on = data.counted_on or today()
+    if counted_on != today():
+        raise InvalidError("A stock count can only be for today", code="count_not_today")
     await stock_service.lock_company(db, ctx.company.id)
+    if waiting := await stock_service.entries_waiting(db, ctx.company.id):
+        raise ConflictError(
+            f"{waiting} entr{'y is' if waiting == 1 else 'ies are'} waiting for the Manager. "
+            "Approve or reject them first, then count the stock.",
+            code="entries_waiting",
+        )
     stock = await stock_service.company_stock(db, ctx.company.id)
     book = {
         (section, line.item): Decimal(str(line.provisional.balance))
@@ -56,7 +67,7 @@ async def record_check(
     }
     check = StockCheck(
         company_id=ctx.company.id,
-        counted_on=data.counted_on,
+        counted_on=counted_on,
         note=data.note,
         counted_by_id=ctx.user.id,
     )
@@ -86,7 +97,7 @@ async def record_check(
         entity_id=check.id,
         company_id=ctx.company.id,
         details={
-            "counted_on": data.counted_on.isoformat(),
+            "counted_on": counted_on.isoformat(),
             "note": data.note,
             # Only the items whose count differs from the book.
             "differences": {

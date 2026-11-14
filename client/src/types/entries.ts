@@ -291,6 +291,8 @@ export interface CompanyStock {
   last_check_on: string | null
   next_check_due: string
   check_overdue: boolean
+  /** Entries waiting for the Manager. The stock cannot be counted until this is 0. */
+  entries_waiting: number
 }
 
 export type StockSection = 'raw' | 'output' | 'resale' | 'books'

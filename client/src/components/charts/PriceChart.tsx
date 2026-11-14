@@ -32,7 +32,7 @@ export default function PriceChart({ title, sub, history, bucket, suppliers = []
       loading={loading}
       refreshing={refreshing}
       empty={!history?.series.some((p) => p.avg_rate !== null)}
-      emptyText="No purchases of this item in the period"
+      emptyText={`No ${history?.side === 'sale' ? 'sales' : 'purchases'} of this item in the period`}
       height={height}
     >
       <ResponsiveContainer>

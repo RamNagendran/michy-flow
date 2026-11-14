@@ -23,11 +23,8 @@ from app.schemas.analytics import (
     OilKpi,
     OilPoint,
     OperatorRow,
-    PriceHistory,
-    PricePoint,
     ProductionReport,
     ShiftRow,
-    SupplierPrice,
     TradeAnalysis,
     TradeBill,
     TradeGrade,
@@ -177,113 +174,6 @@ async def oil_kpi(
         status=oil_status(pct, total_processed > 0),
         green_at=OIL_GREEN_AT,
         red_below=OIL_RED_BELOW,
-        series=series,
-    )
-
-
-# ---------------------------------------------------------------------------
-# Purchase price history
-# ---------------------------------------------------------------------------
-
-
-async def prices(
-    db: AsyncSession, company_id: int, item: str, d_from: date, d_to: date, unit: str
-) -> PriceHistory:
-    """What each supplier charged for one item over time, against the weighted average.
-    Grade C (invoice-only) purchases are left out: they are not real buying prices."""
-    where = (
-        *_in(Purchase, company_id, d_from, d_to),
-        Purchase.material == item,
-        Purchase.grade != Grade.C,
-    )
-    period = truncate(Purchase.entry_date, unit)
-    grouped = await db.execute(
-        select(
-            period,
-            Purchase.supplier_id,
-            func.count(),
-            func.sum(Purchase.qty),
-            func.sum(Purchase.amount),
-            func.min(Purchase.rate),
-            func.max(Purchase.rate),
-        )
-        .where(*where)
-        .group_by(period, Purchase.supplier_id)
-    )
-    by_period: dict[date, dict[int, tuple[Decimal, Decimal]]] = defaultdict(dict)
-    per_supplier: dict[int, list] = {}  # id → [bills, qty, amount, min, max]
-    for p, sid, n, qty, amount, low, high in grouped:
-        by_period[p][sid] = (qty, amount)
-        s = per_supplier.setdefault(sid, [0, _ZERO, _ZERO, low, high])
-        s[0], s[1], s[2] = s[0] + n, s[1] + qty, s[2] + amount
-        s[3], s[4] = min(s[3], low), max(s[4], high)
-
-    # The most recent bill per supplier, in one query (DISTINCT ON).
-    last = {
-        sid: (rate, day)
-        for sid, rate, day in await db.execute(
-            select(Purchase.supplier_id, Purchase.rate, Purchase.entry_date)
-            .where(*where)
-            .ext(distinct_on(Purchase.supplier_id))
-            .order_by(Purchase.supplier_id, Purchase.entry_date.desc(), Purchase.id.desc())
-        )
-    }
-    names = (
-        dict(
-            (await db.execute(select(Party.id, Party.name).where(Party.id.in_(per_supplier)))).all()
-        )
-        if per_supplier
-        else {}
-    )
-
-    total_qty = sum((s[1] for s in per_supplier.values()), _ZERO)
-    total_amount = sum((s[2] for s in per_supplier.values()), _ZERO)
-    avg = (total_amount / total_qty) if total_qty else None
-    suppliers = []
-    for sid, (bills, qty, amount, low, high) in per_supplier.items():
-        rate = amount / qty
-        saving = (avg - rate) * qty if avg is not None else _ZERO
-        suppliers.append(
-            SupplierPrice(
-                supplier_id=sid,
-                name=names.get(sid, "—"),
-                bills=bills,
-                qty=qty,
-                amount=amount,
-                avg_rate=round(rate, 4),
-                min_rate=low,
-                max_rate=high,
-                last_rate=last[sid][0],
-                last_date=last[sid][1],
-                diff_pct=round((rate - avg) / avg * 100, 2) if avg else 0,
-                saving=round(saving, 2),
-                roi_pct=round(saving / amount * 100, 2) if amount else 0,
-            )
-        )
-    suppliers.sort(key=lambda s: s.avg_rate)
-
-    series = []
-    for p in periods(d_from, d_to, unit):
-        bucket = by_period.get(p, {})
-        qty = sum((q for q, _ in bucket.values()), _ZERO)
-        amount = sum((a for _, a in bucket.values()), _ZERO)
-        series.append(
-            PricePoint(
-                period=p,
-                avg_rate=round(amount / qty, 4) if qty else None,
-                qty=qty,
-                suppliers={sid: round(a / q, 4) for sid, (q, a) in bucket.items() if q},
-            )
-        )
-    return PriceHistory(
-        item=item,
-        unit=unit_of(item),
-        avg_rate=round(avg, 4) if avg is not None else None,
-        min_rate=min((s.min_rate for s in suppliers), default=None),
-        max_rate=max((s.max_rate for s in suppliers), default=None),
-        qty=total_qty,
-        amount=total_amount,
-        suppliers=suppliers,
         series=series,
     )
 

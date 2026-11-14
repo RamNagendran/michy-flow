@@ -7,7 +7,7 @@ from app.auth.dependencies import require_company_permission
 from app.auth.permissions import CompanyPermission as P
 from app.core.db import get_db
 from app.core.errors import InvalidError
-from app.models.catalog import input_choices, is_item
+from app.models.catalog import input_choices, is_item, output_choices
 from app.models.enums import Grade
 from app.routers._range import Range, report_range
 from app.schemas.analytics import (
@@ -17,7 +17,7 @@ from app.schemas.analytics import (
     TradeAnalysis,
     TrendPoint,
 )
-from app.services import analytics_service
+from app.services import analytics_service, price_service
 from app.services.access_service import CompanyContext
 
 router = APIRouter(prefix="/companies/{company_id}", tags=["analytics"])
@@ -46,15 +46,16 @@ async def oil_kpi(
 @router.get("/prices", response_model=PriceHistory)
 async def prices(
     item: str = Query(..., max_length=20),
+    side: Literal["purchase", "sale"] = Query("purchase"),
     r: Range = Depends(report_range),
     ctx: CompanyContext = Depends(require_company_permission(P.VIEW_FINANCE)),
     db: AsyncSession = Depends(get_db),
 ) -> PriceHistory:
-    """What each supplier charged for one item, against the average, over time."""
-    if item not in input_choices():
+    """What each supplier charged (or each buyer paid) for one item, against the average."""
+    if item not in (input_choices() if side == "purchase" else output_choices() | input_choices()):
         raise InvalidError("Unknown item")
-    return await analytics_service.prices(
-        db, ctx.company.id, item, r.date_from, r.date_to, r.bucket
+    return await price_service.prices(
+        db, ctx.company.id, side, item, r.date_from, r.date_to, r.bucket
     )
 
 

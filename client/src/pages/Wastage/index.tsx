@@ -73,6 +73,7 @@ export default function Wastage() {
               <p>The Super Admin can approve one month or several together, ask the Manager a question, or change the wastage. The Manager replies and sends it back.</p>
               <p>If the Super Admin changes the wastage, the difference is taken out of (or put back into) raw stock by share of tyres used in that month. It happens only on approval.</p>
               <p>After approval, production for that month is locked. Only the Super Admin can change wastage.</p>
+              <p>Stock count: raw material found missing is added to that month's wastage. The count already took it out of stock, so approval does not take it out again.</p>
             </HintButton>
           </Space>
         }

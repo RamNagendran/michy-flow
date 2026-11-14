@@ -29,10 +29,7 @@ async def test_old_runs_over_the_limit_are_approved_without_a_debit_note(
 async def test_stock_check_adjusts_the_book_stock(client: AsyncClient) -> None:
     t = await team(client)
     await purchase(client, t, t.admin, "1000")
-    body = {
-        "counted_on": TODAY,
-        "lines": [{"section": "raw", "item": "truck", "counted_qty": "950"}],
-    }
+    body = {"lines": [{"section": "raw", "item": "truck", "counted_qty": "950"}]}
     url = t.url("/stock-checks")
     # Only the Super Admin counts the stock.
     for someone in (t.finance, t.manager):
@@ -43,11 +40,52 @@ async def test_stock_check_adjusts_the_book_stock(client: AsyncClient) -> None:
     line = await stock_of(client, t, "truck")
     assert line["provisional"]["balance"] == 950 and line["counted_adjustment"] == 50
     stock = (await client.get(t.url("/stock"), headers=bearer(t.admin))).json()
-    assert stock["last_check_on"] == TODAY and stock["check_every_months"] == 1
     history = (await client.get(url, headers=bearer(t.admin))).json()
+    assert stock["last_check_on"] == history[0]["counted_on"] and stock["check_every_months"] == 1
     assert history[0]["lines"][0]["difference"] == 50
     unknown = {**body, "lines": [{"section": "output", "item": "oil", "counted_qty": "1"}]}
     assert (await client.post(url, json=unknown, headers=bearer(t.admin))).status_code == 422
+
+
+async def test_stock_count_waits_for_approvals_and_is_only_for_today(client: AsyncClient) -> None:
+    t = await team(client)
+    await purchase(client, t, t.admin, "1000")
+    waiting = (await purchase(client, t, t.admin, "500", n=2, approve=False)).json()
+    url = t.url("/stock-checks")
+    body = {"lines": [{"section": "raw", "item": "truck", "counted_qty": "950"}]}
+    stock = (await client.get(t.url("/stock"), headers=bearer(t.admin))).json()
+    assert stock["entries_waiting"] == 1
+    res = await client.post(url, json=body, headers=bearer(t.admin))
+    assert res.status_code == 409 and res.json()["code"] == "entries_waiting"
+
+    assert (await act(client, t, t.super_admin, waiting, "reject", "Wrong bill")).status_code == 200
+    old = {**body, "counted_on": "2026-10-31"}
+    res = await client.post(url, json=old, headers=bearer(t.admin))
+    assert res.status_code == 422 and res.json()["code"] == "count_not_today"
+    assert (await client.post(url, json=body, headers=bearer(t.admin))).status_code == 201
+
+
+async def test_raw_material_missing_in_a_count_is_part_of_the_months_wastage(
+    client: AsyncClient,
+) -> None:
+    t = await team(client)
+    await purchase(client, t, t.admin, "1000")
+    await production(client, t, t.admin, {"rubber": "480"}, wastage_kg="20")  # 500 kg used
+    body = {"lines": [{"section": "raw", "item": "truck", "counted_qty": "450"}]}
+    res = await client.post(t.url("/stock-checks"), json=body, headers=bearer(t.admin))
+    assert res.status_code == 201, res.text
+    # The count corrects the stock once ...
+    assert (await stock_of(client, t, "truck"))["provisional"]["balance"] == 450
+    # ... and the 50 kg missing is in this month's wastage, so it is not taken out again. The
+    # run's own month keeps its 20 kg.
+    day = res.json()["counted_on"]
+    res = await client.get(
+        t.url(f"/wastage?date_from={TODAY}&date_to={day}"), headers=bearer(t.manager)
+    )
+    run_month, count_month = res.json()[0], res.json()[-1]
+    assert run_month["wastage_kg"] == 20 and run_month["counted_kg"] == 0
+    assert count_month["counted_kg"] == 50 and count_month["calculated_kg"] == 50
+    assert count_month["wastage_kg"] == 50 and count_month["adjustments"] == []
 
 
 async def test_super_admin_configures_items_and_kg_per_litre(client: AsyncClient) -> None:

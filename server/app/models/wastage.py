@@ -51,6 +51,8 @@ class WastageMonthRecord(TimestampMixin, Base):
     processed_kg: Mapped[Decimal | None] = mapped_column(QTY)
     output_kg: Mapped[Decimal | None] = mapped_column(QTY)
     calculated_kg: Mapped[Decimal | None] = mapped_column(QTY)
+    # The part of calculated_kg found missing in the month's stock counts.
+    counted_kg: Mapped[Decimal | None] = mapped_column(QTY)
     approved_kg: Mapped[Decimal | None] = mapped_column(QTY)
     approved_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -13,7 +13,7 @@ import { SCREEN_ACCESS } from './utils/permissions'
 const pageLoaders: (() => Promise<unknown>)[] = []
 
 /** A lazily loaded page whose code can also be fetched ahead of time (see PreloadPages). */
-function page(load: () => Promise<{ default: ComponentType }>) {
+function page<P extends object = object>(load: () => Promise<{ default: ComponentType<P> }>) {
   pageLoaders.push(load)
   return lazy(load)
 }
@@ -110,7 +110,8 @@ export default function App() {
                   <Route path="sales/new" element={<ProtectedRoute anyOf={['enter_sales']}><NewSale /></ProtectedRoute>} />
                   <Route path="finance" element={<Screen name="finance"><Finance /></Screen>} />
                   <Route path="reports" element={<Screen name="reports"><Reports /></Screen>} />
-                  <Route path="pricing" element={<Screen name="pricing"><Pricing /></Screen>} />
+                  <Route path="pricing" element={<Screen name="pricing"><Pricing key="purchase" /></Screen>} />
+                  <Route path="sale-pricing" element={<Screen name="pricing"><Pricing key="sale" side="sale" /></Screen>} />
                   <Route path="wastage" element={<Screen name="wastage"><Wastage /></Screen>} />
                   <Route path="review" element={<Screen name="review"><Review /></Screen>} />
                   <Route path="parties" element={<Screen name="parties"><Parties /></Screen>} />

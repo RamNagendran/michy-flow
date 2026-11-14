@@ -79,6 +79,27 @@ async def test_price_history_compares_suppliers_with_the_average(client: AsyncCl
     ).status_code == 403
 
 
+async def test_sale_prices_put_the_best_paying_buyer_first(client: AsyncClient) -> None:
+    t = await team(client)
+    await purchase(client, t, t.admin, "5000")
+    await production(client, t, t.admin, {"rubber": "4000"})
+    good = await party(client, t, "buyer", "Apex Rubbers")
+    for buyer, qty, rate, n in ((t.buyer, "1000", "30", 1), (good, "1000", "34", 2)):
+        body = {"entry_date": TODAY, "buyer_id": buyer, "product": "rubber", "qty": qty}
+        body |= {"rate": rate, "invoice_no": f"MR/{n}"}
+        res = await client.post(t.url("/sales"), json=body, headers=bearer(t.admin))
+        await approve_new(client, t, res)
+    url = t.url(f"/prices?item=rubber&side=sale&date_from={TODAY}&date_to={TODAY}")
+    res = await client.get(url, headers=bearer(t.finance))
+    assert res.status_code == 200, res.text
+    h = res.json()
+    assert h["side"] == "sale" and h["avg_rate"] == 32 and h["qty"] == 2000
+    first, second = h["suppliers"]
+    # Apex paid ₹2 over the average on 1000 kg; the other buyer ₹2 under.
+    assert first["name"] == "Apex Rubbers" and first["saving"] == 2000
+    assert second["saving"] == -2000
+
+
 async def test_trade_analysis_splits_by_item_supplier_and_grade(client: AsyncClient) -> None:
     t = await team(client)
     cheap = await party(client, t, "supplier", "Kaveri Scrap")

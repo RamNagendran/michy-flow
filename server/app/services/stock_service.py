@@ -129,8 +129,23 @@ def _lines(
     return lines
 
 
+async def entries_waiting(db: AsyncSession, company_id: int) -> int:
+    """Entries the Manager has not approved yet (nor rejected). They are not in the stock, but
+    their goods may already have moved, so a stock count must wait for them."""
+    counts = [
+        select(func.count()).where(
+            model.company_id == company_id,
+            model.approved_at.is_(None),
+            *_live(model),
+        )
+        for model in (Purchase, Sale, Production)
+    ]
+    return sum((await db.execute(union_all(*counts))).scalars())
+
+
 async def _check_schedule(db: AsyncSession, company: Company) -> dict:
-    """When the Manager last counted the stock, and when the next count is due."""
+    """When the Super Admin last counted the stock, when the next count is due, and how many
+    entries must be approved before a count."""
     last = await db.scalar(
         select(func.max(StockCheck.counted_on)).where(StockCheck.company_id == company.id)
     )
@@ -141,6 +156,7 @@ async def _check_schedule(db: AsyncSession, company: Company) -> dict:
         "last_check_on": last,
         "next_check_due": due,
         "check_overdue": today() > due,
+        "entries_waiting": await entries_waiting(db, company.id),
     }
 
 

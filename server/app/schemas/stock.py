@@ -41,6 +41,8 @@ class CompanyStock(BaseModel):
     last_check_on: date | None
     next_check_due: date
     check_overdue: bool
+    # Entries waiting for the Manager. The stock cannot be counted until this is 0.
+    entries_waiting: int = 0
 
 
 class ItemTotal(BaseModel):

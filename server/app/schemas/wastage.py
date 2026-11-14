@@ -30,7 +30,11 @@ class WastageMonth(BaseModel):
     runs: int
     processed_kg: float
     output_kg: float
-    calculated_kg: float  # what the production entries add up to (2% of each run's output)
+    # Production wastage + raw material found missing in stock counts that month.
+    calculated_kg: float
+    # Grade A raw material missing in the month's stock counts (negative: more was found). The
+    # count already corrected the stock, so this part never moves stock again.
+    counted_kg: float = 0
     wastage_kg: float  # the figure for the month: the Super Admin's own, if they changed it
     wastage_pct: float  # of the processed weight
     changed: bool  # the Super Admin's figure differs from the production total
@@ -95,7 +99,8 @@ class CountLine(BaseModel):
 
 
 class StockCheckInput(BaseModel):
-    counted_on: date
+    # A count is always for today; left out means today.
+    counted_on: date | None = None
     note: Text = ""
     lines: list[CountLine] = Field(min_length=1, max_length=100)
 

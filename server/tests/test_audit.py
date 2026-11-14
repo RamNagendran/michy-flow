@@ -4,7 +4,7 @@ from httpx import AsyncClient
 
 from app.core.clock import today
 from tests.conftest import bearer, make_gstin
-from tests.entry_helpers import TODAY, purchase, team
+from tests.entry_helpers import purchase, team
 
 
 async def _logs(client: AsyncClient, token: str, query: str = "") -> list[dict]:
@@ -34,10 +34,7 @@ async def test_edits_keep_the_old_and_new_values(client: AsyncClient) -> None:
 async def test_stock_check_is_in_the_audit_trail(client: AsyncClient) -> None:
     t = await team(client)
     await purchase(client, t, t.admin, "1000")
-    body = {
-        "counted_on": TODAY,
-        "lines": [{"section": "raw", "item": "truck", "counted_qty": "950"}],
-    }
+    body = {"lines": [{"section": "raw", "item": "truck", "counted_qty": "950"}]}
     assert (
         await client.post(t.url("/stock-checks"), json=body, headers=bearer(t.admin))
     ).status_code == 201

@@ -13,7 +13,11 @@ Until approval the figures are worked out live from production, so a late Januar
 lands in January. Approval saves them and locks the month: production dated in an approved
 month cannot be added, changed or rejected.
 
-When the Super Admin changes the figure, the difference from the production total is spread
+A month's figure is its production wastage plus the Grade A raw material found missing in
+that month's stock counts (wastage_service). The count already corrected the stock, so that part
+never moves stock again; it is in the figure so the Super Admin does not take it out twice.
+
+When the Super Admin changes the figure, the difference from that total is spread
 over the raw materials processed that month, by their share of the processed weight. It is
 shown on the month before approval, and approval takes it out of (or puts it back into) Grade A
 raw stock. Every step goes to the month's history and the company audit log.
@@ -37,6 +41,8 @@ from app.core.periods import truncate
 from app.models import (
     Production,
     ProductionMaterial,
+    StockCheck,
+    StockCheckLine,
     User,
     WastageAdjustment,
     WastageMonthEvent,
@@ -84,12 +90,20 @@ class _Totals:
     processed: Decimal = _ZERO
     output: Decimal = _ZERO
     wastage: Decimal = _ZERO
+    counted: Decimal = _ZERO  # Grade A raw material missing in the month's stock counts
     shares: dict[str, Decimal] = field(default_factory=dict)  # raw material → processed kg
+
+    @property
+    def base(self) -> Decimal:
+        """The month's wastage before any change: production + missing in counts (never below 0).
+        The counts already corrected the stock, so only a change from this moves stock."""
+        return max(self.wastage + self.counted, _ZERO)
 
 
 async def _totals(db: AsyncSession, company_id: int, first: date, last: date) -> dict:
-    """{month: _Totals} for every month from `first` to `last` with production. Two queries,
-    on the (company, date) index: the month's totals, and its processed kg per raw material."""
+    """{month: _Totals} for every month from `first` to `last` with production or a stock
+    count. Three queries, on the (company, date) indexes: the month's totals, its processed kg
+    per raw material, and the raw material missing in its stock counts."""
     month = truncate(Production.entry_date, "month")
     live = (*_live(company_id), Production.entry_date.between(first, _month_end(last)))
     rows = await db.execute(
@@ -114,6 +128,20 @@ async def _totals(db: AsyncSession, company_id: int, first: date, last: date) ->
     )
     for key, material, processed in shares:
         out[key].shares[material] = processed
+    counted_month = truncate(StockCheck.counted_on, "month")
+    counts = await db.execute(
+        select(counted_month, func.sum(StockCheckLine.difference))
+        .join(StockCheck, StockCheck.id == StockCheckLine.check_id)
+        .where(
+            StockCheck.company_id == company_id,
+            StockCheck.counted_on.between(first, _month_end(last)),
+            StockCheckLine.section == "raw",
+        )
+        .group_by(counted_month)
+    )
+    for key, missing in counts:
+        if missing:
+            out[key].counted = missing
     return out
 
 
@@ -143,11 +171,13 @@ def _view(
     if record is not None and record.status == APPROVED:
         runs, processed, output = record.runs or 0, record.processed_kg, record.output_kg
         calculated, final = record.calculated_kg, record.approved_kg
+        counted = record.counted_kg or _ZERO
         total = sum((a.processed_kg for a in record.adjustments), _ZERO)
         shares = [_share(a.item, a.processed_kg, total, a.qty) for a in record.adjustments]
     else:
         t = totals or _Totals()
-        runs, processed, output, calculated = t.runs, t.processed, t.output, t.wastage
+        runs, processed, output, calculated = t.runs, t.processed, t.output, t.base
+        counted = t.counted
         target = record.target_kg if record is not None else None
         final = calculated if target is None else target
         shares = [
@@ -165,6 +195,7 @@ def _view(
         processed_kg=processed or _ZERO,
         output_kg=output or _ZERO,
         calculated_kg=calculated or _ZERO,
+        counted_kg=counted,
         wastage_kg=final or _ZERO,
         wastage_pct=round(final / processed * 100, 3) if processed else 0,
         changed=final != calculated,
@@ -408,7 +439,7 @@ async def change(
     calculated = (
         (await _totals(db, ctx.company.id, record.month, record.month))
         .get(record.month, _Totals())
-        .wastage
+        .base
     )
     old = calculated if record.target_kg is None else record.target_kg
     new = data.wastage_kg.quantize(_GRAM)
@@ -438,7 +469,7 @@ async def approve(
         if record.status == APPROVED:
             raise _status_error(record, "approved")
         t = totals.get(month, _Totals())
-        final = t.wastage if record.target_kg is None else record.target_kg
+        final = t.base if record.target_kg is None else record.target_kg
         if abs(final - wanted[month]) >= _GRAM:
             raise ConflictError(
                 f"{month:%B %Y} changed since you opened it: wastage is now {final:,.3f} kg. "
@@ -446,15 +477,18 @@ async def approve(
                 code="wastage_changed",
             )
         record.runs, record.processed_kg, record.output_kg = t.runs, t.processed, t.output
-        record.calculated_kg, record.approved_kg = t.wastage, final
+        record.calculated_kg, record.approved_kg = t.base, final
+        record.counted_kg = t.counted
         record.status, record.escalated_at = APPROVED, None
         record.approved_by_id, record.approved_at = ctx.user.id, now()
-        moved = _spread(final - t.wastage, t.shares)
+        moved = _spread(final - t.base, t.shares)
         record.adjustments = [
             WastageAdjustment(company_id=cid, item=item, processed_kg=kg, qty=qty)
             for item, kg, qty in moved
         ]
         changes: dict = {"wastage_kg": str(final), "production_kg": str(t.wastage)}
+        if t.counted:
+            changes["counted_kg"] = str(t.counted)
         if moved:
             changes["stock_kg"] = {item: str(-qty) for item, _, qty in moved}
         _event(db, ctx, record, "approved", data.comment, changes, request)

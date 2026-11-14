@@ -3,13 +3,14 @@ import PriceChart from '../../components/charts/PriceChart'
 import EntryTable from '../../components/entries/EntryTable'
 import { itemName } from '../../data/catalog'
 import type { Company } from '../../types/auth'
-import type { Bucket, PriceHistory, SupplierPrice } from '../../types/reports'
+import type { Bucket, PriceHistory, SupplierPrice, TradeSide } from '../../types/reports'
 import { formatDate, formatINR, formatPercent, formatQty, formatRateIn } from '../../utils/format'
 
-/** One supplier: their price against the average over time, the numbers, and their bills. */
-export default function SupplierDrawer({ company, history, supplier, bucket, onClose }: { company: Company; history: PriceHistory | undefined; supplier: SupplierPrice | null; bucket: Bucket; onClose: () => void }) {
+/** One supplier (or buyer): their price against the average over time, the numbers, and their bills. */
+export default function SupplierDrawer({ side, company, history, supplier, bucket, onClose }: { side: TradeSide; company: Company; history: PriceHistory | undefined; supplier: SupplierPrice | null; bucket: Bucket; onClose: () => void }) {
   const unit = history?.unit ?? 'kg'
   const s = supplier
+  const gainLabel = side === 'purchase' ? (s && s.saving >= 0 ? 'Saved vs average' : 'Paid over average') : s && s.saving >= 0 ? 'Earned over average' : 'Below average'
   return (
     <Drawer open={!!s} onClose={onClose} width={760} title={s ? `${s.name} · ${itemName(history?.item ?? '')}` : ''} destroyOnHidden>
       {s && (
@@ -18,9 +19,9 @@ export default function SupplierDrawer({ company, history, supplier, bucket, onC
             {(
               [
                 ['Their average', formatRateIn(s.avg_rate, unit), `${s.diff_pct > 0 ? '+' : ''}${formatPercent(s.diff_pct, 1)} vs average`],
-                ['Market average', history?.avg_rate ? formatRateIn(history.avg_rate, unit) : '—', 'all suppliers, weighted'],
+                ['Market average', history?.avg_rate ? formatRateIn(history.avg_rate, unit) : '—', `all ${side === 'purchase' ? 'suppliers' : 'buyers'}, weighted`],
                 ['Last price', formatRateIn(s.last_rate, unit), formatDate(s.last_date)],
-                [s.saving >= 0 ? 'Saved vs average' : 'Paid over average', formatINR(Math.abs(s.saving)), `ROI ${formatPercent(s.roi_pct, 1)} on ${formatQty(s.qty, unit)}`],
+                [gainLabel, formatINR(Math.abs(s.saving)), `ROI ${formatPercent(s.roi_pct, 1)} on ${formatQty(s.qty, unit)}`],
               ] as const
             ).map(([label, value, sub], i) => (
               <div key={label} className="surface stat-tile">
@@ -37,7 +38,7 @@ export default function SupplierDrawer({ company, history, supplier, bucket, onC
             Their bills
           </div>
           <div className="surface table-card">
-            <EntryTable types={['purchase']} companies={[company]} partyId={s.supplier_id} item={history?.item} pageSize={8} compact />
+            <EntryTable types={[side]} companies={[company]} partyId={s.supplier_id} item={history?.item} pageSize={8} compact />
           </div>
         </div>
       )}
