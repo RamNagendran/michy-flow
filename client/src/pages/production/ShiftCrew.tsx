@@ -66,7 +66,7 @@ export default function ShiftCrew({ companyId, shift, machine, onMachine, crew, 
         </div>
       </div>
       <div style={{ marginTop: 20 }}>
-        <div style={{ fontWeight: 700, marginBottom: 6 }}>{requiredMark('Operators on this shift', { required: false })}</div>
+        <div style={{ fontWeight: 700, marginBottom: 6 }}>{requiredMark('Operators on this shift', { required: true })}</div>
         <Select<number[]>
           mode="multiple"
           size="large"

@@ -25,6 +25,7 @@ class Team:
     supplier: int
     buyer: int
     machine: int = 0
+    crew: int = 0
 
     def url(self, path: str = "") -> str:
         return f"/companies/{self.company['id']}{path}"
@@ -58,6 +59,11 @@ async def team(client: AsyncClient, category: str = "crumb") -> Team:
     )
     assert res.status_code == 201, res.text
     t.machine = res.json()["id"]
+    res = await client.post(
+        t.url("/operators"), json={"name": "Selvam", "phone": "1"}, headers=bearer(t.manager)
+    )
+    assert res.status_code == 201, res.text
+    t.crew = res.json()["id"]
     return t
 
 
@@ -116,6 +122,7 @@ async def production(
     body = {
         "entry_date": TODAY,
         "machine_id": t.machine,
+        "crew_ids": [t.crew],
         "material": "truck",
         "wastage_kg": wastage_kg,
         "wastage_type": wastage_type or ("solid" if wastage_kg else None),

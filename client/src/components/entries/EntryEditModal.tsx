@@ -4,7 +4,7 @@ import dayjs, { type Dayjs } from 'dayjs'
 import { companyItems, toKg, unitOf } from '../../data/catalog'
 import { itemAllowed, itemsFor } from '../../data/grades'
 import { useParties } from '../../hooks/queries/parties'
-import { useMachines } from '../../hooks/queries/plant'
+import { useMachines, useOperators } from '../../hooks/queries/plant'
 import { useUpdateEntry } from '../../hooks/queries/entries'
 import { errorMessage } from '../../services/apiError'
 import type { EntryDetail, Grade, WastageType } from '../../types/entries'
@@ -33,6 +33,8 @@ interface Values {
   shift?: number | null
   /** Production: the machine the run was on. */
   machine_id?: number
+  /** Production: the operators on the shift. */
+  crew_ids?: number[]
   outputs?: Record<string, number | null>
   notes: string
   comment: string
@@ -43,6 +45,7 @@ export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail;
   const [form] = Form.useForm<Values>()
   const isProduction = entry.type === 'production'
   const machines = useMachines(isProduction ? entry.company_id : undefined)
+  const operators = useOperators(isProduction ? entry.company_id : undefined)
   const grade: Grade = Form.useWatch('grade', form) ?? entry.grade
   const item: string | undefined = Form.useWatch('item', form) ?? entry.item
   const company = useAccess().accessFor(entry.company_id)?.company ?? { category: 'crumb' as const }
@@ -82,6 +85,7 @@ export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail;
     vehicle_nos: entry.vehicle_nos ?? [],
     shift: entry.shift,
     machine_id: entry.machine?.id,
+    crew_ids: entry.crew.map((c) => c.id),
     outputs: Object.fromEntries(process.outputs.map((o) => [o.id, entry.outputs.find((x) => x.product === o.id)?.qty ?? null])),
     notes: entry.notes,
     comment: '',
@@ -96,7 +100,7 @@ export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail;
       sale.mutate({ ...target, body: { ...base, buyer_id: v.party_id!, grade: v.grade, product: v.item, qty: v.qty, rate: v.rate!, invoice_no: v.invoice_no! } }, { onSuccess: onClose })
     } else if (!problem) {
       const outs = Object.entries(v.outputs ?? {}).map(([product, qty]) => ({ product, qty: qty ?? 0 }))
-      production.mutate({ ...target, body: { ...base, materials: (v.items ?? []).map((m) => ({ material: m, kg: split[m] })), wastage_kg: v.wastage_type ? (v.wastage_kg ?? null) : null, wastage_type: v.wastage_type ?? null, returned_kg: entry.returned_kg ?? 0, shift: v.shift ?? null, crew_ids: entry.crew.map((c) => c.id), machine_id: v.machine_id!, running_hours: entry.running_hours, outputs: outs } }, { onSuccess: onClose })
+      production.mutate({ ...target, body: { ...base, materials: (v.items ?? []).map((m) => ({ material: m, kg: split[m] })), wastage_kg: v.wastage_type ? (v.wastage_kg ?? null) : null, wastage_type: v.wastage_type ?? null, returned_kg: entry.returned_kg ?? 0, shift: v.shift ?? null, crew_ids: v.crew_ids ?? [], machine_id: v.machine_id!, running_hours: entry.running_hours, outputs: outs } }, { onSuccess: onClose })
     }
   }
 
@@ -184,6 +188,19 @@ export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail;
               loading={machines.isLoading}
               // A machine no longer in use can stay on this run, but cannot be newly chosen.
               options={(machines.data ?? []).map((m) => ({ value: m.id, label: `${m.code} · ${m.name}${m.is_active ? '' : ' (not in use)'}`, disabled: !m.is_active && m.id !== entry.machine?.id }))}
+            />
+          </Form.Item>
+        )}
+        {isProduction && (
+          <Form.Item label="Operators on this shift" name="crew_ids" rules={[{ required: true, type: 'array', min: 1, message: 'Choose at least one operator' }]}>
+            <Select
+              mode="multiple"
+              showSearch={{ optionFilterProp: 'label' }}
+              placeholder="Choose the operators"
+              loading={operators.isLoading}
+              maxTagCount="responsive"
+              // Operators no longer active can stay on this run, but cannot be newly added.
+              options={(operators.data ?? []).map((o) => ({ value: o.id, label: `${o.name}${o.is_active ? '' : ' (inactive)'}`, disabled: !o.is_active && !entry.crew.some((c) => c.id === o.id) }))}
             />
           </Form.Item>
         )}

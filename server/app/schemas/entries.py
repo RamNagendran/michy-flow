@@ -158,8 +158,8 @@ class ProductionInput(EntryInput):
     # Raw material put back into stock after the run; stock goes down by outputs + wastage - this.
     returned_kg: KgOrZero = Decimal(0)
     shift: int | None = Field(default=None, ge=1, le=3)
-    # Operators on the shift (operator ids), picked by the production in-charge.
-    crew_ids: list[int] = Field(default_factory=list, max_length=50)
+    # Operators on the shift (operator ids), picked by the production in-charge: at least one.
+    crew_ids: list[int] = Field(min_length=1, max_length=50)
     # The machine the run was on, from the Manager's list.
     machine_id: int = Field(gt=0)
     running_hours: Decimal | None = Field(default=None, gt=0, le=24, max_digits=5, decimal_places=2)

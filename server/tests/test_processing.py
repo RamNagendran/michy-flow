@@ -14,6 +14,7 @@ async def _run(client: AsyncClient, t: Team, material: str, outputs: dict, **ext
     body = {
         "entry_date": TODAY,
         "machine_id": t.machine,
+        "crew_ids": [t.crew],
         "material": material,
         "outputs": [{"product": p, "qty": q} for p, q in outputs.items()],
         **extra,
@@ -109,6 +110,7 @@ async def test_a_run_may_use_several_raw_materials(client: AsyncClient) -> None:
     body = {
         "entry_date": TODAY,
         "machine_id": t.machine,
+        "crew_ids": [t.crew],
         "outputs": [{"product": "rubber", "qty": "480"}],
         **extra,
     }

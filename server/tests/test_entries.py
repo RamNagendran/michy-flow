@@ -40,6 +40,7 @@ async def test_production_works_out_input_and_wastage(client: AsyncClient) -> No
         body = {
             "entry_date": TODAY,
             "machine_id": t.machine,
+            "crew_ids": [t.crew],
             "material": "truck",
             "outputs": [{"product": "rubber", "qty": "1"}],
         }
@@ -50,6 +51,7 @@ async def test_production_works_out_input_and_wastage(client: AsyncClient) -> No
     body = {
         "entry_date": TODAY,
         "machine_id": t.machine,
+        "crew_ids": [t.crew],
         "material": "truck",
         "outputs": [{"product": "rubber", "qty": "1"}],
     }

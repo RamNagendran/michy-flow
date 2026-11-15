@@ -84,7 +84,7 @@ function NewProduction() {
   const problem = materials.length ? splitProblem(stockOutKg, split, available) : null
   const machines = useMachines(companyId)
   const machineLabel = machines.data?.find((m) => m.id === machine)
-  const canNext = [!!company && !!machineLabel, anyOutput, materials.length > 0 && !problem, true][step]
+  const canNext = [!!company && !!machineLabel && crew.length > 0, anyOutput, materials.length > 0 && !problem, true][step]
   // A new total or a new set of materials is shared equally again.
   const changeOut = (fn: () => void) => {
     fn()

@@ -12,7 +12,8 @@ REPORT = f"/plant-report?date_from={TODAY}&date_to={TODAY}"
 async def test_the_manager_keeps_operators_and_machines(client: AsyncClient) -> None:
     t = await team(client)
     url = t.url("/operators")
-    assert (await client.get(url, headers=bearer(t.operator))).json() == []
+    names = lambda res: [o["name"] for o in res.json()]  # noqa: E731
+    assert names(await client.get(url, headers=bearer(t.operator))) == ["Selvam"]
     res = await client.post(
         url,
         json={"name": "  Murugan  ", "phone": "94433 51902", "email": "", "shift": 2},
@@ -37,8 +38,8 @@ async def test_the_manager_keeps_operators_and_machines(client: AsyncClient) -> 
     off = {"name": "Murugan", "phone": "94433 51902", "is_active": False}
     res = await client.put(f"{url}/{murugan['id']}", json=off, headers=bearer(t.manager))
     assert res.status_code == 200 and not res.json()["is_active"]
-    assert (await client.get(url, headers=bearer(t.operator))).json() == []
-    assert len((await client.get(url, headers=bearer(t.manager))).json()) == 1
+    assert names(await client.get(url, headers=bearer(t.operator))) == ["Selvam"]
+    assert len((await client.get(url, headers=bearer(t.manager))).json()) == 2
 
     machines = t.url("/machines")
     taken = {"code": "m-01 ", "name": "Another"}
@@ -73,9 +74,11 @@ async def test_every_run_names_a_machine_and_the_report_credits_it(client: Async
         "wastage_kg": "19",
         "wastage_type": "liquid",
     }
-    no_machine = {k: v for k, v in body.items() if k != "machine_id"}
     url = t.url("/production")
-    assert (await client.post(url, json=no_machine, headers=bearer(t.admin))).status_code == 422
+    # The machine and at least one operator are required.
+    for missing in ({"machine_id": None}, {"crew_ids": []}):
+        res = await client.post(url, json={**body, **missing}, headers=bearer(t.admin))
+        assert res.status_code == 422, missing
     stranger = {**body, "crew_ids": [max(ops) + 1]}
     bad = await client.post(url, json=stranger, headers=bearer(t.admin))
     assert bad.status_code == 422 and bad.json()["code"] == "unknown_operator"

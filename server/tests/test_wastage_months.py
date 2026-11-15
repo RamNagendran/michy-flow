@@ -19,6 +19,7 @@ async def _run(client: AsyncClient, t: Team, day: str, rubber: str, material: st
     body = {
         "entry_date": day,
         "machine_id": t.machine,
+        "crew_ids": [t.crew],
         "material": material,
         "outputs": [{"product": "rubber", "qty": rubber}],
         "wastage_kg": str(Decimal(rubber) * 2 / 100),
@@ -99,6 +100,7 @@ async def test_ended_months_wait_for_the_super_admin_and_lock_once_approved(
     late = {
         "entry_date": AUG,
         "machine_id": t.machine,
+        "crew_ids": [t.crew],
         "material": "truck",
         "outputs": [{"product": "rubber", "qty": "10"}],
     }

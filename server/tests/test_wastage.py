@@ -110,6 +110,7 @@ async def test_super_admin_configures_items_and_kg_per_litre(client: AsyncClient
     body = {
         "entry_date": TODAY,
         "machine_id": t.machine,
+        "crew_ids": [t.crew],
         "material": "rubber",
         "outputs": [{"product": "oil", "qty": "900"}],
     }
