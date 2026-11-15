@@ -18,6 +18,7 @@ async def _run(client: AsyncClient, t: Team, day: str, rubber: str, material: st
     """A run approved by the Manager, with 2% of the output entered as wastage."""
     body = {
         "entry_date": day,
+        "machine_id": t.machine,
         "material": material,
         "outputs": [{"product": "rubber", "qty": rubber}],
         "wastage_kg": str(Decimal(rubber) * 2 / 100),
@@ -95,7 +96,12 @@ async def test_ended_months_wait_for_the_super_admin_and_lock_once_approved(
     assert res.status_code == 422 and res.json()["code"] == "month_open"
 
     # August is locked: no new run, no edit, no rejection dated in it.
-    late = {"entry_date": AUG, "material": "truck", "outputs": [{"product": "rubber", "qty": "10"}]}
+    late = {
+        "entry_date": AUG,
+        "machine_id": t.machine,
+        "material": "truck",
+        "outputs": [{"product": "rubber", "qty": "10"}],
+    }
     res = await client.post(t.url("/production"), json=late, headers=bearer(t.admin))
     assert res.status_code == 409 and res.json()["code"] == "month_locked"
     moved = {**late, "entry_date": TODAY, "comment": "wrong month"}

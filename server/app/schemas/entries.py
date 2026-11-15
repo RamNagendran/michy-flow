@@ -160,6 +160,8 @@ class ProductionInput(EntryInput):
     shift: int | None = Field(default=None, ge=1, le=3)
     # Operators on the shift (operator ids), picked by the production in-charge.
     crew_ids: list[int] = Field(default_factory=list, max_length=50)
+    # The machine the run was on, from the Manager's list.
+    machine_id: int = Field(gt=0)
     running_hours: Decimal | None = Field(default=None, gt=0, le=24, max_digits=5, decimal_places=2)
     outputs: list[OutputInput] = Field(min_length=1, max_length=50)
 
@@ -318,6 +320,12 @@ class CrewMember(BaseModel):
     name: str
 
 
+class MachineBrief(BaseModel):
+    id: int
+    code: str
+    name: str
+
+
 class DebitNoteRead(BaseModel):
     id: int
     note_no: str
@@ -393,6 +401,7 @@ class EntryDetail(BaseModel):
     wastage_type: WastageType | None = None
     wastage_pct: float | None = None
     crew: list[CrewMember] = []
+    machine: MachineBrief | None = None
     running_hours: float | None = None
     efficiency_pct: float | None = None  # running hours / shift hours
     kg_per_hour: float | None = None  # processed weight per running hour

@@ -94,19 +94,52 @@ class ShiftRow(BaseModel):
     efficiency_pct: float | None  # running hours / planned hours of the runs that logged hours
 
 
-class OperatorRow(BaseModel):
-    operator_id: int
-    name: str
-    runs: int
-    hours: float
-    processed_kg: float
-    kg_per_hour: float | None
-
-
 class ProductionReport(BaseModel):
     shift_hours: float
     by_shift: list[ShiftRow]
-    by_operator: list[OperatorRow]
+
+
+# ---------------------------------------------------------------------------
+# Operators and machines (Manager and Super Admin only)
+# ---------------------------------------------------------------------------
+
+
+class PlantFigures(BaseModel):
+    runs: int
+    hours: float
+    processed_kg: float
+    output_kg: float
+    wastage_kg: float
+    wastage_pct: float  # of the processed weight
+    kg_per_hour: float | None  # processed weight per running hour, over runs that logged hours
+    efficiency_pct: float | None  # running hours / planned hours of the runs that logged hours
+
+
+class PlantRow(PlantFigures):
+    """One operator (credited with every run they were on) or one machine."""
+
+    id: int
+    name: str
+    code: str | None = None  # machines only
+    is_active: bool
+
+
+class PlantPoint(BaseModel):
+    period: date
+    runs: int
+    hours: float
+    processed_kg: float
+    output_kg: float
+    wastage_kg: float
+
+
+class PlantReport(BaseModel):
+    shift_hours: float
+    bucket: str
+    totals: PlantFigures
+    by_operator: list[PlantRow]
+    by_machine: list[PlantRow]
+    trend: list[PlantPoint]
 
 
 # ---------------------------------------------------------------------------

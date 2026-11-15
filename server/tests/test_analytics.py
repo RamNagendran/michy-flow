@@ -13,6 +13,7 @@ async def test_trends_are_continuous_and_split_units(client: AsyncClient) -> Non
     await purchase(client, t, t.admin, "1000", material="car")
     body = {
         "entry_date": TODAY,
+        "machine_id": t.machine,
         "material": "car",
         "outputs": [{"product": "oil", "qty": "400"}, {"product": "steel", "qty": "150"}],
         "wastage_kg": "11",
@@ -38,6 +39,7 @@ async def test_oil_kpi_is_for_the_ceo_and_managers(client: AsyncClient) -> None:
     await purchase(client, t, t.admin, "1000", material="truck")
     body = {
         "entry_date": TODAY,
+        "machine_id": t.machine,
         "material": "truck",
         "outputs": [{"product": "oil", "qty": "450"}, {"product": "carbon", "qty": "400"}],
         "wastage_kg": "17",

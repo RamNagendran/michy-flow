@@ -12,12 +12,13 @@ from app.models.enums import Grade
 from app.routers._range import Range, report_range
 from app.schemas.analytics import (
     OilKpi,
+    PlantReport,
     PriceHistory,
     ProductionReport,
     TradeAnalysis,
     TrendPoint,
 )
-from app.services import analytics_service, price_service
+from app.services import analytics_service, plant_report_service, price_service
 from app.services.access_service import CompanyContext
 
 router = APIRouter(prefix="/companies/{company_id}", tags=["analytics"])
@@ -94,3 +95,24 @@ async def production_report(
 ) -> ProductionReport:
     """Running hours and throughput per shift and per operator."""
     return await analytics_service.production_report(db, ctx.company.id, r.date_from, r.date_to)
+
+
+@router.get("/plant-report", response_model=PlantReport)
+async def plant_report(
+    r: Range = Depends(report_range),
+    shift: list[int] = Query(default=[], max_length=3),
+    machine_id: list[int] = Query(default=[], max_length=50),
+    operator_id: list[int] = Query(default=[], max_length=50),
+    ctx: CompanyContext = Depends(require_company_permission(P.VIEW_PLANT_ANALYTICS)),
+    db: AsyncSession = Depends(get_db),
+) -> PlantReport:
+    """How each operator and machine performed: runs, hours, kg, wastage, kg per hour and
+    efficiency, and the trend over the period. Manager and Super Admin only."""
+    if any(s not in (1, 2, 3) for s in shift):
+        raise InvalidError("Shift must be 1, 2 or 3")
+    filters = plant_report_service.PlantFilters(
+        shifts=tuple(shift), machine_ids=tuple(machine_id), operator_ids=tuple(operator_id)
+    )
+    return await plant_report_service.plant_report(
+        db, ctx.company.id, r.date_from, r.date_to, r.bucket, filters
+    )

@@ -1,4 +1,4 @@
-"""Wastage limits, stock checks, configuration and operators on a shift. The monthly wastage
+"""Wastage limits, stock checks and configuration. The monthly wastage
 approval is in test_wastage_months.py."""
 
 from httpx import AsyncClient
@@ -109,6 +109,7 @@ async def test_super_admin_configures_items_and_kg_per_litre(client: AsyncClient
     assert (await purchase(client, t, t.admin, "1000", material="rubber")).status_code == 201
     body = {
         "entry_date": TODAY,
+        "machine_id": t.machine,
         "material": "rubber",
         "outputs": [{"product": "oil", "qty": "900"}],
     }
@@ -134,57 +135,3 @@ async def test_super_admin_configures_items_and_kg_per_litre(client: AsyncClient
     assert (
         await client.put(url, json=only_waste, headers=bearer(t.super_admin))
     ).status_code == 422
-
-
-async def test_production_in_charge_picks_the_crew(client: AsyncClient) -> None:
-    t = await team(client)
-    url = t.url("/operators")
-    assert (await client.get(url, headers=bearer(t.operator))).json() == []
-    # The in-charge adds operators by name and shift, with no login.
-    res = await client.post(
-        url, json={"name": "  Murugan  ", "shift": 2}, headers=bearer(t.operator)
-    )
-    assert res.status_code == 201, res.text
-    assert res.json()["name"] == "Murugan" and res.json()["shift"] == 2
-    dup = await client.post(url, json={"name": "murugan", "shift": 1}, headers=bearer(t.operator))
-    assert dup.status_code == 409
-    assert (
-        await client.post(url, json={"name": "Ravi", "shift": 4}, headers=bearer(t.operator))
-    ).status_code == 422
-    finance = await client.post(url, json={"name": "Ravi", "shift": 1}, headers=bearer(t.finance))
-    assert finance.status_code == 403
-    assert (await client.get(url, headers=bearer(t.finance))).status_code == 403
-    crew = (await client.get(url, headers=bearer(t.admin))).json()
-    ops = {c["id"] for c in crew}
-    assert [c["name"] for c in crew] == ["Murugan"]
-
-    await purchase(client, t, t.admin, "1000")
-    body = {
-        "entry_date": TODAY,
-        "material": "truck",
-        "shift": 2,
-        "crew_ids": sorted(ops),
-        "running_hours": "6",
-        # 941 kg out + 19 kg wastage = 960 kg used.
-        "outputs": [{"product": "rubber", "qty": "700"}, {"product": "steel", "qty": "241"}],
-        "wastage_kg": "19",
-        "wastage_type": "liquid",
-    }
-    res = await client.post(t.url("/production"), json=body, headers=bearer(t.admin))
-    assert res.status_code == 201, res.text
-    run = res.json()
-    assert run["efficiency_pct"] == 75.0 and run["kg_per_hour"] == 160.0
-    assert {c["id"] for c in run["crew"]} == ops
-
-    stranger = {**body, "crew_ids": [max(ops) + 1]}
-    bad = await client.post(t.url("/production"), json=stranger, headers=bearer(t.admin))
-    assert bad.status_code == 422 and bad.json()["code"] == "unknown_operator"
-
-    report = (
-        await client.get(
-            t.url(f"/production-report?date_from={TODAY}&date_to={TODAY}"), headers=bearer(t.admin)
-        )
-    ).json()
-    assert report["by_shift"][0]["shift"] == 2 and report["by_shift"][0]["efficiency_pct"] == 75.0
-    assert {o["operator_id"] for o in report["by_operator"]} == ops
-    assert report["by_operator"][0]["processed_kg"] == 960

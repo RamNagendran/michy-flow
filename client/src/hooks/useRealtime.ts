@@ -10,7 +10,7 @@ import { useNotify } from './useNotify'
 const kindLabel = { purchase: 'purchase', sale: 'sale', production: 'production entry' } as const
 
 /** Per-company queries worked out from entries; keyed [name, companyId, ...]. */
-const COMPANY_KEYS = ['stock', 'summary', 'trends', 'oil-kpi', 'prices', 'trade-analysis', 'production-report', 'wastage', 'debit-notes'] as const
+const COMPANY_KEYS = ['stock', 'summary', 'trends', 'oil-kpi', 'prices', 'trade-analysis', 'production-report', 'plant-report', 'wastage', 'debit-notes'] as const
 
 /** Waits this long and refetches once, however many events arrive (e.g. a bulk approval). */
 const BATCH_MS = 300
@@ -62,6 +62,7 @@ export function useRealtime(enabled: boolean) {
       if (e.type === 'company') return invalidate(['auth', 'me'], ['companies'], ['stock', e.company_id], ['wastage', e.company_id])
       if (e.type === 'catalog') return invalidate(['catalog'], ['companies'])
       if (e.type === 'party') return invalidate(['parties', e.company_id])
+      if (e.type === 'plant') return invalidate(['operators', e.company_id], ['machines', e.company_id], ['plant-report', e.company_id])
       if (e.type === 'stock') return invalidate(['stock', e.company_id], ['stock-checks', e.company_id], ['wastage', e.company_id])
       if (e.type === 'wastage') {
         invalidate(['wastage', e.company_id], ['wastage-queue'], ['stock', e.company_id])

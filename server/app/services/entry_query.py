@@ -24,7 +24,7 @@ from sqlalchemy.orm import aliased
 from app.auth.permissions import CompanyPermission as P
 from app.auth.permissions import visible_entry_types
 from app.core.config import settings
-from app.models import Company, Party, Production, Purchase, Sale, User
+from app.models import Company, Machine, Party, Production, Purchase, Sale, User
 from app.models.catalog import unit_of
 from app.models.enums import EntrySource, EntryStatus, EntryType, Grade
 from app.schemas.common import Paginated
@@ -33,6 +33,7 @@ from app.schemas.entries import (
     EntryDetail,
     EntryRow,
     EventRead,
+    MachineBrief,
     MaterialRead,
     OutputRead,
     StatusCount,
@@ -238,12 +239,16 @@ async def _names(db: AsyncSession, ids: set[int | None]) -> dict[int, str]:
 
 
 async def _production_extras(db: AsyncSession, run: Production) -> dict:
-    """The crew and efficiency."""
+    """The crew, machine and efficiency."""
     crew = await operator_service.names(db, run.crew_ids)
+    machine = await db.get(Machine, run.machine_id) if run.machine_id else None
     processed = run.input_kg - run.returned_kg
     hours = run.running_hours
     return {
         "crew": [CrewMember(id=i, name=crew[i]) for i in run.crew_ids if i in crew],
+        "machine": MachineBrief(id=machine.id, code=machine.code, name=machine.name)
+        if machine
+        else None,
         "running_hours": hours,
         "efficiency_pct": round(hours / Decimal(str(settings.SHIFT_HOURS)) * 100, 1)
         if hours

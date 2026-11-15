@@ -165,6 +165,10 @@ class Production(WorkflowMixin, Base):
     shift: Mapped[int | None] = mapped_column(Integer)
     # Operators who ran the shift (operator ids), chosen by the production in-charge.
     crew_ids: Mapped[list[int]] = mapped_column(ARRAY(Integer), default=list, server_default="{}")
+    # The machine the run was on. Required for new runs; empty on runs saved before machines.
+    machine_id: Mapped[int | None] = mapped_column(
+        ForeignKey("machines.id", ondelete="RESTRICT"), index=True
+    )
     # Hours the plant actually ran in the shift; efficiency = running hours / shift hours.
     running_hours: Mapped[Decimal | None] = mapped_column(Numeric(5, 2))
     # In-charges weigh only what came out, and may add a wastage (kg and its type) if there was

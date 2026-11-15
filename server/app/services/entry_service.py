@@ -111,6 +111,11 @@ async def _fields(
             grades.check_production(process, material, list(_outputs(data)))
         keep = frozenset(current.crew_ids) if isinstance(current, Production) else frozenset()
         await operator_service.require_crew(db, ctx.company.id, data.crew_ids, keep)
+        # Keeping the same, since-retired machine on an edit is fine; choosing one is not.
+        same_machine = isinstance(current, Production) and current.machine_id == data.machine_id
+        await operator_service.require_machine(
+            db, ctx.company.id, data.machine_id, allow_inactive=same_machine
+        )
         # In-charges do not know exactly how much went in, only what came out, plus any
         # wastage they saw. Stock goes down by output + wastage; the wastage is not an output.
         # Anything put back into stock is added back: stock goes down by that minus the return.
@@ -132,6 +137,7 @@ async def _fields(
             "returned_kg": data.returned_kg,
             "shift": data.shift,
             "crew_ids": data.crew_ids,
+            "machine_id": data.machine_id,
             "running_hours": data.running_hours,
             "output_kg": output,
             "calculated_input_kg": calculated,

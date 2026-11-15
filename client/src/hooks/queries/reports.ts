@@ -2,7 +2,7 @@ import { keepPreviousData, useQueries, useQuery } from '@tanstack/react-query'
 import { api } from '../../services/api'
 import { API_ROUTES } from '../../utils/apiRoutes'
 import type { Grade } from '../../types/entries'
-import type { Bucket, OilKpi, OilPoint, PriceHistory, ProductionReport, TradeAnalysis, TradeBill, TradeGrade, TradeItem, TradeItemPeriod, TradeParty, TradePartyPeriod, TradePeriod, TradeSide, TradeTotals, TrendPoint } from '../../types/reports'
+import type { Bucket, OilKpi, OilPoint, PlantFilters, PlantReport, PriceHistory, ProductionReport, TradeAnalysis, TradeBill, TradeGrade, TradeItem, TradeItemPeriod, TradeParty, TradePartyPeriod, TradePeriod, TradeSide, TradeTotals, TrendPoint } from '../../types/reports'
 import { bucketFor } from '../../utils/period'
 
 type Range = [string, string]
@@ -113,6 +113,17 @@ export function useProductionReport(companyId: number | undefined, range: Range)
   return useQuery({
     queryKey: ['production-report', companyId, range],
     queryFn: async () => (await api.get<ProductionReport>(API_ROUTES.reports.production(companyId!), { params: { date_from: range[0], date_to: range[1] } })).data,
+    enabled: !!companyId,
+    staleTime: STALE,
+    placeholderData: keepPreviousData,
+  })
+}
+
+/** How each operator and machine performed. Manager and Super Admin only. */
+export function usePlantReport(companyId: number | undefined, range: Range, filters: PlantFilters) {
+  return useQuery({
+    queryKey: ['plant-report', companyId, range, filters],
+    queryFn: async () => (await api.get<PlantReport>(API_ROUTES.reports.plant(companyId!), { params: { date_from: range[0], date_to: range[1], ...filters } })).data,
     enabled: !!companyId,
     staleTime: STALE,
     placeholderData: keepPreviousData,

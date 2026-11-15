@@ -4,6 +4,7 @@ import { Badge, Layout, Menu, type MenuProps } from 'antd'
 import {
   AlertOutlined,
   BarChartOutlined,
+  DashboardOutlined,
   DollarOutlined,
   AppstoreOutlined,
   AuditOutlined,
@@ -94,11 +95,12 @@ export default function SidebarNavigation() {
       sees('production') && { key: '/production', icon: <ExperimentOutlined />, label: 'Production' },
       sees('sales') && { key: '/sales', icon: <ShopOutlined />, label: 'Sales' },
       sees('review') && { key: '/review', icon: <AuditOutlined />, label: withBadge('Approvals', queue.entries) },
-      sees('parties') && { key: '/parties', icon: <TeamOutlined />, label: 'Suppliers & buyers' },
+      sees('parties') && { key: '/parties', icon: <TeamOutlined />, label: access.canAnywhere('manage_plant') ? 'Suppliers & plant' : 'Suppliers & buyers' },
     ]),
     ...group(collapsed ? null : 'Stock', [sees('stock') && { key: '/stock', icon: <InboxOutlined />, label: 'Stock by company' }]),
     ...group(collapsed ? null : 'Reports', [
       sees('reports') && { key: '/reports', icon: <BarChartOutlined />, label: 'Reports' },
+      sees('plantAnalytics') && { key: '/plant-analytics', icon: <DashboardOutlined />, label: 'Operators & machines' },
       sees('wastage') && { key: '/wastage', icon: <AlertOutlined />, label: withBadge('Wastage control', queue.wastage) },
       sees('pricing') && { key: '/pricing', icon: <DollarOutlined />, label: 'Purchase prices' },
       sees('pricing') && { key: '/sale-pricing', icon: <RiseOutlined />, label: 'Sale prices' },

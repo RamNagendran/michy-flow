@@ -39,6 +39,7 @@ const Settings = page(() => import('./pages/Settings'))
 const Review = page(() => import('./pages/Review'))
 const Parties = page(() => import('./pages/Parties'))
 const Reports = page(() => import('./pages/Reports'))
+const PlantAnalytics = page(() => import('./pages/PlantAnalytics'))
 const Pricing = page(() => import('./pages/Pricing'))
 const Wastage = page(() => import('./pages/Wastage'))
 
@@ -110,6 +111,7 @@ export default function App() {
                   <Route path="sales/new" element={<ProtectedRoute anyOf={['enter_sales']}><NewSale /></ProtectedRoute>} />
                   <Route path="finance" element={<Screen name="finance"><Finance /></Screen>} />
                   <Route path="reports" element={<Screen name="reports"><Reports /></Screen>} />
+                  <Route path="plant-analytics" element={<Screen name="plantAnalytics"><PlantAnalytics /></Screen>} />
                   <Route path="pricing" element={<Screen name="pricing"><Pricing key="purchase" /></Screen>} />
                   <Route path="sale-pricing" element={<Screen name="pricing"><Pricing key="sale" side="sale" /></Screen>} />
                   <Route path="wastage" element={<Screen name="wastage"><Wastage /></Screen>} />

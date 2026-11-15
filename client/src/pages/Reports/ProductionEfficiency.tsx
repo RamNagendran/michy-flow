@@ -4,13 +4,13 @@ import ChartCard from '../../components/charts/ChartCard'
 import { ANIMATION_MS, axisProps, gridProps } from '../../components/charts/chartKit'
 import ChartTooltip from '../../components/ChartTooltip'
 import { useProductionReport } from '../../hooks/queries/reports'
-import type { OperatorRow, ShiftRow } from '../../types/reports'
+import type { ShiftRow } from '../../types/reports'
 import { formatKg, formatPercent } from '../../utils/format'
 
 const shiftName = (s: number | null) => (s ? `Shift ${s}` : 'No shift')
 const effColor = (pct: number | null) => (pct === null ? '#C9CED6' : pct >= 85 ? '#1F9D6B' : pct >= 65 ? '#D98A0B' : '#D4380D')
 
-/** Running hours and throughput per shift, and what each operator ran. */
+/** Running hours and throughput per shift. Operators and machines have their own page. */
 export default function ProductionEfficiency({ companyId, range }: { companyId: number | undefined; range: [string, string] }) {
   const report = useProductionReport(companyId, range)
   const data = report.data
@@ -58,24 +58,6 @@ export default function ProductionEfficiency({ companyId, range }: { companyId: 
             { title: 'Processed', align: 'right', render: (_, r) => <span className="num">{formatKg(r.processed_kg)}</span> },
             { title: 'kg / hour', align: 'right', render: (_, r) => <span className="num strong">{r.kg_per_hour === null ? '—' : r.kg_per_hour.toLocaleString('en-IN')}</span> },
             { title: 'Efficiency', align: 'right', render: (_, r) => <span className="num strong" style={{ color: effColor(r.efficiency_pct) }}>{r.efficiency_pct === null ? '—' : formatPercent(r.efficiency_pct)}</span> },
-          ]}
-        />
-        <div className="chart-title" style={{ fontSize: 14, marginTop: 18 }}>
-          Operators
-        </div>
-        <Table<OperatorRow>
-          size="small"
-          rowKey="operator_id"
-          loading={report.isLoading}
-          pagination={{ pageSize: 6, hideOnSinglePage: true, size: 'small' }}
-          dataSource={data?.by_operator}
-          locale={{ emptyText: 'No operators recorded on runs in this period' }}
-          columns={[
-            { title: 'Operator', dataIndex: 'name', render: (v) => <b>{v}</b> },
-            { title: 'Runs', dataIndex: 'runs', align: 'right' },
-            { title: 'Hours', align: 'right', render: (_, r) => <span className="num">{r.hours.toFixed(1)}</span> },
-            { title: 'Processed', align: 'right', render: (_, r) => <span className="num">{formatKg(r.processed_kg)}</span> },
-            { title: 'kg / hour', align: 'right', render: (_, r) => <span className="num strong">{r.kg_per_hour === null ? '—' : r.kg_per_hour.toLocaleString('en-IN')}</span> },
           ]}
         />
       </div>

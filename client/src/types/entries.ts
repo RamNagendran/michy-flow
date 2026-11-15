@@ -58,15 +58,34 @@ export interface CrewMember {
   name: string
 }
 
-/** A plant worker put on production shifts. Just a name and their usual shift; no login. */
+/** A plant worker put on production shifts; no login. The Manager keeps the list. */
 export interface Operator extends CrewMember {
+  /** Empty only on operators added before the Manager kept the list. */
+  phone: string | null
+  email: string | null
+  /** Their usual shift, if any. */
   shift: number | null
+  is_active: boolean
 }
 
 export interface OperatorInput {
   name: string
-  shift: number
+  phone: string
+  email?: string | null
+  shift?: number | null
+  is_active: boolean
 }
+
+/** A production machine. The Manager keeps the list; every run names one. */
+export interface Machine {
+  id: number
+  /** The machine's own number, e.g. M-01. */
+  code: string
+  name: string
+  is_active: boolean
+}
+
+export type MachineInput = Omit<Machine, 'id'>
 
 /** A flag about a supplier, raised on a purchase: any issue the team should know about. Changes nothing by itself. */
 export interface DebitNote {
@@ -159,6 +178,8 @@ export interface EntryDetail {
   wastage_type: WastageType | null
   wastage_pct: number | null
   crew: CrewMember[]
+  /** Production: the machine the run was on. Empty on runs saved before machines. */
+  machine: Pick<Machine, 'id' | 'code' | 'name'> | null
   running_hours: number | null
   efficiency_pct: number | null
   kg_per_hour: number | null
@@ -217,6 +238,7 @@ export interface ProductionBody extends EntryBody {
   returned_kg: number
   shift: number | null
   crew_ids: number[]
+  machine_id: number
   running_hours: number | null
   /** qty in the product's unit: litres for oil. */
   outputs: { product: string; qty: number }[]

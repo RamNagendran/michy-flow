@@ -5,8 +5,8 @@ from app.models.base import Base, TimestampMixin
 
 
 class Operator(TimestampMixin, Base):
-    """A plant worker who runs production shifts. Just a name and their usual shift: no login.
-    The production in-charge adds them straight from the production form."""
+    """A plant worker who runs production shifts: no login. The Manager keeps the list, and the
+    production in-charge picks from it."""
 
     __tablename__ = "operators"
     __table_args__ = (
@@ -18,7 +18,28 @@ class Operator(TimestampMixin, Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"))
     name: Mapped[str] = mapped_column(String(100))
-    # Their usual shift (1-3). Empty only for workers moved over from the old user list.
+    # Required for new operators; empty on ones added before the Manager kept the list.
+    phone: Mapped[str | None] = mapped_column(String(30))
+    email: Mapped[str | None] = mapped_column(String(320))
+    # Their usual shift (1-3), if they have one.
     shift: Mapped[int | None] = mapped_column(Integer)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
+    created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+
+
+class Machine(TimestampMixin, Base):
+    """A production machine. The Manager keeps the list; every production run names one."""
+
+    __tablename__ = "machines"
+    __table_args__ = (
+        # One machine per number in a company.
+        Index("uq_machines_company_code", "company_id", text("lower(trim(code))"), unique=True),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    company_id: Mapped[int] = mapped_column(ForeignKey("companies.id", ondelete="CASCADE"))
+    # The machine's own number, e.g. "M-01".
+    code: Mapped[str] = mapped_column(String(30))
+    name: Mapped[str] = mapped_column(String(100))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())
     created_by_id: Mapped[int | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))

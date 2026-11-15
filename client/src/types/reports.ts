@@ -90,19 +90,56 @@ export interface ShiftRow {
   efficiency_pct: number | null
 }
 
-export interface OperatorRow {
-  operator_id: number
-  name: string
-  runs: number
-  hours: number
-  processed_kg: number
-  kg_per_hour: number | null
-}
-
 export interface ProductionReport {
   shift_hours: number
   by_shift: ShiftRow[]
-  by_operator: OperatorRow[]
+}
+
+export interface PlantFigures {
+  runs: number
+  hours: number
+  processed_kg: number
+  output_kg: number
+  wastage_kg: number
+  /** Of the processed weight. */
+  wastage_pct: number
+  /** Processed kg per running hour, over runs that logged hours. */
+  kg_per_hour: number | null
+  /** Running hours ÷ planned hours of the runs that logged hours. */
+  efficiency_pct: number | null
+}
+
+/** One operator (credited with every run they were on) or one machine. */
+export interface PlantRow extends PlantFigures {
+  id: number
+  name: string
+  /** Machines only. */
+  code: string | null
+  is_active: boolean
+}
+
+export interface PlantPoint {
+  period: string
+  runs: number
+  hours: number
+  processed_kg: number
+  output_kg: number
+  wastage_kg: number
+}
+
+export interface PlantReport {
+  shift_hours: number
+  bucket: Bucket
+  totals: PlantFigures
+  by_operator: PlantRow[]
+  by_machine: PlantRow[]
+  trend: PlantPoint[]
+}
+
+export interface PlantFilters {
+  shift: number[]
+  machine_id: number[]
+  operator_id: number[]
 }
 
 /** open: month still running · pending: with the Super Admin · escalated: with the Manager · approved: final, month locked */

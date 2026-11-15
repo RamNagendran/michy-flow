@@ -39,6 +39,7 @@ async def test_production_works_out_input_and_wastage(client: AsyncClient) -> No
     for half in ({"wastage_kg": "10"}, {"wastage_type": "gas"}):
         body = {
             "entry_date": TODAY,
+            "machine_id": t.machine,
             "material": "truck",
             "outputs": [{"product": "rubber", "qty": "1"}],
         }
@@ -48,6 +49,7 @@ async def test_production_works_out_input_and_wastage(client: AsyncClient) -> No
         assert res.status_code == 422
     body = {
         "entry_date": TODAY,
+        "machine_id": t.machine,
         "material": "truck",
         "outputs": [{"product": "rubber", "qty": "1"}],
     }

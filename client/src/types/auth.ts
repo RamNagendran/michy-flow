@@ -21,6 +21,8 @@ export type CompanyPermission =
   | 'approve_entry'
   | 'verify_entry'
   | 'manage_parties'
+  | 'manage_plant'
+  | 'view_plant_analytics'
   | 'adjust_wastage'
   | 'count_stock'
   | 'approve_wastage'

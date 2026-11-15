@@ -71,7 +71,7 @@ AREAS: dict[str, Any] = {
     "wastage": AuditLog.entity_type.in_(("wastage_month", "stock_check")),
     "parties": AuditLog.entity_type == "party",
     "documents": AuditLog.entity_type == "document",
-    "people": AuditLog.entity_type.in_(("user", "operator", "account"))
+    "people": AuditLog.entity_type.in_(("user", "operator", "machine", "account"))
     & AuditLog.action.not_in(_SIGN_IN),
     "sign_in": AuditLog.action.in_(_SIGN_IN),
     "companies": AuditLog.entity_type == "company",

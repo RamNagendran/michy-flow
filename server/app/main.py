@@ -29,6 +29,7 @@ from app.routers import (
     entries,
     health,
     parties,
+    plant,
     stock,
     users,
     wastage,
@@ -153,6 +154,7 @@ def create_app() -> FastAPI:
     app.include_router(users.router)
     app.include_router(audit.router)
     app.include_router(parties.router)
+    app.include_router(plant.router)
     app.include_router(entries.router)
     app.include_router(stock.router)
     app.include_router(documents.router)

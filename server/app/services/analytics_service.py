@@ -16,13 +16,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.periods import periods, truncate
-from app.models import Company, Operator, Party, Production, ProductionOutput, Purchase, Sale
+from app.models import Company, Party, Production, ProductionOutput, Purchase, Sale
 from app.models.catalog import LITRE, OIL, process_of, unit_of
 from app.models.enums import EntryStatus, Grade
 from app.schemas.analytics import (
     OilKpi,
     OilPoint,
-    OperatorRow,
     ProductionReport,
     ShiftRow,
     TradeAnalysis,
@@ -496,50 +495,4 @@ async def production_report(
         for shift, runs, hours, logged, done, output, wastage, timed in shifts
     ]
 
-    # Every operator on a run is credited with the whole run: join each run to its crew array.
-    # FROM production, unnest(production.crew_ids) AS crew(member): implicitly lateral.
-    crew = (
-        func.unnest(Production.crew_ids)
-        .table_valued("member", joins_implicitly=True)
-        .render_derived(name="crew")
-    )
-    member = crew.c.member
-    people = await db.execute(
-        select(
-            member,
-            func.count(),
-            func.coalesce(func.sum(Production.running_hours), 0),
-            func.sum(processed),
-            func.coalesce(func.sum(processed).filter(Production.running_hours.is_not(None)), 0),
-        )
-        .select_from(Production)
-        .where(*where)
-        .group_by(member)
-    )
-    rows = list(people)
-    names = (
-        dict(
-            (
-                await db.execute(
-                    select(Operator.id, Operator.name).where(Operator.id.in_([r[0] for r in rows]))
-                )
-            ).all()
-        )
-        if rows
-        else {}
-    )
-    by_operator = sorted(
-        (
-            OperatorRow(
-                operator_id=uid,
-                name=names.get(uid, "Former operator"),
-                runs=runs,
-                hours=hours,
-                processed_kg=done,
-                kg_per_hour=round(timed / hours, 1) if hours else None,
-            )
-            for uid, runs, hours, done, timed in rows
-        ),
-        key=lambda r: -r.processed_kg,
-    )
-    return ProductionReport(shift_hours=shift_hours, by_shift=by_shift, by_operator=by_operator)
+    return ProductionReport(shift_hours=shift_hours, by_shift=by_shift)

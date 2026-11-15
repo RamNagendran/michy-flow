@@ -54,6 +54,18 @@ async def party_changed(party: Party, actor: User) -> None:
     )
 
 
+async def plant_changed(company: Company, actor: User) -> None:
+    """An operator or machine was added or changed: production forms reload the lists."""
+    await _publish(
+        {
+            "type": "plant",
+            "account_id": company.account_id,
+            "company_id": company.id,
+            "actor_id": actor.id,
+        }
+    )
+
+
 async def company_changed(company: Company) -> None:
     await _publish({"type": "company", "account_id": company.account_id, "company_id": company.id})
 

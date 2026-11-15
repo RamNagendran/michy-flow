@@ -41,6 +41,7 @@ const titles: [string, string][] = [
   ['/sales', 'Sales'],
   ['/finance', 'Finance'],
   ['/reports', 'Reports'],
+  ['/plant-analytics', 'Operators & machines'],
   ['/pricing', 'Purchase prices'],
   ['/sale-pricing', 'Sale prices'],
   ['/wastage', 'Wastage control'],
@@ -55,7 +56,7 @@ const HEADER_THEME: ThemeConfig = { token: { controlHeight: 32, fontSize: 13 }, 
 
 const URGENT = new Set(['fromFinance', 'toIncharge', 'changes'])
 
-const PERIOD_PAGES = ['/finance', '/stock', '/companies', '/reports', '/pricing', '/sale-pricing', '/wastage', '/purchases', '/sales', '/production']
+const PERIOD_PAGES = ['/finance', '/stock', '/companies', '/reports', '/plant-analytics', '/pricing', '/sale-pricing', '/wastage', '/purchases', '/sales', '/production']
 
 export default function MainLayout() {
   const { user, logout } = useAuth()
@@ -72,7 +73,9 @@ export default function MainLayout() {
   const catalog = useCatalog()
   const role = user?.global_role ?? access.activeAccess?.role ?? access.companies[0]?.role ?? null
 
-  const title = titles.find(([p]) => pathname.startsWith(p))?.[1] ?? (seesDashboard ? 'Dashboard' : 'Home')
+  const found = titles.find(([p]) => pathname.startsWith(p))?.[1] ?? (seesDashboard ? 'Dashboard' : 'Home')
+  // The Manager's list page also holds operators and machines.
+  const title = pathname.startsWith('/parties') && access.canAnywhere('manage_plant') ? 'Suppliers & plant' : found
   const showPeriod = seesDashboard && !pathname.endsWith('/new') && (pathname === '/' || PERIOD_PAGES.some((p) => pathname.startsWith(p)))
 
   const items = [

@@ -8,6 +8,7 @@ import MaterialSplit from '../../components/entries/MaterialSplit'
 import SavedEntry from '../../components/entries/SavedEntry'
 import { companyItems, itemName, kgPerLitre, processOf, SHIFT_HOURS, toKg, type OutputId, itemColor } from '../../data/catalog'
 import { useCreateEntry } from '../../hooks/queries/entries'
+import { useMachines } from '../../hooks/queries/plant'
 import { useStocks } from '../../hooks/queries/stock'
 import { useAccess } from '../../hooks/useAccess'
 import { useNotify } from '../../hooks/useNotify'
@@ -60,6 +61,7 @@ function NewProduction() {
   const [wastageInput, setWastageInput] = useState<number | null>(null)
   const [out, setOut] = useState<Outputs>({})
   const [notes, setNotes] = useState('')
+  const [machine, setMachine] = useState<number | null>(null)
   const [crew, setCrew] = useState<number[]>([])
   const [hours, setHours] = useState<number | null>(null)
   const [saved, setSaved] = useState<EntryDetail | null>(null)
@@ -80,7 +82,9 @@ function NewProduction() {
   const stockOutKg = usedKg
   const split = splitMaterials(stockOutKg, materials, typed)
   const problem = materials.length ? splitProblem(stockOutKg, split, available) : null
-  const canNext = [!!company, anyOutput, materials.length > 0 && !problem, true][step]
+  const machines = useMachines(companyId)
+  const machineLabel = machines.data?.find((m) => m.id === machine)
+  const canNext = [!!company && !!machineLabel, anyOutput, materials.length > 0 && !problem, true][step]
   // A new total or a new set of materials is shared equally again.
   const changeOut = (fn: () => void) => {
     fn()
@@ -115,6 +119,7 @@ function NewProduction() {
           returned_kg: 0,
           shift,
           crew_ids: crew,
+          machine_id: machineLabel!.id,
           running_hours: hours,
           notes,
           outputs: process!.outputs.map((o) => ({ product: o.id, qty: out[o.id as OutputId] ?? 0 })),
@@ -179,7 +184,7 @@ function NewProduction() {
                 <Segmented size="large" value={shift} onChange={setShift} options={[1, 2, 3].map((s) => ({ value: s, label: `Shift ${s}` }))} />
               </div>
             </div>
-            <ShiftCrew companyId={companyId} shift={shift} crew={crew} onCrew={setCrew} hours={hours} onHours={setHours} />
+            <ShiftCrew companyId={companyId} shift={shift} machine={machine} onMachine={setMachine} crew={crew} onCrew={setCrew} hours={hours} onHours={setHours} />
           </>
         )}
 
@@ -282,6 +287,7 @@ function NewProduction() {
                   [
                     ['Company', `${company.name} · ${process.name}`],
                     ['Date · shift', `${formatDate(date.format('YYYY-MM-DD'))} · Shift ${shift}`],
+                    ...(machineLabel ? [['Machine', `${machineLabel.code} · ${machineLabel.name}`]] : []),
                     ...(crew.length ? [['Operators', String(crew.length)]] : []),
                     ...(hours ? [['Running hours', `${hours} h · ${formatPercent((hours / SHIFT_HOURS) * 100, 0)} of the shift`]] : []),
                     ...process.outputs.filter((o) => out[o.id as OutputId]).map((o) => [o.name, formatQty(out[o.id as OutputId] ?? 0, o.unit)]),

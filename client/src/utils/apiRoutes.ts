@@ -16,7 +16,12 @@ export const API_ROUTES = {
     list: '/companies',
     one: (id: number) => `/companies/${id}`,
     config: (id: number) => `/companies/${id}/config`,
-    operators: (id: number) => `/companies/${id}/operators`,
+  },
+  plant: {
+    operators: (companyId: number) => `/companies/${companyId}/operators`,
+    operator: (companyId: number, id: number) => `/companies/${companyId}/operators/${id}`,
+    machines: (companyId: number) => `/companies/${companyId}/machines`,
+    machine: (companyId: number, id: number) => `/companies/${companyId}/machines/${id}`,
   },
   catalog: {
     root: '/catalog',
@@ -47,6 +52,7 @@ export const API_ROUTES = {
     oilKpi: (companyId: number) => `/companies/${companyId}/oil-kpi`,
     prices: (companyId: number) => `/companies/${companyId}/prices`,
     production: (companyId: number) => `/companies/${companyId}/production-report`,
+    plant: (companyId: number) => `/companies/${companyId}/plant-report`,
     tradeAnalysis: (companyId: number) => `/companies/${companyId}/trade-analysis`,
   },
   wastage: {

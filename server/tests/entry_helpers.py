@@ -24,6 +24,7 @@ class Team:
     operator2: str
     supplier: int
     buyer: int
+    machine: int = 0
 
     def url(self, path: str = "") -> str:
         return f"/companies/{self.company['id']}{path}"
@@ -52,6 +53,11 @@ async def team(client: AsyncClient, category: str = "crumb") -> Team:
     )
     t.supplier = await party(client, t, "supplier", "Sri Balaji Tyres")
     t.buyer = await party(client, t, "buyer", "Apex Mouldings")
+    res = await client.post(
+        t.url("/machines"), json={"code": "M-01", "name": "Pyrolysis 1"}, headers=bearer(t.manager)
+    )
+    assert res.status_code == 201, res.text
+    t.machine = res.json()["id"]
     return t
 
 
@@ -109,6 +115,7 @@ async def production(
     """A run of truck tyres. Stock goes down by the outputs + any wastage."""
     body = {
         "entry_date": TODAY,
+        "machine_id": t.machine,
         "material": "truck",
         "wastage_kg": wastage_kg,
         "wastage_type": wastage_type or ("solid" if wastage_kg else None),

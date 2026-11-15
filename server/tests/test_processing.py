@@ -13,6 +13,7 @@ from tests.entry_helpers import TODAY, Team, approve_new, purchase, stock_of, te
 async def _run(client: AsyncClient, t: Team, material: str, outputs: dict, **extra):  # noqa: ANN001, ANN202
     body = {
         "entry_date": TODAY,
+        "machine_id": t.machine,
         "material": material,
         "outputs": [{"product": p, "qty": q} for p, q in outputs.items()],
         **extra,
@@ -105,7 +106,12 @@ async def test_a_run_may_use_several_raw_materials(client: AsyncClient) -> None:
 
     # Changing the split moves the stock and is kept in the run's history.
     moved = [{"material": "truck", "kg": "100"}, {"material": "car", "kg": "400"}]
-    body = {"entry_date": TODAY, "outputs": [{"product": "rubber", "qty": "480"}], **extra}
+    body = {
+        "entry_date": TODAY,
+        "machine_id": t.machine,
+        "outputs": [{"product": "rubber", "qty": "480"}],
+        **extra,
+    }
     edit = {**body, "materials": moved, "comment": "Weighed again"}
     res = await client.put(t.url(f"/production/{run['id']}"), json=edit, headers=bearer(t.admin))
     assert res.status_code == 200, res.text

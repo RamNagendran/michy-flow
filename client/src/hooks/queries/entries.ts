@@ -12,7 +12,7 @@ export const entryKeys = {
 }
 
 /** Everything worked out from entries: stock, totals, reports and wastage. */
-export const DERIVED_KEYS = ['stock', 'summary', 'status-summary', 'trends', 'oil-kpi', 'prices', 'production-report', 'wastage', 'debit-notes', 'stock-checks'] as const
+export const DERIVED_KEYS = ['stock', 'summary', 'status-summary', 'trends', 'oil-kpi', 'prices', 'production-report', 'plant-report', 'wastage', 'debit-notes', 'stock-checks'] as const
 
 /** Anything that changes an entry also changes stock, period totals and the reports. */
 export function useInvalidateEntries() {
