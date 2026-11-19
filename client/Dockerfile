@@ -14,8 +14,9 @@ RUN npm run build
 
 FROM nginx:1.27-alpine
 # The official image runs envsubst on /etc/nginx/templates/*.template at start (${DOMAIN}).
+# It only does that when the command is nginx itself, so keep the image's own CMD.
 COPY nginx.conf.template /etc/nginx/templates/default.conf.template
+# Reloads every 6 hours so renewed certificates are picked up.
+COPY --chmod=755 nginx-reload.sh /docker-entrypoint.d/40-reload-certs.sh
 COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 80 443
-# Reload every 6 hours so renewed certificates are picked up.
-CMD ["sh", "-c", "while :; do sleep 6h; nginx -s reload; done & exec nginx -g 'daemon off;'"]
