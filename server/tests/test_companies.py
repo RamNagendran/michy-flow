@@ -8,9 +8,9 @@ async def test_super_admin_creates_and_edits_companies(client: AsyncClient) -> N
     company = await create_company(client, token, code="mr")
     assert company["code"] == "MR"
     assert company["gstin"] == make_gstin("company-mr")
-    # A GST number is needed, and it must be a real one (format and check digit).
+    # A GST number is needed, in the right format (the check digit is not checked on typed numbers).
     base = {"code": "X", "name": "X", "category": "crumb"}
-    for bad in ({}, {"gstin": ""}, {"gstin": "33AAJCR8510J1Z8"}, {"gstin": "GST123"}):
+    for bad in ({}, {"gstin": ""}, {"gstin": "GST123"}):
         res = await client.post("/companies", json={**base, **bad}, headers=bearer(token))
         assert res.status_code == 422, bad
     spaced = await client.patch(

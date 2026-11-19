@@ -202,12 +202,12 @@ async def test_parties_are_managed_by_the_manager(client: AsyncClient) -> None:
         t.url("/parties"), json={**body, "name": " kaveri SCRAP "}, headers=bearer(t.manager)
     )
     assert dup.status_code == 409
-    # One supplier per GST number, and the number must be real.
+    # One supplier per GST number, and the number must be in the right format.
     same_gst = await client.post(
         t.url("/parties"), json={**body, "name": "Other"}, headers=bearer(t.manager)
     )
     assert same_gst.status_code == 409 and "Kaveri Scrap" in same_gst.json()["detail"]
-    for bad in ("", "33AAJCR8510J1Z8"):
+    for bad in ("", "GST123"):
         res = await client.post(
             t.url("/parties"), json={**body, "name": "New", "gstin": bad}, headers=bearer(t.manager)
         )

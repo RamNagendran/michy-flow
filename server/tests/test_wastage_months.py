@@ -2,16 +2,32 @@
 the Super Admin, answered by the Manager, changed only by the Super Admin, spread over the
 tyres used, and locking the month once approved."""
 
+from datetime import date, timedelta
 from decimal import Decimal
 
 from httpx import AsyncClient
 
+from app.core.clock import today
 from app.services.wastage_month_service import _spread
 from tests.conftest import bearer
-from tests.entry_helpers import TODAY, Team, act, purchase, stock_of, team
+from tests.entry_helpers import Team, act, purchase, stock_of, team
 
-AUG, SEP = "2026-08-10", "2026-09-10"
-RANGE = "?date_from=2026-08-01&date_to=2026-10-31"
+
+def _month_start(months_back: int) -> date:
+    first = today().replace(day=1)
+    for _ in range(months_back):
+        first = (first - timedelta(days=1)).replace(day=1)
+    return first
+
+
+# Two ended months and the running one, worked out from the real date: the server decides
+# which months have ended from its own clock, so fixed dates stop working once time moves on.
+AUG_1, SEP_1 = (_month_start(n).isoformat() for n in (2, 1))
+AUG, SEP = AUG_1[:8] + "10", SEP_1[:8] + "10"
+TODAY = today().isoformat()
+_next_1 = (_month_start(0) + timedelta(days=32)).replace(day=1)
+_month_end = (_next_1 - timedelta(days=1)).isoformat()
+RANGE = f"?date_from={AUG_1}&date_to={_month_end}"
 
 
 async def _run(client: AsyncClient, t: Team, day: str, rubber: str, material: str = "truck"):  # noqa: ANN202
@@ -67,7 +83,7 @@ async def test_ended_months_wait_for_the_super_admin_and_lock_once_approved(
 
     months = await _months(client, t)
     assert [m["status"] for m in months.values()] == ["pending", "pending", "open"]
-    assert months["2026-08-01"]["wastage_kg"] == 9.8 and months["2026-09-01"]["runs"] == 1
+    assert months[AUG_1]["wastage_kg"] == 9.8 and months[SEP_1]["runs"] == 1
     # September did not wait for August to be approved.
     assert await _queue(client, t.super_admin) == [
         {"company_id": t.company["id"], "to_approve": 2, "escalated": 0}
@@ -75,7 +91,7 @@ async def test_ended_months_wait_for_the_super_admin_and_lock_once_approved(
 
     body = {
         "months": [
-            {"month": "2026-08-01", "wastage_kg": "9.8"},
+            {"month": AUG_1, "wastage_kg": "9.8"},
             {"month": SEP, "wastage_kg": "19.6"},
         ]
     }
@@ -122,7 +138,7 @@ async def test_escalation_and_a_changed_figure_spread_over_the_tyres(client: Asy
     await purchase(client, t, t.admin, "2000", entry_date=SEP, material="car", n=2)
     await _run(client, t, SEP, "588")  # 599.76 kg of truck tyres used, 11.76 kg wastage
     await _run(client, t, SEP, "392", "car")  # 399.84 kg of car tyres, 7.84 kg
-    month = t.url("/wastage/months/2026-09-01")
+    month = t.url(f"/wastage/months/{SEP_1}")
     step = lambda action: f"{month}/actions/{action}"  # noqa: E731
     note = {"comment": "Why so low for September?"}
 
