@@ -15,6 +15,7 @@ _BORDER = "#E8EAEE"
 _BG = "#F5F6F8"
 _SOFT = "#FDEEF2"
 _FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
+_APP = "Michy Rubbers"
 
 
 def _layout(preheader: str, body: str) -> str:
@@ -61,14 +62,17 @@ def _greeting(name: str) -> str:
     return f"Hi {first}," if first else "Hi,"
 
 
+def _where(organisation: str) -> str:
+    """'Acme on Michy Rubbers', or just 'Michy Rubbers' when the organisation has the app's name."""
+    if organisation.strip().lower() == _APP.lower():
+        return _APP
+    return f"{organisation} on {_APP}"
+
+
 def _code_mail(heading: str, intro: str, code: str, minutes: int, footnote: str) -> str:
-    """Body of a code mail: heading, intro (already HTML-safe), the code in boxes, a footnote."""
-    digits = "".join(
-        f'<td style="padding:0 4px;"><div style="width:44px;height:54px;line-height:54px;'
-        f"text-align:center;font-size:28px;font-weight:800;color:{_INK};background:#ffffff;"
-        f'border:1.5px solid {_BORDER};border-radius:10px;">{d}</div></td>'
-        for d in code
-    )
+    """Body of a code mail: heading, intro (already HTML-safe), the code, a footnote.
+    The code is one piece of text, so a double-click or long press selects all of it; mail
+    apps run no scripts, so a real copy button is not possible."""
     return f"""
 <p style="margin:0 0 6px;font-size:13px;font-weight:800;letter-spacing:0.12em;color:{_BRAND};">
 VERIFY YOUR EMAIL</p>
@@ -78,9 +82,13 @@ VERIFY YOUR EMAIL</p>
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
  style="background:{_SOFT};border-radius:12px;">
 <tr><td align="center" style="padding:26px 12px;">
-<table role="presentation" cellpadding="0" cellspacing="0"><tr>{digits}</tr></table>
-<p style="margin:16px 0 0;font-size:13px;color:{_MUTED};">
-This code works for <strong style="color:{_TEXT};">{minutes} minutes</strong>.</p>
+<div style="display:inline-block;padding:14px 18px 14px 28px;background:#ffffff;
+border:1.5px solid {_BORDER};border-radius:12px;font-size:34px;line-height:1.2;font-weight:800;
+letter-spacing:10px;color:{_INK};font-family:Menlo,Consolas,'Courier New',monospace;
+-webkit-user-select:all;user-select:all;">{code}</div>
+<p style="margin:14px 0 0;font-size:13px;color:{_MUTED};">
+This code works for <strong style="color:{_TEXT};">{minutes} minutes</strong>.<br>
+<span style="color:{_FAINT};">Double-click or long press the code to copy it.</span></p>
 </td></tr>
 </table>
 <p style="margin:24px 0 0;font-size:13px;line-height:1.6;color:{_MUTED};">{footnote}</p>"""
@@ -116,7 +124,7 @@ def member_otp(
         "Your verification code",
         f"{escape(_greeting(name))}<br>"
         f"<strong>{escape(added_by)}</strong> is adding you to "
-        f"<strong>{escape(organisation)}</strong> on Michy Rubbers. "
+        f"<strong>{escape(_where(organisation))}</strong>. "
         f"Tell this code to {escape(added_by)} to finish creating your account.",
         code,
         minutes,
@@ -125,7 +133,7 @@ def member_otp(
     )
     text = (
         f"{_greeting(name)}\n\n"
-        f"{added_by} is adding you to {organisation} on Michy Rubbers.\n"
+        f"{added_by} is adding you to {_where(organisation)}.\n"
         f"Tell this code to {added_by} to finish creating your account: {code}\n\n"
         f"It works for {minutes} minutes.\n"
         "If you do not know about this, you can ignore this mail. No account will be made.\n\n"
@@ -199,7 +207,7 @@ def welcome_member(
 ) -> tuple[str, str, str]:
     """For a person the Super Admin added. The temporary password must be changed at first
     sign-in, so it is safe to send once to the address they just verified."""
-    subject = f"Welcome to {organisation} on Michy Rubbers"
+    subject = f"Welcome to {_where(organisation)}"
     login_url = _login_url()
     body = f"""
 <p style="margin:0 0 6px;font-size:13px;font-weight:800;letter-spacing:0.12em;color:{_BRAND};">
@@ -230,7 +238,7 @@ You will be asked to set your own password when you first sign in.<br>
 Do not share this password with anyone.</p>"""
     text = (
         f"{_greeting(name)}\n\n"
-        f"{added_by} has made your account in {organisation} on Michy Rubbers.\n\n"
+        f"{added_by} has made your account in {_where(organisation)}.\n\n"
         "Email: this email address\n"
         f"Temporary password: {temporary_password}\n\n"
         f"Sign in here: {login_url}\n"
