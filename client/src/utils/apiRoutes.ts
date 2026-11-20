@@ -7,6 +7,7 @@ export const API_ROUTES = {
   health: '/health',
   auth: {
     signup: '/auth/signup',
+    signupOtp: '/auth/signup/otp',
     login: '/auth/login',
     refresh: '/auth/refresh',
     me: '/auth/me',
@@ -32,6 +33,7 @@ export const API_ROUTES = {
   },
   users: {
     list: '/users',
+    otp: '/users/otp',
     one: (id: number) => `/users/${id}`,
     access: (id: number) => `/users/${id}/access`,
     resetPassword: (id: number) => `/users/${id}/reset-password`,
@@ -82,4 +84,4 @@ export const API_ROUTES = {
 } as const
 
 /** Auth calls where a 401 means "wrong credentials", not "access token expired". */
-export const NO_REFRESH_ROUTES: readonly string[] = [API_ROUTES.auth.login, API_ROUTES.auth.signup, API_ROUTES.auth.refresh]
+export const NO_REFRESH_ROUTES: readonly string[] = [API_ROUTES.auth.login, API_ROUTES.auth.signup, API_ROUTES.auth.signupOtp, API_ROUTES.auth.refresh]

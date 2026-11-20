@@ -13,8 +13,8 @@ from app.core.security import hash_password
 from app.models import CompanyMembership, User
 from app.models.enums import GlobalRole
 from app.schemas.user import AccessInput, MembershipInput, UserCreate, UserUpdate
-from app.services import audit_service, company_service
-from app.services.auth_service import normalize_email
+from app.services import audit_service, company_service, otp_service
+from app.services.auth_service import get_by_email, normalize_email
 
 # No look-alike characters (0/O, 1/l/I), so a password read out over the phone is typed right.
 _PASSWORD_ALPHABET = "".join(c for c in string.ascii_letters + string.digits if c not in "0O1lI")
@@ -99,10 +99,40 @@ async def _commit_and_reload(db: AsyncSession, user: User) -> User:
     return user
 
 
+async def request_otp(
+    db: AsyncSession, actor: User, email: str, request: Request | None = None
+) -> str:
+    """Mail-able code proving the new person owns this email. Returns the code."""
+    email = normalize_email(email)
+    if await get_by_email(db, email):
+        raise ConflictError("A user with this email already exists")
+    audit_service.record(
+        db,
+        account_id=actor.account_id,
+        actor=actor,
+        action="user_code_sent",
+        entity_type="user",
+        details={"email": email},
+        request=request,
+    )
+    # issue() commits, saving the audit row with the code.
+    return await otp_service.issue(db, email)
+
+
 async def create(
     db: AsyncSession, actor: User, data: UserCreate, request: Request | None = None
 ) -> tuple[User, str]:
     await _check_companies(db, actor.account_id, data.memberships)
+    email = normalize_email(data.email)
+    if await get_by_email(db, email):
+        raise ConflictError("A user with this email already exists")
+    try:
+        await otp_service.check(db, email, data.otp)
+    except otp_service.InvalidOtpError as exc:
+        raise AppError(
+            "Wrong or expired code. Ask the person to check their mail, or send a new code.",
+            code="invalid_otp",
+        ) from exc
     password = generate_temporary_password()
     user = User(
         account_id=actor.account_id,
@@ -120,6 +150,7 @@ async def create(
     except IntegrityError as exc:
         await db.rollback()
         raise ConflictError("A user with this email already exists") from exc
+    await otp_service.consume(db, email)
     audit_service.record(
         db,
         account_id=actor.account_id,
@@ -127,7 +158,7 @@ async def create(
         action="user_created",
         entity_type="user",
         entity_id=user.id,
-        details={"email": user.email, **_access_summary(data)},
+        details={"email": user.email, "email_verified": True, **_access_summary(data)},
         request=request,
     )
     return await _commit_and_reload(db, user), password

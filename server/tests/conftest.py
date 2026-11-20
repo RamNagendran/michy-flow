@@ -51,6 +51,7 @@ _TABLES = (
     "debit_notes",
     "stock_checks",
     "stock_check_lines",
+    "email_otps",
 )
 ALEMBIC_INI = Path(__file__).resolve().parents[1] / "alembic.ini"
 
@@ -76,6 +77,34 @@ async def dispose_engine() -> AsyncIterator[None]:
     await engine.dispose()
 
 
+# Shared with the signup() helper, which has no access to fixtures.
+_SENT: list[dict] = []
+
+
+@pytest.fixture(autouse=True)
+def outbox(monkeypatch: pytest.MonkeyPatch) -> list[dict]:
+    """Mails the app would send, caught here instead of going to Brevo."""
+    from app.services import email_service
+
+    sent = _SENT
+    sent.clear()
+
+    async def fake_deliver(to: str, subject: str, html: str, text: str) -> None:
+        sent.append({"to": to, "subject": subject, "html": html, "text": text})
+
+    monkeypatch.setattr(email_service, "deliver", fake_deliver)
+    return sent
+
+
+def otp_from(outbox: list[dict], email: str) -> str:
+    """The code in the latest code mail (sign-up or new person) sent to this address."""
+    email = email.lower()
+    mail = next(
+        m for m in reversed(outbox) if m["to"].lower() == email and m["subject"].endswith(" code")
+    )
+    return mail["subject"].split(" ", 1)[0]
+
+
 @pytest.fixture
 async def client() -> AsyncIterator[AsyncClient]:
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
@@ -83,11 +112,15 @@ async def client() -> AsyncIterator[AsyncClient]:
 
 
 async def signup(client: AsyncClient, email: str = "priya@example.com", **extra: str) -> dict:
+    res = await client.post("/auth/signup/otp", json={"email": email, "full_name": "Priya Sundar"})
+    assert res.status_code == 202, res.text
+    otp = otp_from(_SENT, email)
     body = {
         "account_name": "Acme Rubbers",
         "full_name": "Priya Sundar",
         "email": email,
         "password": "correct-horse-battery",
+        "otp": otp,
         **extra,
     }
     res = await client.post("/auth/signup", json=body)
@@ -132,7 +165,12 @@ async def create_company(client: AsyncClient, token: str, code: str = "MR", **ex
 
 async def create_user(client: AsyncClient, token: str, email: str, **access: object) -> dict:
     """Create a user as the Super Admin. Returns {"user": ..., "temporary_password": ...}."""
-    body = {"email": email, "full_name": email.split("@")[0].title(), **access}
+    name = email.split("@")[0].title()
+    res = await client.post(
+        "/users/otp", json={"email": email, "full_name": name}, headers=bearer(token)
+    )
+    assert res.status_code == 202, res.text
+    body = {"email": email, "full_name": name, "otp": otp_from(_SENT, email), **access}
     res = await client.post("/users", json=body, headers=bearer(token))
     assert res.status_code == 201, res.text
     return res.json()

@@ -117,6 +117,7 @@ export interface AccessInput {
 export interface UserCreateRequest extends AccessInput {
   email: string
   full_name: string
+  otp: string
 }
 
 export interface UserUpdateRequest {
@@ -177,6 +178,17 @@ export interface SignupRequest {
   full_name: string
   email: string
   password: string
+  otp: string
+}
+
+export interface SignupOtpRequest {
+  email: string
+  full_name: string
+}
+
+export interface SignupOtpResponse {
+  expires_in_minutes: number
+  resend_after_seconds: number
 }
 
 export interface ChangePasswordRequest {

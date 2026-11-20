@@ -7,6 +7,7 @@ from app.models.catalog_tables import CatalogItem, CompanyType
 from app.models.company import Company
 from app.models.debit_note import DebitNote
 from app.models.document import Document
+from app.models.email_otp import EmailOtp
 from app.models.entries import (
     EntryCounter,
     EntryEvent,
@@ -38,6 +39,7 @@ __all__ = [
     "CompanyMembership",
     "DebitNote",
     "Document",
+    "EmailOtp",
     "EntryCounter",
     "EntryEvent",
     "Machine",

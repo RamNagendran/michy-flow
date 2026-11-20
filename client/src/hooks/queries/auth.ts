@@ -3,7 +3,7 @@ import { api } from '../../services/api'
 import { API_ROUTES } from '../../utils/apiRoutes'
 import { useAppDispatch, useAppSelector } from '../../statemanager/hooks'
 import { sessionStarted } from '../../statemanager/slices/authSlice'
-import type { AuthUser, ChangePasswordRequest, LoginRequest, SignupRequest, TokenResponse } from '../../types/auth'
+import type { AuthUser, ChangePasswordRequest, LoginRequest, SignupOtpRequest, SignupOtpResponse, SignupRequest, TokenResponse } from '../../types/auth'
 import { markActivity } from '../useIdleLogout'
 import { useNotify } from '../useNotify'
 
@@ -39,6 +39,13 @@ export function useLogin() {
   return useMutation({
     mutationFn: async (body: LoginRequest) => (await api.post<TokenResponse>(API_ROUTES.auth.login, body)).data,
     onSuccess: startSession,
+  })
+}
+
+/** Mails a 6-digit code to the email; sign-up needs it. */
+export function useSignupOtp() {
+  return useMutation({
+    mutationFn: async (body: SignupOtpRequest) => (await api.post<SignupOtpResponse>(API_ROUTES.auth.signupOtp, body)).data,
   })
 }
 

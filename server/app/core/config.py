@@ -37,6 +37,10 @@ class Settings(BaseSettings):
     # Optional. Set when running more than one API instance, so live updates reach everyone.
     # Must allow LISTEN: on Supabase the direct or session-pooler URL (port 5432), not 6543.
     REALTIME_LISTEN_URL: str = ""
+    # Brevo sends the sign-up OTP and welcome mails. Without a key, mails are only logged.
+    BREVO_API_KEY: str = ""
+    MAIL_FROM_EMAIL: str = "noreply@michyconnect.in"
+    MAIL_FROM_NAME: str = "Michy Rubbers"
 
     @field_validator("DATABASE_URL", "JWT_SECRET")
     @classmethod

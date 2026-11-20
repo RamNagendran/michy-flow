@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { Alert, Button, Checkbox, Form, Input, Modal, Segmented, Select } from 'antd'
-import { DeleteOutlined, PlusOutlined } from '@ant-design/icons'
-import { useCreateUser, useSetUserAccess } from '../../hooks/queries/users'
+import { DeleteOutlined, MailOutlined, PlusOutlined } from '@ant-design/icons'
+import { useCreateUser, useSendUserOtp, useSetUserAccess } from '../../hooks/queries/users'
+import { useResendTimer } from '../../hooks/useResendTimer'
 import { errorMessage } from '../../services/apiError'
 import type { Company, CompanyRole, Duty, GlobalRole, ManagedUser, MembershipInput, UserWithPassword } from '../../types/auth'
 import { companyRoleLabel, dutyLabel, globalRoleLabel, roleDescription } from '../../utils/permissions'
@@ -38,8 +40,15 @@ export default function UserFormModal({ user, companies, onClose, onCreated }: P
   const memberships = Form.useWatch('memberships', form) ?? []
   const create = useCreateUser()
   const setAccess = useSetUserAccess()
-  const mutation = user ? setAccess : create
+  const sendOtp = useSendUserOtp()
   const editing = !!user
+  // A new person must prove the email is theirs: we mail them a code, they read it out to you.
+  const email = (Form.useWatch('email', form) ?? '').trim().toLowerCase()
+  const [sentTo, setSentTo] = useState('')
+  const [otp, setOtp] = useState('')
+  const { waitSeconds, start: startTimer } = useResendTimer()
+  const codeSent = !editing && !!sentTo && sentTo === email
+  const mutation = user ? setAccess : codeSent ? create : sendOtp
   const initialValues: Partial<FormValues> = {
     level: user?.global_role ? 'global' : 'company',
     global_role: user?.global_role ?? 'ceo',
@@ -52,7 +61,25 @@ export default function UserFormModal({ user, companies, onClose, onCreated }: P
       memberships: v.level === 'company' ? v.memberships.map((m) => ({ ...m, duties: m.role === 'operator' ? m.duties : [] })) : [],
     }
     if (user) setAccess.mutate({ id: user.id, body: access }, { onSuccess: onClose })
-    else create.mutate({ ...access, full_name: v.full_name.trim(), email: v.email.trim() }, { onSuccess: onCreated })
+    else if (codeSent) create.mutate({ ...access, full_name: v.full_name.trim(), email: v.email.trim(), otp }, { onSuccess: onCreated })
+    else sendCode(v)
+  }
+
+  const sendCode = (v: Pick<FormValues, 'email' | 'full_name'>) =>
+    sendOtp.mutate(
+      { email: v.email.trim(), full_name: v.full_name.trim() },
+      {
+        onSuccess: (res) => {
+          setSentTo(v.email.trim().toLowerCase())
+          setOtp('')
+          create.reset()
+          startTimer(res.resend_after_seconds)
+        },
+      },
+    )
+  const resend = () => {
+    const v = form.getFieldsValue(['email', 'full_name'])
+    sendCode(v)
   }
 
   // Each company can be picked once: hide companies already chosen in other rows.
@@ -62,13 +89,15 @@ export default function UserFormModal({ user, companies, onClose, onCreated }: P
     <Modal
       open
       title={editing ? `Access for ${user.full_name}` : 'Add a person'}
-      okText={editing ? 'Save access' : 'Add person'}
+      okText={editing ? 'Save access' : codeSent ? 'Verify and add person' : 'Send code to their email'}
+      okButtonProps={{ disabled: codeSent && otp.length !== 6 }}
       onCancel={onClose}
       onOk={() => form.submit()}
       confirmLoading={mutation.isPending}
       width={680}
     >
       {mutation.isError && <Alert type="error" showIcon title={errorMessage(mutation.error)} style={{ marginBottom: 16 }} />}
+      {codeSent && sendOtp.isError && <Alert type="error" showIcon title={errorMessage(sendOtp.error)} style={{ marginBottom: 16 }} />}
       {editing && <Alert type="info" showIcon title="When you save, this person is logged out. They get the new access when they log in again." style={{ marginBottom: 16 }} />}
       <Form<FormValues> form={form} layout="vertical" requiredMark={requiredMark} initialValues={initialValues} onFinish={onFinish} style={{ marginTop: 8 }}>
         {!editing && (
@@ -79,6 +108,23 @@ export default function UserFormModal({ user, companies, onClose, onCreated }: P
             <Form.Item label="Work email" name="email" rules={[{ required: true, type: 'email', message: 'Enter a valid email' }]}>
               <Input placeholder="name@michy.in" autoComplete="off" />
             </Form.Item>
+          </div>
+        )}
+
+        {codeSent && (
+          <div style={{ background: '#fdeef2', borderRadius: 12, padding: '14px 16px', marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 600, marginBottom: 4 }}>
+              <MailOutlined style={{ color: '#D82E54' }} /> Code sent to {sentTo}
+            </div>
+            <div className="muted" style={{ fontSize: 13, marginBottom: 12 }}>
+              Ask them for the 6-digit code and type it here. It works for 10 minutes.
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+              <Input.OTP length={6} value={otp} onChange={setOtp} formatter={(v) => v.replace(/\D/g, '')} disabled={create.isPending} autoFocus />
+              <Button type="link" style={{ padding: 0 }} onClick={resend} loading={sendOtp.isPending} disabled={waitSeconds > 0 || create.isPending}>
+                {waitSeconds > 0 ? `Resend code in ${waitSeconds}s` : 'Resend code'}
+              </Button>
+            </div>
           </div>
         )}
 

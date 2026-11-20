@@ -5,21 +5,31 @@ import type { UserWithPassword } from '../../types/auth'
  * Shows a temporary password exactly once. It is not stored anywhere in the app afterwards:
  * closing this dialog drops it from memory.
  */
-export default function TemporaryPasswordModal({ result, onClose }: { result: UserWithPassword | null; onClose: () => void }) {
+/** `mailed`: the password also went out in the welcome mail (new people only, not a password reset). */
+export default function TemporaryPasswordModal({ result, onClose }: { result: (UserWithPassword & { mailed?: boolean }) | null; onClose: () => void }) {
   return (
     <Modal open={!!result} title="Temporary password" okText="Done" onOk={onClose} onCancel={onClose} cancelButtonProps={{ style: { display: 'none' } }} destroyOnHidden>
       {result && (
         <>
-          <p>
-            Give this password to <b>{result.user.full_name}</b> ({result.user.email}) in person or by phone. They will be asked to choose their own password the first
-            time they sign in.
-          </p>
+          {result.mailed ? (
+            <p>
+              We have mailed this password to <b>{result.user.full_name}</b> ({result.user.email}) with a welcome message. They will be asked to choose their own password
+              the first time they sign in.
+            </p>
+          ) : (
+            <p>
+              Give this password to <b>{result.user.full_name}</b> ({result.user.email}) in person or by phone. They will be asked to choose their own password the first
+              time they sign in.
+            </p>
+          )}
           <div style={{ background: '#f7f8fa', borderRadius: 12, padding: '16px 20px', textAlign: 'center', margin: '16px 0' }}>
             <Typography.Text copyable={{ text: result.temporary_password }} style={{ fontSize: 22, fontWeight: 800, letterSpacing: '0.08em' }} className="num">
               {result.temporary_password}
             </Typography.Text>
           </div>
-          <Alert type="warning" showIcon title="You can see this password only now. Give it to the person directly. Do not send it on email or WhatsApp." />
+          {!result.mailed && (
+            <Alert type="warning" showIcon title="You can see this password only now. Give it to the person directly. Do not send it on email or WhatsApp." />
+          )}
         </>
       )}
     </Modal>

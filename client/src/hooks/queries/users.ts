@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../../services/api'
 import { API_ROUTES } from '../../utils/apiRoutes'
-import type { AccessInput, ManagedUser, UserCreateRequest, UserUpdateRequest, UserWithPassword } from '../../types/auth'
+import type { AccessInput, ManagedUser, SignupOtpRequest, SignupOtpResponse, UserCreateRequest, UserUpdateRequest, UserWithPassword } from '../../types/auth'
 import { useNotify } from '../useNotify'
 
 export const userKeys = {
@@ -19,6 +19,13 @@ export function useUsers() {
 function useInvalidateUsers() {
   const qc = useQueryClient()
   return () => Promise.all([qc.invalidateQueries({ queryKey: userKeys.all }), qc.invalidateQueries({ queryKey: ['audit-logs'] })])
+}
+
+/** Mails a 6-digit code to the new person; they tell it to the Super Admin, who adds it to the create request. */
+export function useSendUserOtp() {
+  return useMutation({
+    mutationFn: async (body: SignupOtpRequest) => (await api.post<SignupOtpResponse>(API_ROUTES.users.otp, body)).data,
+  })
 }
 
 /** Returns the one-time temporary password; the caller shows it to the Super Admin. */

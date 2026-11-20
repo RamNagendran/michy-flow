@@ -33,6 +33,7 @@ async def test_signup_duplicate_email_conflicts(client: AsyncClient) -> None:
             "full_name": "X",
             "email": "PRIYA@example.com",
             "password": "another-password",
+            "otp": "000000",
         },
     )
     assert res.status_code == 409
@@ -160,6 +161,7 @@ async def test_signup_can_be_closed(client: AsyncClient) -> None:
                 "full_name": "B",
                 "email": "a@example.com",
                 "password": "long-enough",
+                "otp": "000000",
             },
         )
     finally:

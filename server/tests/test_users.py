@@ -44,7 +44,7 @@ async def test_access_must_be_global_or_company(client: AsyncClient) -> None:
         {"memberships": [{"company_id": a["id"], "role": "owner"}]},
     ]
     for access in cases:
-        body = {"email": "x@example.com", "full_name": "X", **access}
+        body = {"email": "x@example.com", "full_name": "X", "otp": "000000", **access}
         res = await client.post("/users", json=body, headers=bearer(admin))
         assert res.status_code == 422, access
 
@@ -58,6 +58,7 @@ async def test_cannot_grant_companies_of_another_account(client: AsyncClient) ->
         json={
             "email": "x@example.com",
             "full_name": "X",
+            "otp": "000000",
             "memberships": [{"company_id": foreign["id"], "role": "manager"}],
         },
         headers=bearer(admin),
@@ -70,7 +71,12 @@ async def test_duplicate_email_conflicts(client: AsyncClient) -> None:
     admin, _, _ = await _setup(client)
     res = await client.post(
         "/users",
-        json={"email": "PRIYA@example.com", "full_name": "Dup", "global_role": "ceo"},
+        json={
+            "email": "PRIYA@example.com",
+            "full_name": "Dup",
+            "global_role": "ceo",
+            "otp": "000000",
+        },
         headers=bearer(admin),
     )
     assert res.status_code == 409
@@ -195,7 +201,12 @@ async def test_only_super_admin_manages_users(client: AsyncClient) -> None:
     assert (await client.get("/users", headers=bearer(company_admin))).status_code == 403
     res = await client.post(
         "/users",
-        json={"email": "x@example.com", "full_name": "X", "global_role": "super_admin"},
+        json={
+            "email": "x@example.com",
+            "full_name": "X",
+            "global_role": "super_admin",
+            "otp": "000000",
+        },
         headers=bearer(company_admin),
     )
     assert res.status_code == 403
@@ -221,6 +232,7 @@ async def test_the_admin_role_cannot_be_given(client: AsyncClient) -> None:
         json={
             "email": "x@example.com",
             "full_name": "X",
+            "otp": "000000",
             "memberships": [{"company_id": a["id"], "role": "admin"}],
         },
         headers=bearer(admin),

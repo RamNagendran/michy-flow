@@ -64,7 +64,7 @@ export default function UsersTab() {
   const [sort, setSort] = useState<Sort>('name')
   const [editing, setEditing] = useState<ManagedUser | null>(null)
   const [adding, setAdding] = useState(false)
-  const [password, setPassword] = useState<UserWithPassword | null>(null)
+  const [password, setPassword] = useState<(UserWithPassword & { mailed?: boolean }) | null>(null)
 
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase()
@@ -209,7 +209,7 @@ export default function UsersTab() {
           }}
           onCreated={(result) => {
             setAdding(false)
-            setPassword(result)
+            setPassword({ ...result, mailed: true })
           }}
         />
       )}

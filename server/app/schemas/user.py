@@ -116,11 +116,18 @@ class UserAdminRead(UserBase):
 class UserCreate(AccessInput):
     email: EmailStr
     full_name: str = Field(min_length=1, max_length=200)
+    # The 6-digit code mailed to the person by POST /users/otp.
+    otp: str = Field(pattern=r"^\d{6}$")
 
     @field_validator("full_name")
     @classmethod
     def _strip(cls, value: str) -> str:
         return value.strip()
+
+
+class UserOtpRequest(BaseModel):
+    email: EmailStr
+    full_name: str = Field(default="", max_length=200)
 
 
 class UserUpdate(BaseModel):
@@ -140,11 +147,24 @@ class UserWithPassword(BaseModel):
 # ---------------------------------------------------------------------------
 
 
+class SignupOtpRequest(BaseModel):
+    email: EmailStr
+    # Only to greet them by name in the mail.
+    full_name: str = Field(default="", max_length=200)
+
+
+class SignupOtpResponse(BaseModel):
+    expires_in_minutes: int
+    resend_after_seconds: int
+
+
 class SignupRequest(BaseModel):
     account_name: str = Field(min_length=1, max_length=200)
     full_name: str = Field(min_length=1, max_length=200)
     email: EmailStr
     password: str = Field(min_length=8)
+    # The 6-digit code mailed by /auth/signup/otp.
+    otp: str = Field(pattern=r"^\d{6}$")
 
     _password = field_validator("password")(_check_password)
 
