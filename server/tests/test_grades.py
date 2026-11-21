@@ -14,6 +14,7 @@ async def _sale(client: AsyncClient, t: Team, item: str, qty: str, invoice: str,
         "qty": qty,
         "rate": "20",
         "invoice_no": invoice,
+        **t.bill_gstins(t.buyer),
         **extra,
     }
     res = await client.post(t.url("/sales"), json=body, headers=bearer(t.admin))

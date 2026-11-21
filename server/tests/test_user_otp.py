@@ -36,7 +36,7 @@ async def test_code_then_create_sends_welcome_with_password(
     password = res.json()["temporary_password"]
     welcome = outbox[-1]
     assert welcome["to"] == EMAIL
-    assert welcome["subject"] == "Welcome to Acme Rubbers on Michy Rubbers"
+    assert welcome["subject"] == "Welcome to Acme Rubbers on Michy Group of Companies"
     assert password in welcome["html"] and password in welcome["text"]
 
     async with SessionLocal() as db:

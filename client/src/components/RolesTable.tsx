@@ -16,7 +16,7 @@ const cell = (v: true | 'duty' | undefined) =>
     <CloseOutlined style={{ color: '#c4c8cf' }} />
   )
 
-/** Read-only table of what each role can do (Settings, and Help in the account menu). The server enforces the same rules. */
+/** Read-only table of what each role can do (Help in the account menu). The server enforces the same rules. */
 export default function RolesTable() {
   return (
     <div>

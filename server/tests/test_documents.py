@@ -245,9 +245,16 @@ async def test_bill_must_show_the_supplier_gst_number(client: AsyncClient) -> No
     res = await client.post(t.url("/purchases"), json=body, headers=bearer(t.operator))
     assert res.status_code == 400 and res.json()["code"] == "gstin_mismatch"
     assert "Kaveri Scrap" in res.json()["detail"]
-    # Typed in by hand (no bill), nothing is checked.
+    # Typed in by hand (no bill), the typed GST numbers are checked the same way.
     manual = {k: v for k, v in body.items() if k != "document_id"}
-    ok = await client.post(t.url("/purchases"), json=manual, headers=bearer(t.operator))
+    missing = await client.post(t.url("/purchases"), json=manual, headers=bearer(t.operator))
+    assert missing.status_code == 400 and missing.json()["code"] == "gstin_mismatch"
+    wrong = {**manual, **t.bill_gstins(t.supplier)}
+    res = await client.post(t.url("/purchases"), json=wrong, headers=bearer(t.operator))
+    assert res.status_code == 400 and "Kaveri Scrap" in res.json()["detail"]
+    ok = await client.post(
+        t.url("/purchases"), json={**manual, **t.bill_gstins(other)}, headers=bearer(t.operator)
+    )
     assert ok.status_code == 201, ok.text
 
 

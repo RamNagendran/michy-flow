@@ -1,10 +1,10 @@
 import { Navigate, useNavigate } from 'react-router-dom'
 import { Button } from 'antd'
 import { AppstoreOutlined, LogoutOutlined, RightOutlined } from '@ant-design/icons'
-import logo from '../../assets/michy-logo.png'
 import { useAccess } from '../../hooks/useAccess'
 import { useAuth } from '../../hooks/useAuth'
 import { CompanyBadge } from '../../components/CompanyCards'
+import { MichyMark } from '../../components/ui'
 import { totalOf } from '../../utils/stock'
 import { useStocks } from '../../hooks/queries/stock'
 import type { CompanySelection } from '../../statemanager/slices/uiSlice'
@@ -50,7 +50,15 @@ export default function CeoWelcome() {
   return (
     <div className="welcome">
       <header className="welcome-top">
-        <img src={logo} alt="Michy Rubbers" style={{ height: 44 }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <MichyMark size={44} />
+          <div style={{ lineHeight: 1.15 }}>
+            <div style={{ fontWeight: 800, letterSpacing: '0.14em', fontSize: 17 }}>
+              <span style={{ color: '#D82E54' }}>MICHY</span>
+            </div>
+            <div className="muted" style={{ fontSize: 12.5, fontWeight: 700 }}>Group of Companies</div>
+          </div>
+        </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <Button size="large" icon={<AppstoreOutlined />} onClick={() => navigate('/')}>
             Go to dashboard

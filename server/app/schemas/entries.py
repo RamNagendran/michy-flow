@@ -69,8 +69,8 @@ class _Invoice(BaseModel):
 
 
 class _BillGstins(BaseModel):
-    """GST numbers on the uploaded bill as the person confirmed them: what was read, or what
-    they typed when it was read wrong. Only used with a document; a correction is logged."""
+    """GST numbers on the bill. With an uploaded bill: as read, or as the person typed them when
+    read wrong (a correction is logged). Typed in by hand: both must match the registered ones."""
 
     bill_company_gstin: str | None = Field(default=None, max_length=20)
     bill_party_gstin: str | None = Field(default=None, max_length=20)

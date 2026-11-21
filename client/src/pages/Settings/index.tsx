@@ -4,7 +4,6 @@ import { PageHeader } from '../../components/ui'
 import { useAccess } from '../../hooks/useAccess'
 import CompaniesTab from './CompaniesTab'
 import { ProductsTab } from './MasterListsTab'
-import RolesTable from '../../components/RolesTable'
 import UsersTab from './UsersTab'
 
 export default function Settings() {
@@ -14,7 +13,6 @@ export default function Settings() {
   const items = [
     canSystem('manage_users') && { key: 'users', label: 'People & access', children: <UsersTab /> },
     canSystem('manage_companies') && { key: 'companies', label: 'Companies', children: <CompaniesTab /> },
-    { key: 'roles', label: 'What each role can do', children: <RolesTable /> },
     canSystem('manage_config') && { key: 'products', label: 'Company types & items', children: <ProductsTab /> },
   ].filter((i) => !!i)
   const active = items.some((i) => i.key === params.get('tab')) ? params.get('tab')! : items[0].key

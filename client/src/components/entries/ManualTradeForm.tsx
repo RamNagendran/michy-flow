@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Button, DatePicker, Form, Input, InputNumber, Select } from 'antd'
-import { ArrowLeftOutlined, CheckOutlined } from '@ant-design/icons'
+import { ArrowLeftOutlined, CheckCircleFilled, CheckOutlined, CloseCircleFilled } from '@ant-design/icons'
 import dayjs, { type Dayjs } from 'dayjs'
 import { itemName, unitOf } from '../../data/catalog'
 import { gradeInfo, itemAllowed, itemsFor, stockSection } from '../../data/grades'
@@ -9,6 +9,7 @@ import { useParties } from '../../hooks/queries/parties'
 import { useStocks } from '../../hooks/queries/stock'
 import { useAccess } from '../../hooks/useAccess'
 import { formatINR, formatQty, formatRateIn, perUnit, qtyInputProps } from '../../utils/format'
+import { isValidGstin, normaliseGstin } from '../../utils/gstin'
 import type { EntryDraft } from '../../types/documents'
 import type { Grade } from '../../types/entries'
 import GradePicker from './GradePicker'
@@ -27,6 +28,26 @@ interface Values {
   qty: number
   rate: number
   vehicleNos?: string[]
+  billCompanyGstin: string
+  billPartyGstin: string
+}
+
+/** A GST number typed from the paper bill: required, in format, and the registered one. */
+const gstRule = (registered: string | null | undefined, missing: string) => ({
+  required: true,
+  validator: async (_: unknown, value?: string) => {
+    const typed = normaliseGstin(value ?? '')
+    if (!registered) throw new Error(missing)
+    if (!typed) throw new Error('Type the GST number from the bill')
+    if (!isValidGstin(typed)) throw new Error('This GST number is not in the right format. Please check it.')
+    if (typed !== registered) throw new Error('Does not match the registered GST number. Check the bill.')
+  },
+})
+
+/** Tick when the typed number is the registered one, cross when it is not. Always a suffix, so the cursor stays. */
+const gstSuffix = (registered: string | null | undefined, value?: string) => {
+  const typed = normaliseGstin(value ?? '')
+  return registered && typed === registered ? <CheckCircleFilled style={{ color: '#1f9d6b' }} /> : typed ? <CloseCircleFilled style={{ color: '#D4380D' }} /> : <span />
 }
 
 /** Type in a purchase bill or a sales invoice by hand. Only companies the person may enter for. */
@@ -57,6 +78,16 @@ export default function ManualTradeForm({ kind, saving, onSaved, back }: { kind:
   const over = !isPurchase && available !== null && qty > available
   const initialCompany = companies[0]?.id
   const canAddParty = !!company && access.can('manage_parties', company.id)
+  const party = parties.data?.find((p) => p.id === partyId)
+  const who = isPurchase ? 'supplier' : 'buyer'
+  const billOurs = Form.useWatch('billCompanyGstin', form)
+  const billTheirs = Form.useWatch('billPartyGstin', form)
+  const oursMissing = access.canSystem('manage_companies') ? `Add the GST number for ${company?.name ?? 'this company'} in Settings → Companies first` : 'Our GST number is not added. Ask the Super Admin to add it.'
+  const theirsMissing = !party
+    ? `Choose the ${who} first`
+    : canAddParty
+      ? `Add the GST number for ${party.name} in Suppliers & buyers first`
+      : `The GST number for ${party.name} is not added. Ask the Manager to add it.`
 
   return (
     <div className="grid fade-in" style={{ gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 1fr)', gap: 24, alignItems: 'start' }}>
@@ -76,7 +107,20 @@ export default function ManualTradeForm({ kind, saving, onSaved, back }: { kind:
           }
         }}
         onFinish={(v) =>
-          onSaved({ partyId: v.partyId, grade: v.grade, invoiceNo: v.invoiceNo.trim(), date: v.date.format('YYYY-MM-DD'), item: v.item, qty: v.qty, rate: v.rate, companyId: v.companyId, debitNoteIds: isPurchase ? notesOff : undefined, vehicleNos: isPurchase ? (v.vehicleNos ?? []) : undefined })
+          onSaved({
+            partyId: v.partyId,
+            grade: v.grade,
+            invoiceNo: v.invoiceNo.trim(),
+            date: v.date.format('YYYY-MM-DD'),
+            item: v.item,
+            qty: v.qty,
+            rate: v.rate,
+            companyId: v.companyId,
+            billCompanyGstin: normaliseGstin(v.billCompanyGstin),
+            billPartyGstin: normaliseGstin(v.billPartyGstin),
+            debitNoteIds: isPurchase ? notesOff : undefined,
+            vehicleNos: isPurchase ? (v.vehicleNos ?? []) : undefined,
+          })
         }
       >
         <div className="surface" style={{ padding: 24 }}>
@@ -113,6 +157,26 @@ export default function ManualTradeForm({ kind, saving, onSaved, back }: { kind:
             </Form.Item>
             <Form.Item label="Date" name="date" rules={[{ required: true }]}>
               <DatePicker format="DD MMM YYYY" style={{ width: '100%' }} disabledDate={(d) => d.isAfter(dayjs(), 'day')} allowClear={false} />
+            </Form.Item>
+          </div>
+          <div className="grid grid-2" style={{ columnGap: 16, rowGap: 0 }}>
+            <Form.Item
+              label="Our GST number on the bill"
+              name="billCompanyGstin"
+              normalize={(v: string) => v.toUpperCase()}
+              dependencies={['companyId']}
+              rules={[gstRule(company?.gstin, oursMissing)]}
+            >
+              <Input maxLength={20} placeholder="Type it from the bill" suffix={gstSuffix(company?.gstin, billOurs)} />
+            </Form.Item>
+            <Form.Item
+              label={`${isPurchase ? 'Supplier' : 'Buyer'}'s GST number on the bill`}
+              name="billPartyGstin"
+              normalize={(v: string) => v.toUpperCase()}
+              dependencies={['partyId']}
+              rules={[gstRule(party?.gstin, theirsMissing)]}
+            >
+              <Input maxLength={20} placeholder="Type it from the bill" suffix={gstSuffix(party?.gstin, billTheirs)} />
             </Form.Item>
           </div>
           {isPurchase && (

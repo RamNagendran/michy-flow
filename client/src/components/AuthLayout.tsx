@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react'
 import { ArrowRightOutlined, SafetyCertificateFilled } from '@ant-design/icons'
-import logo from '../assets/michy-logo.png'
-import { MichyMark } from './ui'
+import { MichyLogo, MichyMark } from './ui'
 
 const flow = ['Purchase', 'Production', 'Rubber · Steel', 'Sales', 'Finance check']
 
@@ -11,10 +10,10 @@ export default function AuthLayout({ title, subtitle, children }: { title: strin
     <div className="login">
       <div className="login-brand">
         <div style={{ display: 'flex', alignItems: 'center', gap: 14, position: 'relative' }}>
-          <MichyMark size={44} ink="#fff" />
+          <MichyMark size={40} onDark />
           <div>
             <div style={{ fontWeight: 800, letterSpacing: '0.14em', fontSize: 17 }}>
-              <span style={{ color: '#D82E54' }}>MICHY</span> RUBBERS
+              <span style={{ color: '#D82E54' }}>MICHY</span> GROUP OF COMPANIES
             </div>
             <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12.5, fontWeight: 600 }}>Operations platform</div>
           </div>
@@ -56,13 +55,15 @@ export default function AuthLayout({ title, subtitle, children }: { title: strin
         </div>
 
         <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12.5, position: 'relative', display: 'flex', gap: 8, alignItems: 'center' }}>
-          <SafetyCertificateFilled /> Secure sign-in · Data stays within Michy Rubbers
+          <SafetyCertificateFilled /> Secure sign-in · Data stays within Michy Group of Companies
         </div>
       </div>
 
       <div className="login-form">
         <div style={{ width: 420 }}>
-          <img src={logo} alt="Michy Rubbers" style={{ height: 64, marginBottom: 28, marginLeft: -6 }} />
+          <div style={{ marginBottom: 28 }}>
+            <MichyLogo height={110} />
+          </div>
           <h2 style={{ fontSize: 26, fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>{title}</h2>
           <p className="muted" style={{ marginTop: 6, marginBottom: 28, fontSize: 15 }}>
             {subtitle}

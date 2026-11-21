@@ -1,6 +1,6 @@
 """Shared setup for the entry tests: one company with a person in every role."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from httpx import AsyncClient
 from sqlalchemy import text
@@ -26,9 +26,18 @@ class Team:
     buyer: int
     machine: int = 0
     crew: int = 0
+    # Each supplier's / buyer's registered GST number, by id.
+    gstins: dict[int, str] = field(default_factory=dict)
 
     def url(self, path: str = "") -> str:
         return f"/companies/{self.company['id']}{path}"
+
+    def bill_gstins(self, party_id: int) -> dict[str, str | None]:
+        """The GST numbers a typed-in bill must show: ours and the party's, as registered."""
+        return {
+            "bill_company_gstin": self.company["gstin"],
+            "bill_party_gstin": self.gstins.get(party_id),
+        }
 
 
 async def _member(client: AsyncClient, sa: str, cid: int, email: str, role: str, duties=()) -> str:  # noqa: ANN001
@@ -71,6 +80,7 @@ async def party(client: AsyncClient, t: Team, kind: str, name: str, **extra: obj
     body = {"kind": kind, "name": name, "gstin": make_gstin(f"{kind}-{name}"), **extra}
     res = await client.post(t.url("/parties"), json=body, headers=bearer(t.manager))
     assert res.status_code == 201, res.text
+    t.gstins[res.json()["id"]] = res.json()["gstin"]
     return res.json()["id"]
 
 
@@ -104,6 +114,7 @@ async def purchase(  # noqa: ANN201
         "invoice_no": f"INV-{qty}-{len(token) % 97}-{extra.pop('n', 1)}",
         **extra,
     }
+    body = {**t.bill_gstins(body["supplier_id"]), **body}
     res = await client.post(t.url("/purchases"), json=body, headers=bearer(token))
     return await approve_new(client, t, res, approve)
 
@@ -163,6 +174,7 @@ async def sale(  # noqa: ANN201
         "qty": qty,
         "rate": "30",
         "invoice_no": invoice,
+        **t.bill_gstins(t.buyer),
     }
     res = await client.post(t.url("/sales"), json=body, headers=bearer(token))
     return await approve_new(client, t, res, approve)
