@@ -32,7 +32,7 @@ async def test_otp_mail_then_signup_sends_welcome(client: AsyncClient, outbox: l
     res = await client.post("/auth/signup", json={**BODY, "otp": code})
     assert res.status_code == 201, res.text
     welcome = outbox[-1]
-    assert welcome["subject"] == "Welcome to Michy Rubbers"
+    assert welcome["subject"] == "Welcome to Michy Group of Companies"
     assert "Meena Rubbers" in welcome["html"] and "/login" in welcome["text"]
 
     async with SessionLocal() as db:

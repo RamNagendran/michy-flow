@@ -1,4 +1,4 @@
-# Michy Rubbers — Operations prototype (Stage 1)
+# Michy Group of Companies — Operations prototype (Stage 1)
 
 A clickable front-end prototype for the client pitch. There is no backend and no API. Every screen runs on realistic mock data, and the numbers agree across every page.
 

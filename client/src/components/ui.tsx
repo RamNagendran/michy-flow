@@ -11,16 +11,21 @@ import { itemName, type MaterialId, type OutputId, itemColor } from '../data/cat
 import type { EntrySource, EntryStatus, Grade } from '../types/entries'
 import { gradeInfo } from '../data/grades'
 import { statusMeta } from '../utils/entryStatus'
+import logoImg from '../assets/michy-logo.png'
+import markImg from '../assets/michy-mark.png'
 
 /* ---------- Brand ---------- */
 
-export function MichyMark({ size = 28, ink = '#191919' }: { size?: number; ink?: string }) {
-  return (
-    <svg width={size} height={(size * 90) / 120} viewBox="0 0 120 90" aria-hidden>
-      <path fill={ink} d="M96 0H120V90H98V34L72 68L60 52Z" />
-      <path fill="#D82E54" d="M0 0H26L70 58V90H48L22 55V90H0Z" />
-    </svg>
-  )
+/** The Michy "M" from the logo. On a dark background it sits on a white tile so the blue stays clear. */
+export function MichyMark({ size = 28, onDark }: { size?: number; onDark?: boolean }) {
+  const img = <img src={markImg} alt="" width={size} height={size} style={{ display: 'block', objectFit: 'contain' }} />
+  if (!onDark) return img
+  return <span style={{ display: 'inline-flex', flexShrink: 0, padding: size * 0.14, background: '#fff', borderRadius: size * 0.26 }}>{img}</span>
+}
+
+/** The full logo: the "M", "MICHY" and "GROUP OF COMPANIES". For light backgrounds. */
+export function MichyLogo({ height = 96 }: { height?: number }) {
+  return <img src={logoImg} alt="Michy Group of Companies" style={{ height, display: 'block' }} />
 }
 
 /* ---------- Page scaffolding ---------- */

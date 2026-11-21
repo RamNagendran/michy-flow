@@ -16,7 +16,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.permissions import CompanyPermission as P
 from app.auth.permissions import visible_entry_types
 from app.core.errors import ConflictError, ForbiddenError, InvalidError, NotFoundError
-from app.models import Production, ProductionMaterial, ProductionOutput, Purchase, Sale, grades
+from app.models import (
+    Party,
+    Production,
+    ProductionMaterial,
+    ProductionOutput,
+    Purchase,
+    Sale,
+    grades,
+)
 from app.models.catalog import process_of, to_kg
 from app.models.enums import EntrySource, EntryType, PartyKind
 from app.schemas.entries import (
@@ -259,6 +267,16 @@ async def create(
     if entry_type == EntryType.PRODUCTION:
         await wastage_month_service.assert_month_open(db, ctx.company.id, data.entry_date)
     fields = await _fields(db, ctx, entry_type, data, None)
+    if isinstance(data, PurchaseInput | SaleInput) and not data.document_id:
+        # Typed in by hand: the GST numbers on the paper bill must still be the registered ones.
+        party_id = data.supplier_id if isinstance(data, PurchaseInput) else data.buyer_id
+        document_service.check_gstins(
+            ctx.company,
+            await db.get(Party, party_id),
+            data.bill_company_gstin,
+            data.bill_party_gstin,
+            entry_type.value,
+        )
     entry = kind.model(
         company_id=ctx.company.id,
         ref_no=await next_ref(db, ctx, kind.prefix),

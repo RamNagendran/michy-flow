@@ -93,6 +93,8 @@ async def test_new_items_and_types_flow_into_companies_and_entries(client: Async
         "qty": "500",
         "rate": "9",
         "invoice_no": "B-1",
+        "bill_company_gstin": company["gstin"],
+        "bill_party_gstin": make_gstin("belts"),
     }
     res = await client.post(f"{url}/purchases", json=bill, headers=bearer(sa))
     assert res.status_code == 201, res.text

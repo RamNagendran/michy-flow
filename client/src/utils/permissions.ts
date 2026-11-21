@@ -4,7 +4,7 @@ import type { CompanyPermission, CompanyRole, Duty, GlobalRole } from '../types/
  * The server decides access: /auth/me sends each person's resolved permissions per company
  * (see server/app/auth/permissions.py). The client only reads them, through useAccess().
  *
- * The tables below are for *display* (Settings → Roles), and for naming which permission
+ * The tables below are for *display* (Help → What each role can do), and for naming which permission
  * unlocks which screen. Keep ROLE_MATRIX in step with the server file when roles change.
  */
 

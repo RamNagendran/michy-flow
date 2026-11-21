@@ -40,7 +40,7 @@ class Settings(BaseSettings):
     # Brevo sends the sign-up OTP and welcome mails. Without a key, mails are only logged.
     BREVO_API_KEY: str = ""
     MAIL_FROM_EMAIL: str = "noreply@michyconnect.in"
-    MAIL_FROM_NAME: str = "Michy Rubbers"
+    MAIL_FROM_NAME: str = "Michy Group of Companies"
 
     @field_validator("DATABASE_URL", "JWT_SECRET")
     @classmethod

@@ -15,7 +15,7 @@ _BORDER = "#E8EAEE"
 _BG = "#F5F6F8"
 _SOFT = "#FDEEF2"
 _FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
-_APP = "Michy Rubbers"
+_APP = "Michy Group of Companies"
 
 
 def _layout(preheader: str, body: str) -> str:
@@ -26,7 +26,7 @@ def _layout(preheader: str, body: str) -> str:
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="color-scheme" content="light">
-<title>Michy Rubbers</title>
+<title>Michy Group of Companies</title>
 </head>
 <body style="margin:0;padding:0;background:{_BG};font-family:{_FONT};color:{_TEXT};">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;">{escape(preheader)}</div>
@@ -37,7 +37,7 @@ def _layout(preheader: str, body: str) -> str:
 border:1px solid {_BORDER};">
 <tr><td style="background:{_INK};padding:26px 36px;">
 <div style="font-size:16px;font-weight:800;letter-spacing:0.14em;color:#ffffff;">
-<span style="color:{_BRAND};">MICHY</span> RUBBERS</div>
+<span style="color:{_BRAND};">MICHY</span> GROUP OF COMPANIES</div>
 <div style="font-size:12px;font-weight:600;color:rgba(255,255,255,0.55);margin-top:4px;">
 Operations platform</div>
 </td></tr>
@@ -47,8 +47,9 @@ Operations platform</div>
 </td></tr>
 <tr><td style="padding:20px 36px 28px;border-top:1px solid {_BORDER};">
 <p style="margin:0;font-size:12px;line-height:1.6;color:{_FAINT};">
-This is an automatic mail from Michy Rubbers. Please do not reply to it.<br>
-&copy; {today().year} Michy Rubbers &middot; Create a better future by minimizing waste</p>
+This is an automatic mail from Michy Group of Companies. Please do not reply to it.<br>
+&copy; {today().year} Michy Group of Companies &middot;
+Create a better future by minimizing waste</p>
 </td></tr>
 </table>
 </td></tr>
@@ -63,7 +64,7 @@ def _greeting(name: str) -> str:
 
 
 def _where(organisation: str) -> str:
-    """'Acme on Michy Rubbers', or just 'Michy Rubbers' when the organisation has the app's name."""
+    """'Acme on Michy Group of Companies', or just the app's name when the organisation has it."""
     if organisation.strip().lower() == _APP.lower():
         return _APP
     return f"{organisation} on {_APP}"
@@ -95,19 +96,20 @@ This code works for <strong style="color:{_TEXT};">{minutes} minutes</strong>.<b
 
 
 def signup_otp(name: str, code: str, minutes: int) -> tuple[str, str, str]:
-    subject = f"{code} is your Michy Rubbers sign-up code"
+    subject = f"{code} is your Michy Group of Companies sign-up code"
     body = _code_mail(
         "Your sign-up code",
         f"{escape(_greeting(name))}<br>"
-        "Enter this code on the sign-up page to create your Michy Rubbers account.",
+        "Enter this code on the sign-up page to create your Michy Group of Companies account.",
         code,
         minutes,
-        "Do not share this code with anyone. Michy Rubbers staff will never ask for it.<br>"
+        "Do not share this code with anyone. "
+        "Michy Group of Companies staff will never ask for it.<br>"
         "If you did not try to sign up, you can ignore this mail.",
     )
     text = (
         f"{_greeting(name)}\n\n"
-        f"Your Michy Rubbers sign-up code is: {code}\n\n"
+        f"Your Michy Group of Companies sign-up code is: {code}\n\n"
         f"It works for {minutes} minutes. Do not share it with anyone.\n"
         "If you did not try to sign up, you can ignore this mail.\n\n"
         "This is an automatic mail. Please do not reply."
@@ -119,7 +121,7 @@ def member_otp(
     name: str, code: str, minutes: int, added_by: str, organisation: str
 ) -> tuple[str, str, str]:
     """The Super Admin is adding this person; they read the code back to the Super Admin."""
-    subject = f"{code} is your Michy Rubbers verification code"
+    subject = f"{code} is your Michy Group of Companies verification code"
     body = _code_mail(
         "Your verification code",
         f"{escape(_greeting(name))}<br>"
@@ -151,13 +153,13 @@ def _button(url: str) -> str:
 <tr><td style="border-radius:10px;background:{_BRAND};">
 <a href="{escape(url)}" target="_blank"
  style="display:inline-block;padding:14px 28px;font-size:15px;font-weight:700;color:#ffffff;
-text-decoration:none;border-radius:10px;">Open Michy Rubbers</a>
+text-decoration:none;border-radius:10px;">Open Michy Group of Companies</a>
 </td></tr>
 </table>"""
 
 
 def welcome(name: str, organisation: str) -> tuple[str, str, str]:
-    subject = "Welcome to Michy Rubbers"
+    subject = "Welcome to Michy Group of Companies"
     login_url = _login_url()
     steps = [
         ("Add your companies", "Each company gets its own purchases, production and sales."),
@@ -179,7 +181,7 @@ color:{_BRAND};font-size:13px;font-weight:800;text-align:center;">{i}</div></td>
 <p style="margin:0 0 6px;font-size:13px;font-weight:800;letter-spacing:0.12em;color:{_BRAND};">
 ACCOUNT READY</p>
 <h1 style="margin:0 0 18px;font-size:24px;line-height:1.3;font-weight:800;color:{_INK};">
-Welcome to Michy Rubbers</h1>
+Welcome to Michy Group of Companies</h1>
 <p style="margin:0 0 8px;font-size:15px;line-height:1.6;color:{_TEXT};">
 {escape(_greeting(name))}<br>
 Your organisation <strong>{escape(organisation)}</strong> is ready. You are its Super Admin,
@@ -193,7 +195,8 @@ Sign in with <strong style="color:{_TEXT};">this email address</strong> and the 
 just set.</p>"""
     text = (
         f"{_greeting(name)}\n\n"
-        f"Your organisation {organisation} is ready on Michy Rubbers. You are its Super Admin.\n\n"
+        f"Your organisation {organisation} is ready on Michy Group of Companies. "
+        "You are its Super Admin.\n\n"
         "Next steps:\n"
         + "".join(f"{i}. {t}: {d}\n" for i, (t, d) in enumerate(steps, start=1))
         + f"\nSign in here: {login_url}\n\n"
@@ -213,7 +216,7 @@ def welcome_member(
 <p style="margin:0 0 6px;font-size:13px;font-weight:800;letter-spacing:0.12em;color:{_BRAND};">
 ACCOUNT READY</p>
 <h1 style="margin:0 0 18px;font-size:24px;line-height:1.3;font-weight:800;color:{_INK};">
-Welcome to Michy Rubbers</h1>
+Welcome to Michy Group of Companies</h1>
 <p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:{_TEXT};">
 {escape(_greeting(name))}<br>
 <strong>{escape(added_by)}</strong> has made your account in

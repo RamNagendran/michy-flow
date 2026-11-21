@@ -90,7 +90,7 @@ async def test_sale_prices_put_the_best_paying_buyer_first(client: AsyncClient) 
     good = await party(client, t, "buyer", "Apex Rubbers")
     for buyer, qty, rate, n in ((t.buyer, "1000", "30", 1), (good, "1000", "34", 2)):
         body = {"entry_date": TODAY, "buyer_id": buyer, "product": "rubber", "qty": qty}
-        body |= {"rate": rate, "invoice_no": f"MR/{n}"}
+        body |= {"rate": rate, "invoice_no": f"MR/{n}", **t.bill_gstins(buyer)}
         res = await client.post(t.url("/sales"), json=body, headers=bearer(t.admin))
         await approve_new(client, t, res)
     url = t.url(f"/prices?item=rubber&side=sale&date_from={TODAY}&date_to={TODAY}")

@@ -1,6 +1,6 @@
 # michy-flow
 
-Operations platform for Michy Rubbers: purchases, warehouse stock, production, output stock and sales.
+Operations platform for Michy Group of Companies: purchases, warehouse stock, production, output stock and sales.
 
 ```
 client/  React 19 + TypeScript + Vite + antd    → Vercel

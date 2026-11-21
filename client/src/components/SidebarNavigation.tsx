@@ -127,13 +127,13 @@ export default function SidebarNavigation() {
         style={{ position: 'absolute', top: 0, left: 0, height: '100vh', overflow: 'hidden' }}
       >
         <div className="sider-logo" style={{ justifyContent: collapsed ? 'center' : undefined, padding: collapsed ? 0 : undefined }}>
-          <MichyMark size={34} ink="#ffffff" />
+          <MichyMark size={28} onDark />
           {!collapsed && (
             <div>
               <div className="wordmark">
-                <span>MICHY</span> RUBBERS
+                <span>MICHY</span>
               </div>
-              <div className="tag">Operations</div>
+              <div className="tag">Group of Companies</div>
             </div>
           )}
         </div>

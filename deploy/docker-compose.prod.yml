@@ -51,7 +51,7 @@ services:
       RATE_LIMIT_ENABLED: "true"
       BREVO_API_KEY: ${BREVO_API_KEY:-}
       MAIL_FROM_EMAIL: ${MAIL_FROM_EMAIL:-noreply@michyconnect.in}
-      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-Michy Rubbers}
+      MAIL_FROM_NAME: ${MAIL_FROM_NAME:-Michy Group of Companies}
     mem_limit: 1800m
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=4)"]
