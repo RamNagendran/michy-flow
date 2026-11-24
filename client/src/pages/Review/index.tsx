@@ -67,7 +67,7 @@ export default function Review() {
     <div className="page">
       <PageHeader title="Approvals" subtitle={subtitle} />
       <div className="surface table-card">
-        <div style={{ padding: '4px 20px 0' }}>
+        <div className="tabs-pad">
           <Tabs
             activeKey={active}
             onChange={(tab) => setParams({ tab }, { replace: true })}
@@ -77,7 +77,7 @@ export default function Review() {
               label: <QueueLabel queue={q} />,
               children: (
                 <>
-                  <div className="muted" style={{ fontSize: 13, marginBottom: 4 }}>
+                  <div className="muted tabs-hint" style={{ fontSize: 13, marginBottom: 4 }}>
                     {q.hint}
                   </div>
                   <EntryTable types={[...ALL_TYPES]} companies={q.companies} statuses={q.statuses} escalated={q.escalated} escalatedTo={q.escalatedTo} />

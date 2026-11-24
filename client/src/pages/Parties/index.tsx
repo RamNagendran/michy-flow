@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
 import { Alert, Button, Form, Input, Modal, Segmented, Switch, Table, Tag } from 'antd'
 import { PlusOutlined, SearchOutlined } from '@ant-design/icons'
+import MobileList from '../../components/MobileList'
 import { PageHeader } from '../../components/ui'
 import { useParties, useSaveParty } from '../../hooks/queries/parties'
 import { useAccess } from '../../hooks/useAccess'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import { errorMessage } from '../../services/apiError'
 import type { Machine, Operator, Party, PartyInput, PartyKind } from '../../types/entries'
 import { requiredMark } from '../../utils/formMarks'
@@ -59,6 +61,7 @@ function PartyModal({ companyId, kind, party, onClose }: { companyId: number; ki
 
 export default function Parties() {
   const { scope, can } = useAccess()
+  const mobile = useIsMobile()
   const [tab, setTab] = useState<Tab>('supplier')
   const [q, setQ] = useState('')
   const [editing, setEditing] = useState<Party | 'new' | null>(null)
@@ -94,12 +97,33 @@ export default function Parties() {
       />
       <div className="surface table-card">
         <div style={{ display: 'flex', gap: 10, padding: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-          <Segmented<Tab> value={tab} onChange={setTab} options={tabs.map((t) => ({ value: t.value, label: t.label }))} />
-          <Input prefix={<SearchOutlined className="faint" />} placeholder={meta.search} allowClear value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 260 }} />
+          <Segmented<Tab> block={mobile} value={tab} onChange={setTab} options={tabs.map((t) => ({ value: t.value, label: t.label }))} style={mobile ? { width: '100%' } : undefined} />
+          <Input prefix={<SearchOutlined className="faint" />} placeholder={meta.search} allowClear value={q} onChange={(e) => setQ(e.target.value)} style={{ width: mobile ? '100%' : 260 }} />
         </div>
         {tab === 'operator' && current && <OperatorsTable companyId={current.id} q={q} onEdit={setEditingOperator} />}
         {tab === 'machine' && current && <MachinesTable companyId={current.id} q={q} onEdit={setEditingMachine} />}
-        {isParty && (
+        {isParty && mobile && (
+          <MobileList<Party>
+            rows={parties.data && rows}
+            rowKey={(p) => p.id}
+            loading={parties.isLoading}
+            card={(p) => ({
+              title: <span style={{ opacity: p.is_active ? 1 : 0.5 }}>{p.name}</span>,
+              extra: p.is_active ? <Tag color="success">Active</Tag> : <Tag>Inactive</Tag>,
+              lines: [
+                p.gstin ? <span className="num">GST {p.gstin}</span> : <span style={{ color: '#D4380D' }}>GST number not added</span>,
+                [p.city, p.contact_name].filter(Boolean).join(' · '),
+                p.phone && (
+                  <a href={`tel:${p.phone}`} className="num" onClick={(e) => e.stopPropagation()}>
+                    {p.phone}
+                  </a>
+                ),
+              ],
+              onClick: canManage ? () => setEditing(p) : undefined,
+            })}
+          />
+        )}
+        {isParty && !mobile && (
           <Table<Party>
             scroll={{ x: 'max-content' }}
             rowKey="id"

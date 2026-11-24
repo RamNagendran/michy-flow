@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Button, Segmented, Select, Table, Tag, Tooltip } from 'antd'
-import { ArrowDownOutlined, ArrowUpOutlined, ReloadOutlined } from '@ant-design/icons'
+import { Button, Table, Tag, Tooltip } from 'antd'
+import { ArrowDownOutlined, ArrowUpOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import {
   BarChart,
@@ -28,7 +28,8 @@ import { usePeriod } from '../../hooks/usePeriod'
 import type { Grade } from '../../types/entries'
 import type { Bucket, TradeSide } from '../../types/reports'
 import { formatDate, formatINR, formatINRShort, formatPercent, formatQty, formatRateIn, formatKg } from '../../utils/format'
-import { BUCKET_MAX_DAYS, bucketLabels, periodLabel, rangeSubtitle, type DateRange } from '../../utils/period'
+import { bucketLabels, periodLabel, type DateRange } from '../../utils/period'
+import AnalysisFilters from './AnalysisFilters'
 
 /** Words for each side, so one screen serves purchases and sales. */
 const WORDS = {
@@ -183,58 +184,16 @@ export default function TradeAnalysis({ grouping, children }: { grouping: Groupi
 
       {/* Sticks under the top bar while scrolling through this section, so filters are always at hand. */}
       <div ref={sentinel} aria-hidden style={{ height: 1 }} />
-      <div className={`surface filter-bar sticky-filters${stuck ? ' is-stuck' : ''}`}>
-        <Segmented<TradeSide> value={side} onChange={pickSide} options={[{ value: 'purchase', label: 'Purchases' }, { value: 'sale', label: 'Sales' }]} />
-        <span className="filter-divider" />
-        <Tooltip title="Change the dates in the top bar of the screen">
-          <span className="filter-dates num">{rangeSubtitle(f.filters.range)}</span>
-        </Tooltip>
-        <span className="filter-label">Chart by</span>
-        <Segmented<Bucket>
-          value={grouping.bucket}
-          onChange={grouping.setBucket}
-          options={(['day', 'week', 'month', 'year'] as const).map((b) => ({
-            value: b,
-            disabled: !grouping.allowed.includes(b),
-            label: grouping.allowed.includes(b) ? bucketLabels[b] : <Tooltip title={`Only for up to ${BUCKET_MAX_DAYS[b]} days`}>{bucketLabels[b]}</Tooltip>,
-          }))}
-        />
-        <Select
-          prefix={<span className="filter-label">{w.item}</span>}
-          style={{ width: 230 }}
-          value={f.filters.item ?? ''}
-          onChange={(i) => f.setItem(i || undefined)}
-          options={[{ value: '', label: `All ${w.items}` }, ...itemChoices.map((i) => ({ value: i, label: itemName(i) }))]}
-        />
-        <Select<Grade[]>
-          mode="multiple"
-          prefix={<span className="filter-label">Grade</span>}
-          maxTagCount="responsive"
-          style={{ width: 200 }}
-          value={f.filters.grades}
-          onChange={(g) => g.length && f.setGrades(g)}
-          options={(['A', 'B', 'C'] as const).map((g) => ({ value: g, label: g }))}
-        />
-        {single && (
-          <Select
-            mode="multiple"
-            allowClear
-            prefix={<span className="filter-label">{w.party}</span>}
-            maxTagCount="responsive"
-            style={{ width: 240 }}
-            placeholder="All"
-            value={f.filters.partyKeys}
-            onChange={f.setParties}
-            optionFilterProp="label"
-            options={(all.view?.parties ?? []).map((p) => ({ value: p.key, label: p.name }))}
-          />
-        )}
-        {f.changed && (
-          <Button type="text" icon={<ReloadOutlined />} onClick={f.reset}>
-            Reset
-          </Button>
-        )}
-      </div>
+      <AnalysisFilters
+        side={side}
+        onSide={pickSide}
+        words={w}
+        grouping={grouping}
+        f={f}
+        itemChoices={itemChoices}
+        parties={single ? (all.view?.parties ?? []) : undefined}
+        stuck={stuck}
+      />
 
       <Overview view={v} side={side} loading={q.isLoading} />
       <Charts view={v} side={side} colors={colors} loading={q.isLoading} refreshing={q.isRefreshing} days={days} onPickItem={f.setItem} itemChoices={(all.view?.items ?? []).map((i) => i.item)} />

@@ -3,6 +3,7 @@ import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Avatar, Badge, Button, ConfigProvider, Dropdown, Layout, Modal, Popover, Result, Tooltip, type MenuProps, type ThemeConfig } from 'antd'
 import {
   AlertOutlined,
+  AppstoreOutlined,
   BankOutlined,
   BellOutlined,
   ExperimentOutlined,
@@ -145,11 +146,14 @@ export default function MainLayout() {
         ),
       },
       { type: 'divider' },
+      // Back to the company picker shown after sign-in.
+      ...(access.companies.length > 1 ? [{ key: 'companies', icon: <AppstoreOutlined />, label: 'All companies' }] : []),
       { key: 'help', icon: <QuestionCircleOutlined />, label: 'Help: roles and access' },
       { key: 'password', icon: <KeyOutlined />, label: 'Change password' },
       { key: 'logout', icon: <LogoutOutlined />, label: 'Sign out', danger: true },
     ],
     onClick: ({ key }) => {
+      if (key === 'companies') navigate('/welcome')
       if (key === 'help') setHelpOpen(true)
       if (key === 'password') navigate('/change-password')
       if (key === 'logout') logout()
