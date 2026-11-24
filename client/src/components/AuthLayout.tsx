@@ -4,7 +4,7 @@ import { MichyLogo, MichyMark } from './ui'
 
 const flow = ['Purchase', 'Production', 'Rubber · Steel', 'Sales', 'Finance check']
 
-/** Brand panel on the left, form on the right. Shared by Login and Signup. On phones only the form shows. */
+/** Brand panel on the left, form on the right. Shared by Login and Signup. On phones a short brand header sits on top and the form rises over it as a card. */
 export default function AuthLayout({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   return (
     <div className="login">
@@ -59,6 +59,22 @@ export default function AuthLayout({ title, subtitle, children }: { title: strin
         </div>
       </div>
 
+      {/* Phones only (hidden on a computer by global.css). */}
+      <div className="login-hero">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, position: 'relative' }}>
+          <MichyMark size={40} onDark />
+          <div style={{ lineHeight: 1.25 }}>
+            <div style={{ fontWeight: 800, letterSpacing: '0.16em', fontSize: 16, color: '#D82E54' }}>MICHY</div>
+            <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11, fontWeight: 700, letterSpacing: '0.12em' }}>GROUP OF COMPANIES</div>
+          </div>
+        </div>
+        <h1>
+          Every kilo of tyre,
+          <br />
+          from purchase to sale.
+        </h1>
+      </div>
+
       <div className="login-form">
         <div className="login-card">
           <div className="login-logo">
@@ -69,6 +85,9 @@ export default function AuthLayout({ title, subtitle, children }: { title: strin
             {subtitle}
           </p>
           {children}
+          <div className="login-secure">
+            <SafetyCertificateFilled /> Secure sign-in
+          </div>
         </div>
       </div>
     </div>
