@@ -85,7 +85,7 @@ export function CompanyCard({ company, raw, output, summary }: CardProps) {
         <RightOutlined className="faint" />
       </div>
 
-      <div className="grid grid-2" style={{ marginTop: 16, gap: 10 }}>
+      <div className="grid company-figs" style={{ marginTop: 16, gap: 10 }}>
         {(
           [
             ['Raw material in stock', totalOf(raw)],

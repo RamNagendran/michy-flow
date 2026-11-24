@@ -86,8 +86,8 @@ export default function OilKpiPanel({ kpi, bucket, loading, refreshing }: { kpi:
     <div className="oil-kpi">
       <div className="surface chart-card fade-in" style={{ display: 'flex', flexDirection: 'column' }}>
         <div className="chart-title">Oil production</div>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginTop: 18 }}>
-          <span className="num" style={{ fontSize: 44, fontWeight: 800, letterSpacing: '-0.03em', color: statusColor[status], lineHeight: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', flexWrap: 'wrap', gap: 12, marginTop: 18 }}>
+          <span className="num oil-big" style={{ color: statusColor[status] }}>
             {formatPercent(pct)}
           </span>
           <span className={`signal ${status}`}>

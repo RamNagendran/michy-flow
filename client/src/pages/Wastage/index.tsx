@@ -3,11 +3,13 @@ import { Button, Skeleton, Space, Table } from 'antd'
 import { AuditOutlined, CalendarOutlined, CheckCircleOutlined, FieldTimeOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import WastageChart from '../../components/charts/WastageChart'
+import MobileList from '../../components/MobileList'
 import { HintButton, PageHeader, SectionTitle } from '../../components/ui'
 import { itemName } from '../../data/catalog'
 import { useStocks } from '../../hooks/queries/stock'
 import { useStockChecks, useWastageMonths } from '../../hooks/queries/wastage'
 import { useAccess } from '../../hooks/useAccess'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import { usePeriod } from '../../hooks/usePeriod'
 import { useReportCompany } from '../../hooks/useReportCompany'
 import type { StockCheck } from '../../types/reports'
@@ -43,6 +45,7 @@ function Card({ icon, tone, label, value, sub, action, loading }: { icon: React.
 /** Wastage control: each month's wastage on its way to the Super Admin, and stock checks. */
 export default function Wastage() {
   const { can } = useAccess()
+  const mobile = useIsMobile()
   const { range } = usePeriod()
   const { company } = useReportCompany('view_all_entries')
   const cid = company?.id
@@ -124,44 +127,71 @@ export default function Wastage() {
         />
       </div>
 
-      <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1.25fr)', gap: 16, marginTop: 16 }}>
+      <div className="grid grid-split wastage-split" style={{ gap: 16, marginTop: 16 }}>
         <WastageChart months={all} loading={monthsLoading} refreshing={months.isFetching && !monthsLoading} />
         <MonthTable months={all} loading={monthsLoading} canApprove={canApprove} selected={selected} onSelect={setSelected} onOpen={setOpenMonth} onApprove={() => setApproving(true)} />
       </div>
 
       <SectionTitle title="Stock checks" hint="stock counted by the Super Admin · any difference corrects the stock" />
       <div className="surface table-card">
-        <Table<StockCheck>
-          rowKey="id"
-          loading={checksLoading}
-          pagination={{ pageSize: 6, hideOnSinglePage: true }}
-          dataSource={checksLoading ? [] : checks.data}
-          locale={{ emptyText: 'No stock checks yet' }}
-          expandable={{
-            expandedRowRender: (c) => (
-              <div style={{ display: 'grid', gap: 4 }}>
-                {c.lines.map((l) => (
-                  <div key={`${l.section}${l.item}`} className="summary-line" style={{ padding: '4px 0' }}>
-                    <span>
-                      {itemName(l.item)} <span className="faint">· Grade {l.grade}</span>
-                    </span>
+        {mobile ? (
+          <MobileList<StockCheck>
+            rows={checksLoading ? undefined : checks.data}
+            rowKey={(c) => c.id}
+            loading={checksLoading}
+            pageSize={6}
+            emptyText="No stock checks yet"
+            card={(c) => {
+              const short = c.lines.filter((l) => l.difference > 0).length
+              return {
+                title: formatDate(c.counted_on),
+                extra: <span className="faint" style={{ fontSize: 12.5 }}>{short ? `${short} short` : 'all matched'}</span>,
+                lines: [
+                  `By ${c.counted_by_name} · ${c.lines.length} line${c.lines.length === 1 ? '' : 's'}`,
+                  ...c.lines.map((l) => (
                     <span className="num">
-                      book {formatQty(l.book_qty, l.unit)} · counted {formatQty(l.counted_qty, l.unit)} ·{' '}
+                      {itemName(l.item)} <span className="faint">· Grade {l.grade}</span> ·{' '}
                       <b style={{ color: l.difference > 0 ? '#D4380D' : l.difference < 0 ? '#1F9D6B' : undefined }}>{l.difference > 0 ? `${formatQty(l.difference, l.unit)} short` : l.difference < 0 ? `${formatQty(-l.difference, l.unit)} extra` : 'matched'}</b>
                     </span>
-                  </div>
-                ))}
-              </div>
-            ),
-          }}
-          columns={[
-            { title: 'Counted on', render: (_, c) => <b>{formatDate(c.counted_on)}</b> },
-            { title: 'By', dataIndex: 'counted_by_name' },
-            { title: 'Lines', align: 'right', render: (_, c) => c.lines.length },
-            { title: 'Short', align: 'right', render: (_, c) => <span className="num">{c.lines.filter((l) => l.difference > 0).length}</span> },
-            { title: 'Note', dataIndex: 'note', render: (v) => <span className="muted">{v || '—'}</span> },
-          ]}
-        />
+                  )),
+                  c.note && <span className="faint">{c.note}</span>,
+                ],
+              }
+            }}
+          />
+        ) : (
+          <Table<StockCheck>
+            rowKey="id"
+            loading={checksLoading}
+            pagination={{ pageSize: 6, hideOnSinglePage: true }}
+            dataSource={checksLoading ? [] : checks.data}
+            locale={{ emptyText: 'No stock checks yet' }}
+            expandable={{
+              expandedRowRender: (c) => (
+                <div style={{ display: 'grid', gap: 4 }}>
+                  {c.lines.map((l) => (
+                    <div key={`${l.section}${l.item}`} className="summary-line" style={{ padding: '4px 0' }}>
+                      <span>
+                        {itemName(l.item)} <span className="faint">· Grade {l.grade}</span>
+                      </span>
+                      <span className="num">
+                        book {formatQty(l.book_qty, l.unit)} · counted {formatQty(l.counted_qty, l.unit)} ·{' '}
+                        <b style={{ color: l.difference > 0 ? '#D4380D' : l.difference < 0 ? '#1F9D6B' : undefined }}>{l.difference > 0 ? `${formatQty(l.difference, l.unit)} short` : l.difference < 0 ? `${formatQty(-l.difference, l.unit)} extra` : 'matched'}</b>
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ),
+            }}
+            columns={[
+              { title: 'Counted on', render: (_, c) => <b>{formatDate(c.counted_on)}</b> },
+              { title: 'By', dataIndex: 'counted_by_name' },
+              { title: 'Lines', align: 'right', render: (_, c) => c.lines.length },
+              { title: 'Short', align: 'right', render: (_, c) => <span className="num">{c.lines.filter((l) => l.difference > 0).length}</span> },
+              { title: 'Note', dataIndex: 'note', render: (v) => <span className="muted">{v || '—'}</span> },
+            ]}
+          />
+        )}
       </div>
 
       {cid && <MonthDrawer companyId={cid} month={openMonth} onClose={() => setOpenMonth(null)} />}

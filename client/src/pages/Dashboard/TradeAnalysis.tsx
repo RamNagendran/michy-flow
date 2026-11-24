@@ -97,8 +97,8 @@ function useFilters(grouping: Grouping) {
   return { filters: { range, bucket: grouping.bucket, item, grades, partyKeys } as Filters, changed, setItem, setGrades, setParties, reset }
 }
 
-/** Height of the app's sticky top bar (theme Layout.headerHeight). */
-const TOPBAR_PX = 56
+/** Height of everything stuck at the top of the screen: the top bar, plus the company and dates row on a phone (--sticky-top in global.css). */
+const stickyTop = () => parseFloat(getComputedStyle(document.body).getPropertyValue('--sticky-top')) || 56
 
 /** True once the sticky filter bar has reached the top bar, so it can show a shadow. */
 function useStuck() {
@@ -107,7 +107,8 @@ function useStuck() {
   useEffect(() => {
     const el = sentinel.current
     if (!el) return
-    const io = new IntersectionObserver(([e]) => setStuck(!e.isIntersecting && e.boundingClientRect.top < TOPBAR_PX + 1), { rootMargin: `-${TOPBAR_PX + 1}px 0px 0px 0px` })
+    const top = stickyTop()
+    const io = new IntersectionObserver(([e]) => setStuck(!e.isIntersecting && e.boundingClientRect.top < top + 1), { rootMargin: `-${top + 1}px 0px 0px 0px` })
     io.observe(el)
     return () => io.disconnect()
   }, [])

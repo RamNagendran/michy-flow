@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom'
 import { Help, HintButton } from '../../components/ui'
 import { itemName } from '../../data/catalog'
 import { useRecordStockCheck } from '../../hooks/queries/wastage'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import { errorMessage } from '../../services/apiError'
 import type { CompanyStock } from '../../types/entries'
 import type { CountSection } from '../../types/reports'
@@ -31,6 +32,17 @@ const Clip = ({ text, strong }: { text: string; strong?: boolean }) => (
   </Tooltip>
 )
 
+/** Book − Counted for one line: short (red), extra (green), or matches. */
+function Difference({ row, counted }: { row: Row; counted: number | null | undefined }) {
+  if (counted === undefined || counted === null) return <span className="faint">—</span>
+  const diff = row.book - counted
+  return (
+    <span className="num strong" style={{ color: diff > 0 ? '#D4380D' : diff < 0 ? '#1F9D6B' : undefined }}>
+      {diff > 0 ? `−${formatQty(diff, row.unit)} short` : diff < 0 ? `+${formatQty(-diff, row.unit)} extra` : 'matches'}
+    </span>
+  )
+}
+
 const ColumnTitle = ({ title, hint }: { title: string; hint: string }) => (
   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
     {title} <Help text={hint} />
@@ -40,6 +52,7 @@ const ColumnTitle = ({ title, hint }: { title: string; hint: string }) => (
 /** The Super Admin's physical count. Leave a line empty to skip it; differences adjust the book stock. */
 export default function StockCheckModal({ companyId, stock, open, onClose }: { companyId: number; stock: CompanyStock | undefined; open: boolean; onClose: () => void }) {
   const save = useRecordStockCheck()
+  const mobile = useIsMobile()
   const [counts, setCounts] = useState<Record<string, number | null>>({})
   const navigate = useNavigate()
   // Goods of entries still with the Manager may have moved already; counting now would count them twice.
@@ -95,44 +108,68 @@ export default function StockCheckModal({ companyId, stock, open, onClose }: { c
           }
         />
       )}
-      <div style={{ display: 'flex', gap: 12, alignItems: 'center', marginBottom: 12 }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', marginBottom: 12 }}>
         <span className="muted" style={{ whiteSpace: 'nowrap' }}>
           Counted today · <b>{dayjs().format('DD MMM YYYY')}</b>
         </span>
-        <Input value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000} placeholder="Note (optional), e.g. Counted with the store keeper" />
+        <Input style={{ flex: '1 1 220px' }} value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000} placeholder="Note (optional), e.g. Counted with the store keeper" />
       </div>
-      <Table<Row>
-        size="small"
-        rowKey="key"
-        pagination={false}
-        dataSource={rows}
-        scroll={{ y: 360 }}
-        locale={{ emptyText: 'Nothing in stock to count' }}
-        columns={[
-          { title: 'Stock', width: 150, ellipsis: { showTitle: false }, render: (_, r) => <Clip text={SECTIONS.find((s) => s.key === r.section)?.label ?? ''} /> },
-          { title: 'Item', width: 150, ellipsis: { showTitle: false }, render: (_, r) => <Clip text={itemName(r.item)} strong /> },
-          { title: <ColumnTitle title="Book" hint="Stock the app shows now, from entries the Manager has approved." />, width: 130, align: 'right', render: (_, r) => <span className="num">{formatQty(r.book, r.unit)}</span> },
-          {
-            title: <ColumnTitle title="Counted" hint="What you actually found in the yard. Leave empty to skip." />,
-            width: 170,
-            render: (_, r) => <InputNumber<number> size="small" style={{ width: '100%' }} value={counts[r.key] ?? null} onChange={(v) => setCounts((c) => ({ ...c, [r.key]: v }))} placeholder="skip" {...qtyInputProps(r.unit)} />,
-          },
-          {
-            title: <ColumnTitle title="Difference" hint="Book − Counted. Short: less found than the app shows. Extra: more found." />,
-            align: 'right',
-            render: (_, r) => {
-              const v = counts[r.key]
-              if (v === undefined || v === null) return <span className="faint">—</span>
-              const diff = r.book - v
-              return (
-                <span className="num strong" style={{ color: diff > 0 ? '#D4380D' : diff < 0 ? '#1F9D6B' : undefined }}>
-                  {diff > 0 ? `−${formatQty(diff, r.unit)} short` : diff < 0 ? `+${formatQty(-diff, r.unit)} extra` : 'matches'}
-                </span>
-              )
+      {mobile ? (
+        // On a phone: one small card per item, with its own Counted box.
+        <div className="count-rows">
+          {rows.length ? (
+            rows.map((r) => (
+              <div key={r.key} className="count-row">
+                <div className="count-row-line">
+                  <span className="strong">{itemName(r.item)}</span>
+                  <span className="faint" style={{ fontSize: 12 }}>
+                    {SECTIONS.find((s) => s.key === r.section)?.label}
+                  </span>
+                </div>
+                <div className="count-row-line">
+                  <span className="muted num" style={{ fontSize: 13 }}>
+                    Book {formatQty(r.book, r.unit)}
+                  </span>
+                  <InputNumber<number> style={{ width: 150 }} value={counts[r.key] ?? null} onChange={(v) => setCounts((c) => ({ ...c, [r.key]: v }))} placeholder="Counted" {...qtyInputProps(r.unit)} />
+                </div>
+                {counts[r.key] !== undefined && counts[r.key] !== null && (
+                  <div style={{ textAlign: 'right', fontSize: 13 }}>
+                    <Difference row={r} counted={counts[r.key]} />
+                  </div>
+                )}
+              </div>
+            ))
+          ) : (
+            <div className="faint" style={{ textAlign: 'center', padding: 16 }}>
+              Nothing in stock to count
+            </div>
+          )}
+        </div>
+      ) : (
+        <Table<Row>
+          size="small"
+          rowKey="key"
+          pagination={false}
+          dataSource={rows}
+          scroll={{ y: 360 }}
+          locale={{ emptyText: 'Nothing in stock to count' }}
+          columns={[
+            { title: 'Stock', width: 150, ellipsis: { showTitle: false }, render: (_, r) => <Clip text={SECTIONS.find((s) => s.key === r.section)?.label ?? ''} /> },
+            { title: 'Item', width: 150, ellipsis: { showTitle: false }, render: (_, r) => <Clip text={itemName(r.item)} strong /> },
+            { title: <ColumnTitle title="Book" hint="Stock the app shows now, from entries the Manager has approved." />, width: 130, align: 'right', render: (_, r) => <span className="num">{formatQty(r.book, r.unit)}</span> },
+            {
+              title: <ColumnTitle title="Counted" hint="What you actually found in the yard. Leave empty to skip." />,
+              width: 170,
+              render: (_, r) => <InputNumber<number> size="small" style={{ width: '100%' }} value={counts[r.key] ?? null} onChange={(v) => setCounts((c) => ({ ...c, [r.key]: v }))} placeholder="skip" {...qtyInputProps(r.unit)} />,
             },
-          },
-        ]}
-      />
+            {
+              title: <ColumnTitle title="Difference" hint="Book − Counted. Short: less found than the app shows. Extra: more found." />,
+              align: 'right',
+              render: (_, r) => <Difference row={r} counted={counts[r.key]} />,
+            },
+          ]}
+        />
+      )}
     </Modal>
   )
 }

@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { App, Button, Space, Table, Tag } from 'antd'
 import { DeleteOutlined, EditOutlined, PlusOutlined } from '@ant-design/icons'
+import MobileList from '../../components/MobileList'
 import { HintButton, SectionTitle } from '../../components/ui'
 import { processOf, type CatalogItem, type CatalogItemRow, type CompanyTypeRow } from '../../data/catalog'
 import { useCatalog, useDeleteItem, useDeleteType } from '../../hooks/queries/catalog'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import { ItemModal, TypeModal } from './CatalogModals'
 
 const Chip = ({ item }: { item: CatalogItem }) => (
@@ -37,6 +39,7 @@ export function ProductsTab() {
   const deleteItem = useDeleteItem()
   const deleteType = useDeleteType()
   const { modal } = App.useApp()
+  const mobile = useIsMobile()
   const [item, setItem] = useState<CatalogItemRow | 'new' | null>(null)
   const [type, setType] = useState<CompanyTypeRow | 'new' | null>(null)
 
@@ -68,49 +71,81 @@ export function ProductsTab() {
           </Space>
         }
       />
-      <Table<CompanyTypeRow>
-        scroll={{ x: 'max-content' }}
-        rowKey="id"
-        loading={catalog.isLoading}
-        pagination={false}
-        dataSource={catalog.data?.types}
-        columns={[
-          {
-            title: 'Company type',
-            render: (_, t) => (
-              <div>
-                <div style={{ fontWeight: 800 }}>{t.name}</div>
-                <div className="faint" style={{ fontSize: 12.5 }}>
-                  {t.example}
-                </div>
-              </div>
+      {mobile ? (
+        <MobileList<CompanyTypeRow>
+          rows={catalog.data?.types}
+          rowKey={(t) => t.id}
+          loading={catalog.isLoading}
+          card={(t) => ({
+            title: t.name,
+            extra: actions(
+              () => setType(t),
+              () => confirmDelete(t.name, () => deleteType.mutateAsync(t)),
+              t.name,
             ),
-          },
-          {
-            title: 'Processes (input)',
-            render: (_, t) => processOf(t.key).inputs.map((i) => <Chip key={i.id} item={i} />),
-          },
-          {
-            title: 'Makes (output)',
-            render: (_, t) => processOf(t.key).outputs.map((o) => <Chip key={o.id} item={o} />),
-          },
-          {
-            title: 'Companies',
-            align: 'right',
-            render: (_, t) => <span className="num">{t.companies}</span>,
-          },
-          {
-            key: 'actions',
-            align: 'right',
-            render: (_, t) =>
-              actions(
-                () => setType(t),
-                () => confirmDelete(t.name, () => deleteType.mutateAsync(t)),
-                t.name,
+            lines: [
+              t.example,
+              <div>
+                <span className="faint">Processes: </span>
+                {processOf(t.key).inputs.map((i) => (
+                  <Chip key={i.id} item={i} />
+                ))}
+              </div>,
+              <div>
+                <span className="faint">Makes: </span>
+                {processOf(t.key).outputs.map((o) => (
+                  <Chip key={o.id} item={o} />
+                ))}
+              </div>,
+              `${t.companies} compan${t.companies === 1 ? 'y' : 'ies'}`,
+            ],
+          })}
+        />
+      ) : (
+        <Table<CompanyTypeRow>
+          scroll={{ x: 'max-content' }}
+          rowKey="id"
+          loading={catalog.isLoading}
+          pagination={false}
+          dataSource={catalog.data?.types}
+          columns={[
+            {
+              title: 'Company type',
+              render: (_, t) => (
+                <div>
+                  <div style={{ fontWeight: 800 }}>{t.name}</div>
+                  <div className="faint" style={{ fontSize: 12.5 }}>
+                    {t.example}
+                  </div>
+                </div>
               ),
-          },
-        ]}
-      />
+            },
+            {
+              title: 'Processes (input)',
+              render: (_, t) => processOf(t.key).inputs.map((i) => <Chip key={i.id} item={i} />),
+            },
+            {
+              title: 'Makes (output)',
+              render: (_, t) => processOf(t.key).outputs.map((o) => <Chip key={o.id} item={o} />),
+            },
+            {
+              title: 'Companies',
+              align: 'right',
+              render: (_, t) => <span className="num">{t.companies}</span>,
+            },
+            {
+              key: 'actions',
+              align: 'right',
+              render: (_, t) =>
+                actions(
+                  () => setType(t),
+                  () => confirmDelete(t.name, () => deleteType.mutateAsync(t)),
+                  t.name,
+                ),
+            },
+          ]}
+        />
+      )}
 
       <div style={{ height: 28 }} />
       <SectionTitle
@@ -121,51 +156,79 @@ export function ProductsTab() {
           </Button>
         }
       />
-      <Table<CatalogItemRow>
-        scroll={{ x: 'max-content' }}
-        rowKey="id"
-        loading={catalog.isLoading}
-        pagination={false}
-        dataSource={catalog.data?.items}
-        columns={[
-          {
-            title: 'Item',
-            render: (_, i) => (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+      {mobile ? (
+        <MobileList<CatalogItemRow>
+          rows={catalog.data?.items}
+          rowKey={(i) => i.id}
+          loading={catalog.isLoading}
+          card={(i) => ({
+            title: (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span className="legend-dot" style={{ background: i.color }} />
-                <span>
-                  <div style={{ fontWeight: 700 }}>{i.name}</div>
-                  <div className="faint" style={{ fontSize: 12.5 }}>
-                    {i.description}
-                  </div>
-                </span>
+                {i.name}
               </span>
             ),
-          },
-          {
-            title: 'Kind',
-            render: (_, i) => (i.kind === 'material' ? <Tag color="blue">INPUT (RM)</Tag> : <Tag color="green">OUTPUT (FG)</Tag>),
-          },
-          {
-            title: 'Measured in',
-            render: (_, i) => (i.unit === 'L' ? `litres (1 L = ${i.kg_per_litre} kg)` : 'kg'),
-          },
-          {
-            title: 'Stock',
-            render: (_, i) => (i.stocked ? 'Goes to stock' : <span className="faint">Only recorded</span>),
-          },
-          {
-            key: 'actions',
-            align: 'right',
-            render: (_, i) =>
-              actions(
-                () => setItem(i),
-                () => confirmDelete(i.name, () => deleteItem.mutateAsync(i)),
-                i.name,
+            extra: actions(
+              () => setItem(i),
+              () => confirmDelete(i.name, () => deleteItem.mutateAsync(i)),
+              i.name,
+            ),
+            lines: [
+              i.description,
+              <span style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                {i.kind === 'material' ? <Tag color="blue">INPUT (RM)</Tag> : <Tag color="green">OUTPUT (FG)</Tag>}
+                {i.unit === 'L' ? `litres (1 L = ${i.kg_per_litre} kg)` : 'kg'} · {i.stocked ? 'Goes to stock' : <span className="faint">Only recorded</span>}
+              </span>,
+            ],
+          })}
+        />
+      ) : (
+        <Table<CatalogItemRow>
+          scroll={{ x: 'max-content' }}
+          rowKey="id"
+          loading={catalog.isLoading}
+          pagination={false}
+          dataSource={catalog.data?.items}
+          columns={[
+            {
+              title: 'Item',
+              render: (_, i) => (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span className="legend-dot" style={{ background: i.color }} />
+                  <span>
+                    <div style={{ fontWeight: 700 }}>{i.name}</div>
+                    <div className="faint" style={{ fontSize: 12.5 }}>
+                      {i.description}
+                    </div>
+                  </span>
+                </span>
               ),
-          },
-        ]}
-      />
+            },
+            {
+              title: 'Kind',
+              render: (_, i) => (i.kind === 'material' ? <Tag color="blue">INPUT (RM)</Tag> : <Tag color="green">OUTPUT (FG)</Tag>),
+            },
+            {
+              title: 'Measured in',
+              render: (_, i) => (i.unit === 'L' ? `litres (1 L = ${i.kg_per_litre} kg)` : 'kg'),
+            },
+            {
+              title: 'Stock',
+              render: (_, i) => (i.stocked ? 'Goes to stock' : <span className="faint">Only recorded</span>),
+            },
+            {
+              key: 'actions',
+              align: 'right',
+              render: (_, i) =>
+                actions(
+                  () => setItem(i),
+                  () => confirmDelete(i.name, () => deleteItem.mutateAsync(i)),
+                  i.name,
+                ),
+            },
+          ]}
+        />
+      )}
 
       {item && <ItemModal key={item === 'new' ? 'new' : item.id} item={item === 'new' ? undefined : item} onClose={() => setItem(null)} />}
       {type && <TypeModal key={type === 'new' ? 'new' : type.id} row={type === 'new' ? undefined : type} onClose={() => setType(null)} />}

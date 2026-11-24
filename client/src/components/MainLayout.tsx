@@ -175,48 +175,51 @@ export default function MainLayout() {
 
       <Layout>
         <ConfigProvider theme={HEADER_THEME}>
-          <Header className="topbar">
-            <div className="topbar-group topbar-left">
-              {mobile && <Button type="text" icon={<MenuOutlined />} onClick={() => setMenuOpen(true)} aria-label="Open menu" />}
-              <div className="topbar-title">{title}</div>
-              {!mobile && <CompanySwitcher />}
-              {!mobile && showPeriod && <PeriodPicker />}
-            </div>
-            <div className="topbar-group topbar-right">
-              {access.canAnywhere(...SCREEN_ACCESS.enterAny) && (
-                <Dropdown menu={newEntry} placement="bottomRight">
-                  <Button type="primary" icon={<PlusOutlined />} aria-label="New entry">
-                    {!mobile && 'New entry'}
-                  </Button>
+          {/* The top bar and, on a phone, the company and dates row stick together. */}
+          <div className="topbar-wrap">
+            <Header className="topbar">
+              <div className="topbar-group topbar-left">
+                {mobile && <Button type="text" icon={<MenuOutlined />} onClick={() => setMenuOpen(true)} aria-label="Open menu" />}
+                <div className="topbar-title">{title}</div>
+                {!mobile && <CompanySwitcher />}
+                {!mobile && showPeriod && <PeriodPicker />}
+              </div>
+              <div className="topbar-group topbar-right">
+                {access.canAnywhere(...SCREEN_ACCESS.enterAny) && (
+                  <Dropdown menu={newEntry} placement="bottomRight">
+                    <Button type="primary" icon={<PlusOutlined />} aria-label="New entry">
+                      {!mobile && 'New entry'}
+                    </Button>
+                  </Dropdown>
+                )}
+                {searchScreen && !mobile && (
+                  <Tooltip title="Search records">
+                    <Button shape="circle" icon={<FileSearchOutlined />} onClick={() => navigate(`/${searchScreen}`)} />
+                  </Tooltip>
+                )}
+                <Popover content={notifications} trigger="click" placement="bottomRight">
+                  <Badge count={queue.total} size="small" offset={[-2, 2]}>
+                    <Button shape="circle" icon={<BellOutlined />} />
+                  </Badge>
+                </Popover>
+                {/* Just the avatar; name, role and company show on hover and in the menu. */}
+                <Dropdown menu={userMenu} placement="bottomRight" trigger={['click']}>
+                  <button type="button" className="user-avatar" aria-label="Account menu">
+                    <Avatar size={32} style={{ background: role ? roleColor[role] : undefined, fontWeight: 700, fontSize: 13 }}>
+                      {initials(user)}
+                    </Avatar>
+                  </button>
                 </Dropdown>
-              )}
-              {searchScreen && !mobile && (
-                <Tooltip title="Search records">
-                  <Button shape="circle" icon={<FileSearchOutlined />} onClick={() => navigate(`/${searchScreen}`)} />
-                </Tooltip>
-              )}
-              <Popover content={notifications} trigger="click" placement="bottomRight">
-                <Badge count={queue.total} size="small" offset={[-2, 2]}>
-                  <Button shape="circle" icon={<BellOutlined />} />
-                </Badge>
-              </Popover>
-              {/* Just the avatar; name, role and company show on hover and in the menu. */}
-              <Dropdown menu={userMenu} placement="bottomRight" trigger={['click']}>
-                <button type="button" className="user-avatar" aria-label="Account menu">
-                  <Avatar size={32} style={{ background: role ? roleColor[role] : undefined, fontWeight: 700, fontSize: 13 }}>
-                    {initials(user)}
-                  </Avatar>
-                </button>
-              </Dropdown>
-            </div>
-          </Header>
-          {/* On a phone the company and dates move to their own row, which scrolls away with the page. */}
-          {mobile && (
-            <div className="topbar-sub">
-              <CompanySwitcher />
-              {showPeriod && <PeriodPicker />}
-            </div>
-          )}
+              </div>
+            </Header>
+            {/* On a phone the company and dates move to their own row under the top bar. */}
+            {mobile && (
+              <div className="topbar-sub">
+                <CompanySwitcher />
+                {showPeriod && <PeriodPicker />}
+              </div>
+            )}
+          </div>
         </ConfigProvider>
         <Content>
           {/* Keyed on the path so each page eases in; opacity and transform only, so it stays cheap. */}

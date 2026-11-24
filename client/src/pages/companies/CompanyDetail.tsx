@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router-dom'
-import { Button, Skeleton, Tabs, Tag } from 'antd'
+import { Button, Segmented, Skeleton, Tabs, Tag } from 'antd'
 import { ArrowLeftOutlined, PlusOutlined } from '@ant-design/icons'
 import { CompanyBadge, StockFigure } from '../../components/CompanyCards'
 import { activeLines } from '../../utils/stock'
@@ -10,8 +10,9 @@ import { itemName, processOf, itemColor } from '../../data/catalog'
 import { useStocks, useSummaries } from '../../hooks/queries/stock'
 import { useAccess } from '../../hooks/useAccess'
 import { useAuth } from '../../hooks/useAuth'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import { usePeriod } from '../../hooks/usePeriod'
-import type { StockLine } from '../../types/entries'
+import type { EntryType, StockLine } from '../../types/entries'
 import { formatINRShort, formatPercent, formatQty, formatKg } from '../../utils/format'
 import { periodLabels } from '../../utils/period'
 import { roleColor } from '../../utils/permissions'
@@ -22,15 +23,15 @@ function StockCards({ lines, empty }: { lines: StockLine[]; empty: string }) {
   return (
     <div className="grid grid-4">
       {lines.map((l) => (
-        <div key={l.item} className="surface" style={{ padding: 18 }}>
+        <div key={l.item} className="surface detail-card">
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 800 }}>
             <span className="legend-dot" style={{ background: itemColor(l.item) }} />
             {itemName(l.item)}
           </div>
-          <div style={{ fontSize: 22, marginTop: 8 }}>
+          <div className="detail-card-value stock">
             <StockFigure line={l} />
           </div>
-          <div className="num muted" style={{ fontSize: 12.5, marginTop: 6, display: 'flex', justifyContent: 'space-between' }}>
+          <div className="num muted" style={{ fontSize: 12.5, marginTop: 6, display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
             <span>In {l.unit === 'L' ? formatQty(l.provisional.in_qty, 'L') : formatKg(l.provisional.in_qty)}</span>
             <span>Out {l.unit === 'L' ? formatQty(l.provisional.out_qty, 'L') : formatKg(l.provisional.out_qty)}</span>
           </div>
@@ -40,12 +41,19 @@ function StockCards({ lines, empty }: { lines: StockLine[]; empty: string }) {
   )
 }
 
+const ENTRY_TABS: { key: string; label: string; types: EntryType[] }[] = [
+  { key: 'all', label: 'All', types: ['purchase', 'production', 'sale'] },
+  { key: 'purchase', label: 'Purchases', types: ['purchase'] },
+  { key: 'production', label: 'Production', types: ['production'] },
+  { key: 'sale', label: 'Sales', types: ['sale'] },
+]
+
 const Stat = ({ label, value, sub }: { label: string; value: ReactNode; sub: ReactNode }) => (
-  <div className="surface" style={{ padding: 20 }}>
+  <div className="surface detail-card">
     <div className="muted" style={{ fontWeight: 700, fontSize: 13 }}>
       {label}
     </div>
-    <div className="num strong" style={{ fontSize: 24, marginTop: 6 }}>
+    <div className="num strong detail-card-value">
       {value}
     </div>
     <div className="faint" style={{ fontSize: 12.5 }}>
@@ -57,6 +65,8 @@ const Stat = ({ label, value, sub }: { label: string; value: ReactNode; sub: Rea
 export default function CompanyDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const mobile = useIsMobile()
+  const [entryTab, setEntryTab] = useState('all')
   const { user } = useAuth()
   const { period, range } = usePeriod()
   const access = useAccess()
@@ -85,7 +95,7 @@ export default function CompanyDetail() {
           </a>
         }
         title={
-          <span style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <span style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px 14px' }}>
             <CompanyBadge code={company.code} />
             {company.name}
             {myRole && (
@@ -134,17 +144,19 @@ export default function CompanyDetail() {
 
       <SectionTitle title="Entries" />
       <div className="surface table-card">
-        <div style={{ padding: '4px 20px 0' }}>
-          <Tabs
-            destroyOnHidden
-            items={[
-              { key: 'all', label: 'All', children: <EntryTable types={['purchase', 'production', 'sale']} companies={list} /> },
-              { key: 'purchase', label: 'Purchases', children: <EntryTable types={['purchase']} companies={list} /> },
-              { key: 'production', label: 'Production', children: <EntryTable types={['production']} companies={list} /> },
-              { key: 'sale', label: 'Sales', children: <EntryTable types={['sale']} companies={list} /> },
-            ]}
-          />
-        </div>
+        {mobile ? (
+          // On a phone the four lists fit as one switch, so none hide off screen.
+          <>
+            <div style={{ padding: '12px 12px 0' }}>
+              <Segmented block value={entryTab} onChange={setEntryTab} options={ENTRY_TABS.map((t) => ({ value: t.key, label: t.label }))} />
+            </div>
+            <EntryTable key={entryTab} types={ENTRY_TABS.find((t) => t.key === entryTab)!.types} companies={list} />
+          </>
+        ) : (
+          <div className="tabs-pad">
+            <Tabs destroyOnHidden items={ENTRY_TABS.map((t) => ({ key: t.key, label: t.label, children: <EntryTable types={t.types} companies={list} /> }))} />
+          </div>
+        )}
       </div>
     </div>
   )

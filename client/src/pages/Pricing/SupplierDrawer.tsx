@@ -12,7 +12,7 @@ export default function SupplierDrawer({ side, company, history, supplier, bucke
   const s = supplier
   const gainLabel = side === 'purchase' ? (s && s.saving >= 0 ? 'Saved vs average' : 'Paid over average') : s && s.saving >= 0 ? 'Earned over average' : 'Below average'
   return (
-    <Drawer open={!!s} onClose={onClose} width={760} title={s ? `${s.name} · ${itemName(history?.item ?? '')}` : ''} destroyOnHidden>
+    <Drawer open={!!s} onClose={onClose} size={760} title={s ? `${s.name} · ${itemName(history?.item ?? '')}` : ''} destroyOnHidden>
       {s && (
         <div className="fade-in">
           <div className="grid grid-4" style={{ gap: 10, marginBottom: 16 }}>

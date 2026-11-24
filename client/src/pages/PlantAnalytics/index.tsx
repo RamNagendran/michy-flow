@@ -4,9 +4,11 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import ChartCard from '../../components/charts/ChartCard'
 import { ANIMATION_MS, axisProps, gridProps, reportColors, shortKg, xTick } from '../../components/charts/chartKit'
 import ChartTooltip from '../../components/ChartTooltip'
+import { FilterButton, FilterChips, FilterField, FilterSheet, type FilterChip } from '../../components/FilterSheet'
 import { HintButton, PageHeader, SectionTitle } from '../../components/ui'
 import { useMachines, useOperators } from '../../hooks/queries/plant'
 import { usePlantReport } from '../../hooks/queries/reports'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import { usePeriod } from '../../hooks/usePeriod'
 import { useReportCompany } from '../../hooks/useReportCompany'
 import type { PlantFilters } from '../../types/reports'
@@ -31,6 +33,8 @@ export default function PlantAnalytics() {
   const { label, range, subtitle } = usePeriod()
   const { company } = useReportCompany('view_plant_analytics')
   const [filters, setFilters] = useState<PlantFilters>(NO_FILTERS)
+  const mobile = useIsMobile()
+  const [sheetOpen, setSheetOpen] = useState(false)
   const operators = useOperators(company?.id)
   const machines = useMachines(company?.id)
   const report = usePlantReport(company?.id, range, filters)
@@ -41,6 +45,45 @@ export default function PlantAnalytics() {
   // Clicking a bar or row narrows the page to that one; clicking it again clears it.
   const pick = (key: 'operator_id' | 'machine_id') => (id: number) => set({ [key]: filters[key].length === 1 && filters[key][0] === id ? [] : [id] })
   const trend = useMemo(() => data?.trend ?? [], [data])
+  const machineName = (id: number) => machines.data?.find((m) => m.id === id)?.code ?? 'Machine'
+  const operatorName = (id: number) => operators.data?.find((o) => o.id === id)?.name ?? 'Operator'
+  // On a phone: filters in use as chips; the pickers themselves are in the sheet.
+  const chips: FilterChip[] = [
+    filters.shift.length > 0 && { key: 'shift', label: `Shift ${filters.shift.slice().sort().join(', ')}`, clear: () => set({ shift: [] }) },
+    filters.machine_id.length > 0 && { key: 'machine', label: filters.machine_id.length === 1 ? machineName(filters.machine_id[0]) : `${filters.machine_id.length} machines`, clear: () => set({ machine_id: [] }) },
+    filters.operator_id.length > 0 && { key: 'operator', label: filters.operator_id.length === 1 ? operatorName(filters.operator_id[0]) : `${filters.operator_id.length} operators`, clear: () => set({ operator_id: [] }) },
+  ].filter((c) => !!c)
+  const shiftSelect = (style: React.CSSProperties) => (
+    <Select<number[]> mode="multiple" allowClear placeholder="All shifts" value={filters.shift} onChange={(shift) => set({ shift })} style={style} options={[1, 2, 3].map((s) => ({ value: s, label: `Shift ${s}` }))} />
+  )
+  const machineSelect = (style: React.CSSProperties) => (
+    <Select<number[]>
+      mode="multiple"
+      allowClear
+      placeholder="All machines"
+      value={filters.machine_id}
+      onChange={(machine_id) => set({ machine_id })}
+      style={style}
+      maxTagCount="responsive"
+      loading={machines.isLoading}
+      showSearch={{ optionFilterProp: 'label' }}
+      options={(machines.data ?? []).map((m) => ({ value: m.id, label: `${m.code} · ${m.name}` }))}
+    />
+  )
+  const operatorSelect = (style: React.CSSProperties) => (
+    <Select<number[]>
+      mode="multiple"
+      allowClear
+      placeholder="All operators"
+      value={filters.operator_id}
+      onChange={(operator_id) => set({ operator_id })}
+      style={style}
+      maxTagCount="responsive"
+      loading={operators.isLoading}
+      showSearch={{ optionFilterProp: 'label' }}
+      options={(operators.data ?? []).map((o) => ({ value: o.id, label: o.name }))}
+    />
+  )
   const loading = report.isLoading
   const refreshing = report.isPlaceholderData
 
@@ -61,46 +104,28 @@ export default function PlantAnalytics() {
         }
       />
 
-      <div className="surface" style={{ display: 'flex', gap: 10, padding: 14, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
-        <Select<number[]>
-          mode="multiple"
-          allowClear
-          placeholder="All shifts"
-          value={filters.shift}
-          onChange={(shift) => set({ shift })}
-          style={{ minWidth: 160 }}
-          options={[1, 2, 3].map((s) => ({ value: s, label: `Shift ${s}` }))}
-        />
-        <Select<number[]>
-          mode="multiple"
-          allowClear
-          placeholder="All machines"
-          value={filters.machine_id}
-          onChange={(machine_id) => set({ machine_id })}
-          style={{ minWidth: 220 }}
-          maxTagCount="responsive"
-          loading={machines.isLoading}
-          showSearch={{ optionFilterProp: 'label' }}
-          options={(machines.data ?? []).map((m) => ({ value: m.id, label: `${m.code} · ${m.name}` }))}
-        />
-        <Select<number[]>
-          mode="multiple"
-          allowClear
-          placeholder="All operators"
-          value={filters.operator_id}
-          onChange={(operator_id) => set({ operator_id })}
-          style={{ minWidth: 240 }}
-          maxTagCount="responsive"
-          loading={operators.isLoading}
-          showSearch={{ optionFilterProp: 'label' }}
-          options={(operators.data ?? []).map((o) => ({ value: o.id, label: o.name }))}
-        />
-        {filtered && (
-          <Button type="link" onClick={() => setFilters(NO_FILTERS)}>
-            Clear filters
-          </Button>
-        )}
-      </div>
+      {mobile ? (
+        <div className="surface m-list-filters" style={{ marginBottom: 12 }}>
+          <FilterButton label="Shift & machine" count={chips.length} onClick={() => setSheetOpen(true)} />
+          <FilterChips chips={chips} />
+          <FilterSheet title="Shift & machine" open={sheetOpen} onClose={() => setSheetOpen(false)} onReset={() => setFilters(NO_FILTERS)} canReset={filtered}>
+            <FilterField label="Shift">{shiftSelect({ width: '100%' })}</FilterField>
+            <FilterField label="Machine">{machineSelect({ width: '100%' })}</FilterField>
+            <FilterField label="Operator">{operatorSelect({ width: '100%' })}</FilterField>
+          </FilterSheet>
+        </div>
+      ) : (
+        <div className="surface" style={{ display: 'flex', gap: 10, padding: 14, flexWrap: 'wrap', alignItems: 'center', marginBottom: 16 }}>
+          {shiftSelect({ minWidth: 160 })}
+          {machineSelect({ minWidth: 220 })}
+          {operatorSelect({ minWidth: 240 })}
+          {filtered && (
+            <Button type="link" onClick={() => setFilters(NO_FILTERS)}>
+              Clear filters
+            </Button>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-4 stagger">
         <Tile label="Runs" value={t ? t.runs.toLocaleString('en-IN') : '—'} sub={t ? `${t.hours.toFixed(1)} running hours` : undefined} />

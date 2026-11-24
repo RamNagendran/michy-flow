@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Badge, Button, Checkbox, Drawer, Segmented, Select, Tag, Tooltip } from 'antd'
-import { FilterOutlined, ReloadOutlined } from '@ant-design/icons'
+import { Button, Checkbox, Segmented, Select, Tooltip } from 'antd'
+import { ReloadOutlined } from '@ant-design/icons'
+import { FilterButton, FilterChips, FilterField, FilterSheet, type FilterChip } from '../../components/FilterSheet'
 import { itemName } from '../../data/catalog'
 import type { ChartGrouping as Grouping } from '../../hooks/useChartGrouping'
 import { useIsMobile } from '../../hooks/useIsMobile'
@@ -100,7 +101,7 @@ export default function AnalysisFilters({ side, onSide, words: w, grouping, f, i
 
   // Filters in use, each removable on its own.
   const { item, grades, partyKeys } = f.filters
-  const chips = [
+  const chips: FilterChip[] = [
     grouping.picked && { key: 'bucket', label: bucketLabels[grouping.bucket], clear: grouping.reset },
     item && { key: 'item', label: itemName(item), clear: () => f.setItem(undefined) },
     grades.join() !== 'A,B' && { key: 'grade', label: `Grade ${grades.join(', ')}`, clear: () => f.setGrades(['A', 'B']) },
@@ -116,66 +117,31 @@ export default function AnalysisFilters({ side, onSide, words: w, grouping, f, i
       <div className={`${barClass} m-filter-bar`}>
         <div className="m-filter-row">
           <div style={{ flex: 1, minWidth: 0 }}>{sideSwitch}</div>
-          <Badge count={chips.length} size="small">
-            <Button icon={<FilterOutlined />} onClick={() => setOpen(true)}>
-              Filters
-            </Button>
-          </Badge>
+          <FilterButton label="Chart options" count={chips.length} onClick={() => setOpen(true)} />
         </div>
-        {chips.length > 0 && (
-          <div className="m-filter-chips">
-            {chips.map((c) => (
-              <Tag key={c.key} closable onClose={c.clear}>
-                {c.label}
-              </Tag>
-            ))}
-          </div>
-        )}
+        <FilterChips chips={chips} />
       </div>
 
-      <Drawer
-        placement="bottom"
-        open={open}
-        onClose={() => setOpen(false)}
-        title="Filters"
-        rootClassName="filter-sheet"
-        footer={
-          <div className="form-actions" style={{ marginTop: 0 }}>
-            <Button icon={<ReloadOutlined />} disabled={!f.changed} onClick={f.reset}>
-              Reset
-            </Button>
-            <Button type="primary" onClick={() => setOpen(false)}>
-              Show results
-            </Button>
-          </div>
-        }
-      >
-        <div className="filter-sheet-field">
-          <div className="filter-label">Dates</div>
+      <FilterSheet title="Chart options" open={open} onClose={() => setOpen(false)} onReset={f.reset} canReset={f.changed}>
+        <FilterField label="Dates">
           <div className="num">{rangeSubtitle(f.filters.range)}</div>
           <div className="faint" style={{ fontSize: 12 }}>
             Change the dates at the top of the screen.
           </div>
-        </div>
-        <div className="filter-sheet-field">
-          <div className="filter-label">Chart by</div>
-          {bucketSwitch}
-        </div>
-        <div className="filter-sheet-field">
-          <div className="filter-label">{w.item}</div>
+        </FilterField>
+        <FilterField label="Chart by">{bucketSwitch}</FilterField>
+        <FilterField label={w.item}>
           <Select style={{ width: '100%' }} value={item ?? ''} onChange={(i) => f.setItem(i || undefined)} options={itemOptions} />
-        </div>
-        <div className="filter-sheet-field">
-          <div className="filter-label">Grade</div>
+        </FilterField>
+        <FilterField label="Grade">
           <Checkbox.Group<Grade> value={grades} onChange={(g) => g.length && f.setGrades(g)} options={GRADES.map((g) => ({ value: g, label: `Grade ${g}` }))} />
-        </div>
+        </FilterField>
         {parties && (
-          <div className="filter-sheet-field">
-            <div className="filter-label">{w.parties}</div>
+          <FilterField label={w.parties}>
             <Select mode="multiple" allowClear style={{ width: '100%' }} placeholder="All" value={partyKeys} onChange={f.setParties} optionFilterProp="label" options={partyOptions} />
-          </div>
+          </FilterField>
         )}
-      </Drawer>
+      </FilterSheet>
     </>
   )
 }

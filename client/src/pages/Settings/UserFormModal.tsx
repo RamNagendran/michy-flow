@@ -153,7 +153,7 @@ export default function UserFormModal({ user, companies, onClose, onCreated }: P
                   const row = memberships[field.name]
                   return (
                     <div key={field.key} style={{ border: '1px solid #e8eaee', borderRadius: 12, padding: '14px 14px 0', marginBottom: 12 }}>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 180px 32px', gap: 12, alignItems: 'start' }}>
+                      <div className="membership-grid">
                         <Form.Item name={[field.name, 'company_id']} rules={[{ required: true, message: 'Choose a company' }]}>
                           <Select
                             placeholder="Company"
