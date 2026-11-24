@@ -1,9 +1,11 @@
 import { useNavigate } from 'react-router-dom'
 import { Table } from 'antd'
 import { CompaniesTotalCard, CompanyBadge, CompanyCard, StockFigure } from '../../components/CompanyCards'
+import MobileList from '../../components/MobileList'
 import { Formula, PageHeader, SectionTitle } from '../../components/ui'
 import { itemName, itemColor } from '../../data/catalog'
 import { useCompanyData } from '../../hooks/useCompanyData'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import type { CompanyRef } from '../../types/auth'
 import type { StockLine, StockSection } from '../../types/entries'
 import { formatINRShort, formatKg, formatQty } from '../../utils/format'
@@ -31,6 +33,7 @@ function Matrix({ items, companies, lineFor, total }: { items: string[]; compani
 
 export default function StockOverview() {
   const navigate = useNavigate()
+  const mobile = useIsMobile()
   const { scope, period, stocks, raw, output, resale, books, summaries } = useCompanyData()
   const several = scope.length > 1
   const find = (lines: StockLine[] | undefined, item: string) => lines?.find((l) => l.item === item) ?? zero
@@ -53,7 +56,7 @@ export default function StockOverview() {
         subtitle="Stock is kept separately for each grade. Oil is in litres. The big number is what the Manager has approved. The small number is what Finance has also approved."
       />
 
-      <div className="grid grid-4">
+      <div className="grid grid-4 company-grid">
         {scope.map((c) => (
           <CompanyCard key={c.id} company={c} raw={stocks.get(c.id)?.raw} output={stocks.get(c.id)?.output} summary={summaries.get(c.id)} />
         ))}
@@ -79,8 +82,8 @@ export default function StockOverview() {
           .map((line) => {
             const l = line.provisional
             return (
-              <div key={line.item} className="surface" style={{ padding: 18, display: 'flex', alignItems: 'center', gap: 18 }}>
-                <div style={{ width: 130, fontWeight: 800, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div key={line.item} className="surface formula-row">
+                <div className="formula-row-name">
                   {dot(line.item)}
                   {itemName(line.item)}
                 </div>
@@ -102,30 +105,61 @@ export default function StockOverview() {
         <>
           <SectionTitle title="Movement" hint={periodLabels[period]} />
           <div className="surface table-card">
-            <Table
-              scroll={{ x: 'max-content' }}
-              pagination={false}
-              rowKey="id"
-              dataSource={scope.filter((c) => summaries.has(c.id))}
-              onRow={(c) => ({ onClick: () => navigate(`/companies/${c.id}`), style: { cursor: 'pointer' } })}
-              columns={[
-                {
-                  title: 'Company',
-                  render: (_, c) => (
-                    <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <CompanyBadge code={c.code} size={30} />
-                      <b>{c.name}</b>
-                    </span>
-                  ),
-                },
-                { title: 'Grade A purchases', align: 'right', render: (_, c) => <span className="num" style={{ color: '#1f9d6b', fontWeight: 700 }}>+{formatKg(summaries.get(c.id)!.purchases.by_grade[0].qty_kg)}</span> },
-                { title: 'Grade B purchases', align: 'right', render: (_, c) => <span className="num" style={{ fontWeight: 700 }}>+{formatKg(summaries.get(c.id)!.purchases.by_grade[1].qty_kg)}</span> },
-                { title: 'Sent to production', align: 'right', render: (_, c) => <span className="num" style={{ color: '#D82E54', fontWeight: 700 }}>−{formatKg(summaries.get(c.id)!.production.input_kg)}</span> },
-                { title: 'Output produced', align: 'right', render: (_, c) => <span className="num" style={{ fontWeight: 700 }}>{formatKg(summaries.get(c.id)!.production.output_kg)}</span> },
-                { title: 'Wastage', align: 'right', render: (_, c) => <span className="num">{formatKg(summaries.get(c.id)!.production.wastage_kg)}</span> },
-                { title: 'Purchase cost', align: 'right', render: (_, c) => <span className="num" style={{ fontWeight: 700 }}>{formatINRShort(summaries.get(c.id)!.purchases.amount)}</span> },
-              ]}
-            />
+            {mobile ? (
+              <MobileList
+                rows={scope.filter((c) => summaries.has(c.id))}
+                rowKey={(c) => c.id}
+                card={(c) => {
+                  const s = summaries.get(c.id)!
+                  return {
+                    title: (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <CompanyBadge code={c.code} size={28} />
+                        {c.name}
+                      </span>
+                    ),
+                    extra: <span className="num strong">{formatINRShort(s.purchases.amount)}</span>,
+                    lines: [
+                      <span className="num">
+                        Bought <b style={{ color: '#1f9d6b' }}>+{formatKg(s.purchases.by_grade[0].qty_kg)}</b> Grade A · <b>+{formatKg(s.purchases.by_grade[1].qty_kg)}</b> Grade B
+                      </span>,
+                      <span className="num">
+                        Sent to production <b style={{ color: '#D82E54' }}>−{formatKg(s.production.input_kg)}</b>
+                      </span>,
+                      <span className="num">
+                        Output <b>{formatKg(s.production.output_kg)}</b> · wastage {formatKg(s.production.wastage_kg)}
+                      </span>,
+                    ],
+                    onClick: () => navigate(`/companies/${c.id}`),
+                  }
+                }}
+              />
+            ) : (
+              <Table
+                scroll={{ x: 'max-content' }}
+                pagination={false}
+                rowKey="id"
+                dataSource={scope.filter((c) => summaries.has(c.id))}
+                onRow={(c) => ({ onClick: () => navigate(`/companies/${c.id}`), style: { cursor: 'pointer' } })}
+                columns={[
+                  {
+                    title: 'Company',
+                    render: (_, c) => (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <CompanyBadge code={c.code} size={30} />
+                        <b>{c.name}</b>
+                      </span>
+                    ),
+                  },
+                  { title: 'Grade A purchases', align: 'right', render: (_, c) => <span className="num" style={{ color: '#1f9d6b', fontWeight: 700 }}>+{formatKg(summaries.get(c.id)!.purchases.by_grade[0].qty_kg)}</span> },
+                  { title: 'Grade B purchases', align: 'right', render: (_, c) => <span className="num" style={{ fontWeight: 700 }}>+{formatKg(summaries.get(c.id)!.purchases.by_grade[1].qty_kg)}</span> },
+                  { title: 'Sent to production', align: 'right', render: (_, c) => <span className="num" style={{ color: '#D82E54', fontWeight: 700 }}>−{formatKg(summaries.get(c.id)!.production.input_kg)}</span> },
+                  { title: 'Output produced', align: 'right', render: (_, c) => <span className="num" style={{ fontWeight: 700 }}>{formatKg(summaries.get(c.id)!.production.output_kg)}</span> },
+                  { title: 'Wastage', align: 'right', render: (_, c) => <span className="num">{formatKg(summaries.get(c.id)!.production.wastage_kg)}</span> },
+                  { title: 'Purchase cost', align: 'right', render: (_, c) => <span className="num" style={{ fontWeight: 700 }}>{formatINRShort(summaries.get(c.id)!.purchases.amount)}</span> },
+                ]}
+              />
+            )}
           </div>
         </>
       )}

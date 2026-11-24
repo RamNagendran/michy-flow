@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { Badge, Layout, Menu, type MenuProps } from 'antd'
+import { Badge, Drawer, Layout, Menu, type MenuProps } from 'antd'
 import {
   AlertOutlined,
   BarChartOutlined,
@@ -21,6 +21,7 @@ import {
   ShopOutlined,
 } from '@ant-design/icons'
 import { useAccess } from '../hooks/useAccess'
+import { useIsMobile } from '../hooks/useIsMobile'
 import { useQueueCounts } from '../hooks/useQueueCounts'
 import { useAppDispatch, useAppSelector } from '../statemanager/hooks'
 import { sidebarPinToggled } from '../statemanager/slices/uiSlice'
@@ -53,8 +54,10 @@ const withBadge = (label: string, count: number) =>
  * Shows only the screens the person's permissions open (see SCREEN_ACCESS).
  * Icons only by default; hovering opens the full menu over the page, so the page does not move.
  * Pinned, it stays open and takes its own space.
+ * On a phone it is a full menu that slides in from the left, opened by the top bar's menu button.
  */
-export default function SidebarNavigation() {
+export default function SidebarNavigation({ mobileOpen, onMobileClose }: { mobileOpen: boolean; onMobileClose: () => void }) {
+  const mobile = useIsMobile()
   const access = useAccess()
   const sees = (screen: keyof typeof SCREEN_ACCESS) => access.canAnywhere(...SCREEN_ACCESS[screen])
   const queue = useQueueCounts()
@@ -62,7 +65,7 @@ export default function SidebarNavigation() {
   const pinned = useAppSelector((s) => s.ui.sidebarPinned)
   const [hovered, setHovered] = useState(false)
   const openTimer = useRef<number>(undefined)
-  const collapsed = !pinned && !hovered
+  const collapsed = !mobile && !pinned && !hovered
   const dispatch = useAppDispatch()
   const navigate = useNavigate()
   const { pathname } = useLocation()
@@ -110,6 +113,43 @@ export default function SidebarNavigation() {
     ...(showSettings ? [{ key: '/settings', icon: <SettingOutlined />, label: 'Settings' }] : []),
   ]
 
+  const logo = (
+    <div className="sider-logo" style={{ justifyContent: collapsed ? 'center' : undefined, padding: collapsed ? 0 : undefined }}>
+      <MichyMark size={28} onDark />
+      {!collapsed && (
+        <div>
+          <div className="wordmark">
+            <span>MICHY</span>
+          </div>
+          <div className="tag">Group of Companies</div>
+        </div>
+      )}
+    </div>
+  )
+  const menu = (
+    <div className="sider-menu">
+      <Menu
+        theme="dark"
+        mode="inline"
+        selectedKeys={[selectedKey]}
+        items={items}
+        onClick={({ key }) => {
+          navigate(key)
+          onMobileClose()
+        }}
+        style={{ borderInlineEnd: 'none', marginTop: 12 }}
+      />
+    </div>
+  )
+
+  if (mobile)
+    return (
+      <Drawer placement="left" size={FULL} open={mobileOpen} onClose={onMobileClose} closable={false} rootClassName="sider-drawer">
+        {logo}
+        {menu}
+      </Drawer>
+    )
+
   return (
     // The wrapper holds the page space; the menu itself floats over the page while hovered.
     <div className="sider-slot" style={{ width: pinned ? FULL : RAIL }}>
@@ -126,27 +166,8 @@ export default function SidebarNavigation() {
         onBlur={(e) => !e.currentTarget.contains(e.relatedTarget) && close()}
         style={{ position: 'absolute', top: 0, left: 0, height: '100vh', overflow: 'hidden' }}
       >
-        <div className="sider-logo" style={{ justifyContent: collapsed ? 'center' : undefined, padding: collapsed ? 0 : undefined }}>
-          <MichyMark size={28} onDark />
-          {!collapsed && (
-            <div>
-              <div className="wordmark">
-                <span>MICHY</span>
-              </div>
-              <div className="tag">Group of Companies</div>
-            </div>
-          )}
-        </div>
-        <div className="sider-menu">
-          <Menu
-            theme="dark"
-            mode="inline"
-            selectedKeys={[selectedKey]}
-            items={items}
-            onClick={({ key }) => navigate(key)}
-            style={{ borderInlineEnd: 'none', marginTop: 12 }}
-          />
-        </div>
+        {logo}
+        {menu}
         <div className="sider-footer">
           <button
             type="button"

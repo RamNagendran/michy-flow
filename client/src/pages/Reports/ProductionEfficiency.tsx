@@ -3,7 +3,9 @@ import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis
 import ChartCard from '../../components/charts/ChartCard'
 import { ANIMATION_MS, axisProps, gridProps } from '../../components/charts/chartKit'
 import ChartTooltip from '../../components/ChartTooltip'
+import MobileList from '../../components/MobileList'
 import { useProductionReport } from '../../hooks/queries/reports'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import type { ShiftRow } from '../../types/reports'
 import { formatKg, formatPercent } from '../../utils/format'
 
@@ -13,10 +15,11 @@ const effColor = (pct: number | null) => (pct === null ? '#C9CED6' : pct >= 85 ?
 /** Running hours and throughput per shift. Operators and machines have their own page. */
 export default function ProductionEfficiency({ companyId, range }: { companyId: number | undefined; range: [string, string] }) {
   const report = useProductionReport(companyId, range)
+  const mobile = useIsMobile()
   const data = report.data
   const shifts = data?.by_shift ?? []
   return (
-    <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 1fr) minmax(0, 1fr)', gap: 16 }}>
+    <div className="grid grid-2" style={{ gap: 16 }}>
       <ChartCard
         title="Efficiency by shift"
         sub={`Machine running hours ÷ planned ${data?.shift_hours ?? 8} hours per run · green: 85% or more`}
@@ -45,21 +48,46 @@ export default function ProductionEfficiency({ companyId, range }: { companyId: 
         <div className="chart-sub" style={{ marginBottom: 10 }}>
           Throughput counts only runs that logged hours
         </div>
-        <Table<ShiftRow>
-          size="small"
-          rowKey={(r) => String(r.shift)}
-          loading={report.isLoading}
-          pagination={false}
-          dataSource={shifts}
-          columns={[
-            { title: 'Shift', render: (_, r) => <b>{shiftName(r.shift)}</b> },
-            { title: 'Runs', dataIndex: 'runs', align: 'right' },
-            { title: 'Hours', align: 'right', render: (_, r) => <span className="num">{r.hours.toFixed(1)}</span> },
-            { title: 'Processed', align: 'right', render: (_, r) => <span className="num">{formatKg(r.processed_kg)}</span> },
-            { title: 'kg / hour', align: 'right', render: (_, r) => <span className="num strong">{r.kg_per_hour === null ? '—' : r.kg_per_hour.toLocaleString('en-IN')}</span> },
-            { title: 'Efficiency', align: 'right', render: (_, r) => <span className="num strong" style={{ color: effColor(r.efficiency_pct) }}>{r.efficiency_pct === null ? '—' : formatPercent(r.efficiency_pct)}</span> },
-          ]}
-        />
+        {mobile ? (
+          <MobileList<ShiftRow>
+            rows={data && shifts}
+            rowKey={(r) => String(r.shift)}
+            loading={report.isLoading}
+            emptyText="No runs in this period"
+            card={(r) => ({
+              title: shiftName(r.shift),
+              extra: (
+                <span className="num strong" style={{ color: effColor(r.efficiency_pct) }}>
+                  {r.efficiency_pct === null ? '—' : formatPercent(r.efficiency_pct)}
+                </span>
+              ),
+              lines: [
+                <span className="num">
+                  {r.runs} runs · {r.hours.toFixed(1)} hours
+                </span>,
+                <span className="num">
+                  Processed {formatKg(r.processed_kg)} · {r.kg_per_hour === null ? '—' : r.kg_per_hour.toLocaleString('en-IN')} kg / hour
+                </span>,
+              ],
+            })}
+          />
+        ) : (
+          <Table<ShiftRow>
+            size="small"
+            rowKey={(r) => String(r.shift)}
+            loading={report.isLoading}
+            pagination={false}
+            dataSource={shifts}
+            columns={[
+              { title: 'Shift', render: (_, r) => <b>{shiftName(r.shift)}</b> },
+              { title: 'Runs', dataIndex: 'runs', align: 'right' },
+              { title: 'Hours', align: 'right', render: (_, r) => <span className="num">{r.hours.toFixed(1)}</span> },
+              { title: 'Processed', align: 'right', render: (_, r) => <span className="num">{formatKg(r.processed_kg)}</span> },
+              { title: 'kg / hour', align: 'right', render: (_, r) => <span className="num strong">{r.kg_per_hour === null ? '—' : r.kg_per_hour.toLocaleString('en-IN')}</span> },
+              { title: 'Efficiency', align: 'right', render: (_, r) => <span className="num strong" style={{ color: effColor(r.efficiency_pct) }}>{r.efficiency_pct === null ? '—' : formatPercent(r.efficiency_pct)}</span> },
+            ]}
+          />
+        )}
       </div>
     </div>
   )

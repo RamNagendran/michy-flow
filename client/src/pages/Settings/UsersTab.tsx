@@ -1,9 +1,12 @@
 import { useMemo, useState } from 'react'
 import { App, Avatar, Button, Dropdown, Input, Select, Table, Tag, Tooltip } from 'antd'
 import { KeyOutlined, MoreOutlined, PlusOutlined, SafetyOutlined, SearchOutlined, StopOutlined, CheckCircleOutlined } from '@ant-design/icons'
+import { FilterButton, FilterChips, FilterField, FilterSheet, type FilterChip } from '../../components/FilterSheet'
+import MobileList from '../../components/MobileList'
 import { useCompanies } from '../../hooks/queries/companies'
 import { useResetPassword, useUpdateUser, useUsers } from '../../hooks/queries/users'
 import { useAuth } from '../../hooks/useAuth'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import type { CompanyRole, GlobalRole, ManagedUser, UserWithPassword } from '../../types/auth'
 import { formatDate } from '../../utils/format'
 import { companyRoleLabel, dutyLabel, globalRoleLabel, MATRIX_COLUMNS, roleColor } from '../../utils/permissions'
@@ -12,6 +15,12 @@ import TemporaryPasswordModal from './TemporaryPasswordModal'
 import UserFormModal from './UserFormModal'
 
 type Sort = 'name' | 'recent' | 'oldest'
+
+const SORTS: { value: Sort; label: string }[] = [
+  { value: 'name', label: 'Sort: name' },
+  { value: 'recent', label: 'Sort: last sign-in, newest' },
+  { value: 'oldest', label: 'Sort: last sign-in, oldest' },
+]
 
 /** Super Admin and CEO see every company, so they match any company filter. */
 const inCompany = (u: ManagedUser, companyId: number | undefined) => companyId === undefined || !!u.global_role || u.memberships.some((m) => m.company.id === companyId)
@@ -65,6 +74,8 @@ export default function UsersTab() {
   const [editing, setEditing] = useState<ManagedUser | null>(null)
   const [adding, setAdding] = useState(false)
   const [password, setPassword] = useState<(UserWithPassword & { mailed?: boolean }) | null>(null)
+  const mobile = useIsMobile()
+  const [sheetOpen, setSheetOpen] = useState(false)
 
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase()
@@ -91,112 +102,159 @@ export default function UsersTab() {
       onOk: () => update.mutateAsync({ id: u.id, body: { is_active: !u.is_active } }),
     })
 
+  const person = (u: ManagedUser) => (
+    <span style={{ display: 'flex', alignItems: 'center', gap: 12, opacity: u.is_active ? 1 : 0.55 }}>
+      <Avatar style={{ background: roleColor[u.global_role ?? u.memberships[0]?.role ?? 'operator'], fontWeight: 700, flex: 'none' }}>{initials(u)}</Avatar>
+      <span style={{ minWidth: 0 }}>
+        <div style={{ fontWeight: 700 }}>
+          {u.full_name} {u.id === me?.id && <Tag style={{ marginInlineStart: 4 }}>You</Tag>}
+        </div>
+        <div className="faint" style={{ fontSize: 12.5, fontWeight: 500, overflowWrap: 'anywhere' }}>
+          {u.email}
+        </div>
+      </span>
+    </span>
+  )
+  const statusTag = (u: ManagedUser) =>
+    !u.is_active ? (
+      <Tag>Deactivated</Tag>
+    ) : u.must_change_password ? (
+      <Tooltip title="Has not changed the temporary password yet">
+        <Tag color="warning">Awaiting first sign-in</Tag>
+      </Tooltip>
+    ) : (
+      <Tag color="success">Active</Tag>
+    )
+  const userActions = (u: ManagedUser) =>
+    // Your own access is changed by another Super Admin, so you cannot lock yourself out.
+    u.id === me?.id ? null : (
+      <Dropdown
+        trigger={['click']}
+        menu={{
+          items: [
+            { key: 'access', icon: <SafetyOutlined />, label: 'Change access' },
+            { key: 'reset', icon: <KeyOutlined />, label: 'Reset password' },
+            { type: 'divider' },
+            u.is_active ? { key: 'active', icon: <StopOutlined />, label: 'Deactivate', danger: true } : { key: 'active', icon: <CheckCircleOutlined />, label: 'Re-activate' },
+          ],
+          onClick: ({ key }) => (key === 'access' ? setEditing(u) : key === 'reset' ? confirmReset(u) : confirmActive(u)),
+        }}
+      >
+        <Button type="text" icon={<MoreOutlined />} aria-label={`Actions for ${u.full_name}`} />
+      </Dropdown>
+    )
+
+  const search = <Input prefix={<SearchOutlined className="faint" />} placeholder="Search name or email" allowClear value={q} onChange={(e) => setQ(e.target.value)} style={mobile ? { flex: 1, minWidth: 0 } : { width: 240 }} />
+  const companySelect = (width: number | string) => (
+    <Select placeholder="All companies" allowClear showSearch optionFilterProp="label" value={companyId} onChange={setCompanyId} options={(companies.data ?? []).map((c) => ({ value: c.id, label: c.name }))} style={{ width }} />
+  )
+  const roleSelect = (width: number | string) => <Select placeholder="All roles" allowClear value={role} onChange={setRole} options={MATRIX_COLUMNS.map((r) => ({ value: r, label: roleLabel(r) }))} style={{ width }} />
+  const activeSelect = (width: number | string) => (
+    <Select
+      placeholder="Active and inactive"
+      allowClear
+      value={active}
+      onChange={setActive}
+      options={[
+        { value: true, label: 'Active' },
+        { value: false, label: 'Inactive' },
+      ]}
+      style={{ width }}
+    />
+  )
+  const sortSelect = (width: number | string) => <Select<Sort> value={sort} onChange={setSort} options={SORTS} style={{ width }} />
+  const addButton = (
+    <Button type="primary" icon={<PlusOutlined />} onClick={() => setAdding(true)} disabled={!companies.data} block={mobile}>
+      Add a person
+    </Button>
+  )
+  // On a phone: filters in use as chips; the pickers themselves are in the sheet.
+  const chips: FilterChip[] = [
+    companyId !== undefined && { key: 'company', label: companies.data?.find((c) => c.id === companyId)?.name ?? 'Company', clear: () => setCompanyId(undefined) },
+    role !== undefined && { key: 'role', label: roleLabel(role), clear: () => setRole(undefined) },
+    active !== undefined && { key: 'active', label: active ? 'Active' : 'Inactive', clear: () => setActive(undefined) },
+    sort !== 'name' && { key: 'sort', label: SORTS.find((x) => x.value === sort)!.label, clear: () => setSort('name') },
+  ].filter((c) => !!c)
+  const clearFilters = () => {
+    setCompanyId(undefined)
+    setRole(undefined)
+    setActive(undefined)
+    setSort('name')
+  }
+
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <Input prefix={<SearchOutlined className="faint" />} placeholder="Search name or email" allowClear value={q} onChange={(e) => setQ(e.target.value)} style={{ width: 240 }} />
-          <Select
-            placeholder="All companies"
-            allowClear
-            showSearch
-            optionFilterProp="label"
-            value={companyId}
-            onChange={setCompanyId}
-            options={(companies.data ?? []).map((c) => ({ value: c.id, label: c.name }))}
-            style={{ width: 180 }}
-          />
-          <Select placeholder="All roles" allowClear value={role} onChange={setRole} options={MATRIX_COLUMNS.map((r) => ({ value: r, label: roleLabel(r) }))} style={{ width: 140 }} />
-          <Select
-            placeholder="Active and inactive"
-            allowClear
-            value={active}
-            onChange={setActive}
-            options={[
-              { value: true, label: 'Active' },
-              { value: false, label: 'Inactive' },
-            ]}
-            style={{ width: 170 }}
-          />
-          <Select<Sort>
-            value={sort}
-            onChange={setSort}
-            options={[
-              { value: 'name', label: 'Sort: name' },
-              { value: 'recent', label: 'Sort: last sign-in, newest' },
-              { value: 'oldest', label: 'Sort: last sign-in, oldest' },
-            ]}
-            style={{ width: 210 }}
-          />
+      {mobile ? (
+        <div style={{ display: 'grid', gap: 10, marginBottom: 12 }}>
+          {addButton}
+          <div className="m-filter-row">
+            {search}
+            <FilterButton label="Company & role" count={chips.length} onClick={() => setSheetOpen(true)} />
+          </div>
+          <FilterChips chips={chips} />
+          <FilterSheet title="Company & role" open={sheetOpen} onClose={() => setSheetOpen(false)} onReset={clearFilters} canReset={chips.length > 0}>
+            <FilterField label="Company">{companySelect('100%')}</FilterField>
+            <FilterField label="Role">{roleSelect('100%')}</FilterField>
+            <FilterField label="Status">{activeSelect('100%')}</FilterField>
+            <FilterField label="Order">{sortSelect('100%')}</FilterField>
+          </FilterSheet>
         </div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setAdding(true)} disabled={!companies.data}>
-          Add a person
-        </Button>
-      </div>
-      <Table<ManagedUser>
-        scroll={{ x: 'max-content' }}
-        rowKey="id"
-        loading={users.isLoading}
-        pagination={{ pageSize: 20, hideOnSinglePage: true }}
-        dataSource={rows}
-        columns={[
-          {
-            title: 'Person',
-            render: (_, u) => (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 12, opacity: u.is_active ? 1 : 0.55 }}>
-                <Avatar style={{ background: roleColor[u.global_role ?? u.memberships[0]?.role ?? 'operator'], fontWeight: 700 }}>{initials(u)}</Avatar>
-                <span>
-                  <div style={{ fontWeight: 700 }}>
-                    {u.full_name} {u.id === me?.id && <Tag style={{ marginInlineStart: 4 }}>You</Tag>}
-                  </div>
-                  <div className="faint" style={{ fontSize: 12.5 }}>
-                    {u.email}
-                  </div>
-                </span>
-              </span>
-            ),
-          },
-          { title: 'Access', render: (_, u) => <AccessCell user={u} /> },
-          {
-            title: 'Status',
-            render: (_, u) =>
-              !u.is_active ? (
-                <Tag>Deactivated</Tag>
-              ) : u.must_change_password ? (
-                <Tooltip title="Has not changed the temporary password yet">
-                  <Tag color="warning">Awaiting first sign-in</Tag>
-                </Tooltip>
-              ) : (
-                <Tag color="success">Active</Tag>
-              ),
-          },
-          { title: 'Last sign-in', render: (_, u) => <span className="muted">{u.last_login_at ? formatDate(u.last_login_at) : '—'}</span> },
-          {
-            key: 'actions',
-            align: 'right',
-            render: (_, u) =>
-              // Your own access is changed by another Super Admin, so you cannot lock yourself out.
-              u.id === me?.id ? null : (
-                <Dropdown
-                  trigger={['click']}
-                  menu={{
-                    items: [
-                      { key: 'access', icon: <SafetyOutlined />, label: 'Change access' },
-                      { key: 'reset', icon: <KeyOutlined />, label: 'Reset password' },
-                      { type: 'divider' },
-                      u.is_active
-                        ? { key: 'active', icon: <StopOutlined />, label: 'Deactivate', danger: true }
-                        : { key: 'active', icon: <CheckCircleOutlined />, label: 'Re-activate' },
-                    ],
-                    onClick: ({ key }) => (key === 'access' ? setEditing(u) : key === 'reset' ? confirmReset(u) : confirmActive(u)),
-                  }}
-                >
-                  <Button type="text" icon={<MoreOutlined />} aria-label={`Actions for ${u.full_name}`} />
-                </Dropdown>
-              ),
-          },
-        ]}
-      />
+      ) : (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {search}
+            {companySelect(180)}
+            {roleSelect(140)}
+            {activeSelect(170)}
+            {sortSelect(210)}
+          </div>
+          {addButton}
+        </div>
+      )}
+      {mobile ? (
+        <MobileList<ManagedUser>
+          rows={users.isLoading ? undefined : rows}
+          rowKey={(u) => u.id}
+          loading={users.isLoading}
+          emptyText="Nobody found"
+          card={(u) => ({
+            title: person(u),
+            extra: userActions(u),
+            lines: [
+              <AccessCell user={u} />,
+              <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                {statusTag(u)}
+                <span className="faint">Last sign-in {u.last_login_at ? formatDate(u.last_login_at) : '—'}</span>
+              </span>,
+            ],
+          })}
+        />
+      ) : (
+        <Table<ManagedUser>
+          scroll={{ x: 'max-content' }}
+          rowKey="id"
+          loading={users.isLoading}
+          pagination={{ pageSize: 20, hideOnSinglePage: true }}
+          dataSource={rows}
+          columns={[
+            {
+              title: 'Person',
+              render: (_, u) => person(u),
+            },
+            { title: 'Access', render: (_, u) => <AccessCell user={u} /> },
+            {
+              title: 'Status',
+              render: (_, u) => statusTag(u),
+            },
+            { title: 'Last sign-in', render: (_, u) => <span className="muted">{u.last_login_at ? formatDate(u.last_login_at) : '—'}</span> },
+            {
+              key: 'actions',
+              align: 'right',
+              render: (_, u) => userActions(u),
+            },
+          ]}
+        />
+      )}
 
       {(adding || editing) && (
         <UserFormModal

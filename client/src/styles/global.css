@@ -20,6 +20,10 @@
 
 * { box-sizing: border-box; }
 
+/* Height of what sticks at the top: the 56px top bar, plus the 49px company and dates row on a phone. */
+body { --sticky-top: 56px; }
+body:has(.topbar-sub:not(:empty)) { --sticky-top: 105px; }
+
 html, body, #root { margin: 0; min-height: 100%; }
 
 body {
@@ -27,7 +31,6 @@ body {
   color: var(--text);
   font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
-  min-width: 1200px;
 }
 
 .num { font-variant-numeric: tabular-nums; }
@@ -188,6 +191,21 @@ body {
 .login-brand { background: radial-gradient(circle at 20% 10%, #2c2c33 0%, #17171a 60%); color: #fff; padding: 48px 56px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; }
 .login-brand::before { content: ''; position: absolute; width: 520px; height: 520px; border-radius: 50%; background: radial-gradient(circle, rgba(216,46,84,0.35) 0%, rgba(216,46,84,0) 70%); right: -160px; top: -120px; }
 .login-form { display: flex; align-items: center; justify-content: center; padding: 48px; }
+.login-card { width: 100%; max-width: 420px; }
+.login-logo { margin-bottom: 28px; }
+@supports (min-height: 100dvh) { .login { min-height: 100dvh; } }
+.login-hero, .login-secure { display: none; }
+@media (max-width: 900px) {
+  /* Phones and small tablets: a short dark brand header, and the form as a white card rising over it. */
+  .login { display: flex; flex-direction: column; background: #17171a; }
+  .login-brand, .login-logo { display: none; }
+  .login-hero { display: block; position: relative; overflow: hidden; color: #fff; padding: calc(28px + env(safe-area-inset-top)) 24px 64px; background: radial-gradient(circle at 20% 10%, #2c2c33 0%, #17171a 60%); }
+  .login-hero::before { content: ''; position: absolute; width: 320px; height: 320px; border-radius: 50%; background: radial-gradient(circle, rgba(216,46,84,0.4) 0%, rgba(216,46,84,0) 70%); right: -120px; top: -120px; }
+  .login-hero h1 { position: relative; color: #fff; font-size: 26px; line-height: 1.2; font-weight: 800; letter-spacing: -0.02em; margin: 36px 0 0; }
+  .login-form { flex: 1; align-items: flex-start; position: relative; margin-top: -28px; background: #fff; border-radius: 24px 24px 0 0; padding: 28px 20px calc(24px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 24px rgba(0,0,0,0.18); }
+  .login-card h2 { font-size: 23px !important; }
+  .login-secure { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 24px; color: var(--text-3); font-size: 12px; font-weight: 600; }
+}
 .demo-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border: 1.5px solid var(--border); border-radius: 14px; cursor: pointer; transition: all .15s; background: #fff; }
 .demo-card:hover { border-color: var(--brand); background: #fffafb; }
 
@@ -226,6 +244,9 @@ body {
 .welcome-section-head { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
 .welcome-section-head h2 { font-size: 20px; font-weight: 800; margin: 0; color: var(--ink); letter-spacing: -0.01em; }
 .welcome-section-head p { color: var(--text-2); font-size: 14px; margin: 2px 0 0; }
+.pick-card { display: flex; align-items: center; gap: 14px; }
+.pick-card-name { font-size: 16px; }
+.pick-card-detail { font-size: 13px; }
 
 /* ---------- Motion ----------
    Short, GPU-friendly transitions (opacity and transform only) so pages feel smooth without
@@ -326,8 +347,8 @@ body {
 .filter-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; padding: 10px 12px; margin-bottom: 12px; }
 .filter-bar .filter-label { font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--text-3); margin-right: 2px; }
 .filter-bar .filter-divider { width: 1px; align-self: stretch; background: var(--border); margin: 2px 2px; }
-/* Sticks just under the 56px top bar, only while its own section is on screen. */
-.sticky-filters { position: sticky; top: 56px; z-index: 15; transition: box-shadow .2s, border-radius .2s; }
+/* Sticks just under the top bar (and the phone company row), only while its own section is on screen. */
+.sticky-filters { position: sticky; top: var(--sticky-top); z-index: 15; transition: box-shadow .2s, border-radius .2s; }
 .sticky-filters.is-stuck { box-shadow: 0 8px 20px -10px rgba(16, 24, 40, .28); border-top-left-radius: 0; border-top-right-radius: 0; }
 .pick-item { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 14px 16px; margin-top: 12px; }
 .change-up, .change-down, .change-flat { font-weight: 800; font-size: 12px; }
@@ -342,7 +363,7 @@ body {
   .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .grid-2, .grid-3, .viz-grid.cols-2, .viz-grid.cols-3, .viz-grid.wide-left { grid-template-columns: minmax(0, 1fr); }
 }
-@media (max-width: 520px) {
+@media (max-width: 359px) {
   .grid-4 { grid-template-columns: minmax(0, 1fr); }
 }
 
@@ -367,3 +388,166 @@ body {
 .company-strip-meta { font-size: 12.5px; color: #6b7280; margin-top: 2px; }
 .company-strip-period { display: flex; align-items: center; gap: 8px; padding: 10px 18px; background: var(--brand-soft); color: var(--brand); font-weight: 700; font-size: 13px; }
 .company-strip-period small { display: block; font-weight: 600; color: #8a919e; font-size: 12px; }
+
+/* ---------- Phone (keep 767px in step with hooks/useIsMobile.ts) ---------- */
+/* Phone menu: white logo strip on top, the dark menu filling the rest. */
+.sider-drawer .sider-logo { background: #fff; border-bottom: 1px solid var(--border); }
+.sider-drawer .sider-logo .tag { color: var(--text-3); }
+.sider-drawer .sider-menu { background: var(--ink); }
+.sider-drawer .ant-drawer-body { padding: 0; display: flex; flex-direction: column; }
+.topbar-wrap { position: sticky; top: 0; z-index: 20; }
+.topbar-sub { height: 49px; display: flex; align-items: center; gap: 8px; padding: 0 12px; background: #fff; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+.topbar-sub > * { flex: none; }
+.topbar-sub:empty { display: none; }
+.grid-split { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); align-items: start; }
+.grid-split.wide { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+.grid-split.even { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); }
+.grid-split.wastage-split { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); }
+.count-rows { display: grid; gap: 8px; max-height: 55vh; overflow-y: auto; }
+.count-row { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; }
+.count-row-line { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.form-card { padding: 24px; }
+.form-card.roomy { padding: 28px; }
+.steps-card { padding: 16px 24px; margin-bottom: 20px; }
+.form-actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 20px; }
+.form-actions > .ant-btn-primary, .form-actions .ant-btn-primary { min-width: 200px; }
+.bill-review-preview { position: sticky; top: 92px; }
+/* Save bar under the bill review: stuck to the bottom, edge to edge across the page padding. */
+.bill-review-bar { position: sticky; bottom: 0; grid-column: 1 / -1; margin: 0 -32px -48px; background: rgba(255,255,255,0.96); backdrop-filter: blur(8px); border-top: 1px solid #e8eaee; padding: 14px 32px; display: flex; align-items: center; justify-content: space-between; gap: 10px; z-index: 30; }
+.bill-review-bar .form-actions { margin-top: 0; }
+/* Dashboard analysis filters on a phone: short bar, chips for filters in use, the rest in a bottom sheet. */
+.m-filter-bar.sticky-filters { display: block; overflow: visible; padding: 8px; }
+.m-filter-row { display: flex; align-items: center; gap: 8px; }
+.m-filter-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.m-filter-chips .ant-tag { margin: 0; border-radius: 999px; padding: 2px 10px; font-weight: 700; }
+.filter-sheet .ant-drawer-content-wrapper { height: auto !important; max-height: 85vh; }
+.filter-sheet .ant-drawer-content { border-radius: 16px 16px 0 0; }
+.filter-sheet .ant-drawer-footer { padding-bottom: calc(12px + env(safe-area-inset-bottom)); }
+.filter-sheet-field { display: flex; flex-direction: column; gap: 6px; }
+.filter-sheet-field + .filter-sheet-field { margin-top: 18px; }
+.filter-sheet-field .filter-label { font-size: 11px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: var(--text-3); }
+.grade-pick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; width: 100%; }
+.grade-pick-option.ant-radio-wrapper { margin: 0; padding: 10px 12px; border-radius: 10px; align-items: flex-start; }
+.m-list-filters { padding: 12px 12px 4px; }
+.m-list-filters .m-filter-chips { align-items: center; }
+.queue-hint { font-size: 12.5px; padding: 10px 12px 0; }
+.company-figs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.formula-row { padding: 18px; display: flex; align-items: center; gap: 18px; }
+.formula-row-name { width: 130px; flex: none; font-weight: 800; display: flex; align-items: center; gap: 8px; }
+.formula-row > .formula, .formula-row > div:last-child { flex: 1; min-width: 0; }
+.detail-card { padding: 20px; }
+.detail-card-value { font-size: 24px; margin-top: 6px; }
+.detail-card-value.stock { font-size: 22px; margin-top: 8px; }
+.oil-big { font-size: 44px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+.money-card { padding: 22px; }
+.bar-list { display: grid; gap: 12px; margin-top: 12px; }
+.bar-list-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13.5px; font-weight: 700; color: var(--text-2); }
+.bar-list-line b { color: var(--ink); white-space: nowrap; }
+.bar-list-track { height: 6px; margin-top: 5px; border-radius: 99px; background: #eef0f3; overflow: hidden; }
+.bar-list-track > i { display: block; height: 100%; border-radius: 99px; min-width: 2px; }
+.settings-card { padding: 4px 24px 24px; }
+.process-pick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; width: 100%; }
+.membership-grid { display: grid; grid-template-columns: 1fr 180px 32px; gap: 12px; align-items: start; }
+.entry-cards, .m-cards { display: grid; gap: 10px; padding: 0 12px 12px; }
+.entry-cards:first-child, .m-cards:first-child { padding-top: 12px; }
+.m-card.clickable { cursor: pointer; }
+.m-card-sub { color: var(--text-2); font-size: 13px; }
+.tabs-pad { padding: 4px 20px 0; }
+.entry-card, .m-card { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: #fff; cursor: pointer; font-size: 13.5px; }
+.entry-card:active, .m-card.clickable:active { background: #fafbfc; }
+.entry-card-line, .m-card-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+@media (max-width: 767px) {
+  .topbar.ant-layout-header { padding: 0 8px 0 4px; gap: 8px; }
+  .topbar-group { gap: 6px; }
+  .topbar-title { overflow: hidden; text-overflow: ellipsis; }
+  .page { padding: 16px 12px 32px; }
+  .page-header { flex-direction: column; align-items: stretch; gap: 12px; margin-bottom: 16px; }
+  .page-header h1 { font-size: 22px; }
+  .page-header .subtitle { font-size: 13.5px; margin-top: 4px; }
+  .company-strip { display: flex; }
+  .company-strip > * { flex: 1 1 100%; }
+  .section-title { flex-wrap: wrap; gap: 4px 8px; margin: 24px 0 10px; }
+  .section-title > div { flex-wrap: wrap; row-gap: 2px; }
+  .section-title .hint { margin-left: 8px; }
+  .viz-head { flex-wrap: wrap; }
+  .stock-card-head { flex-wrap: wrap; }
+  .kpi-value { font-size: 22px; }
+  .page-header > div + div { width: 100%; }
+  .page-header > div + div { flex-wrap: wrap; }
+  .page-header > div + div > .ant-btn { flex: 1 1 auto; }
+  .page-header > div + div > .hint-button { flex: none; margin-left: -8px; }
+  .page-header .ant-btn-lg { height: 40px; font-size: 14px; padding-inline: 14px; }
+  .detail-card { padding: 12px 14px; }
+  .detail-card-value, .detail-card-value.stock { font-size: 19px; margin-top: 2px; }
+  .table-card { overflow: hidden; }
+  .settings-card { padding: 12px; }
+  .process-pick { grid-template-columns: minmax(0, 1fr); }
+  /* Company and delete on one line, the role under them. */
+  .membership-grid { grid-template-columns: minmax(0, 1fr) 32px; column-gap: 8px; row-gap: 0; }
+  .membership-grid > :nth-child(2) { grid-row: 2; grid-column: 1 / -1; }
+  .settings-card .m-cards { padding: 0; }
+  .money-card { padding: 12px 14px; }
+  .info-banner { padding: 10px 12px; font-size: 12.5px; gap: 8px; }
+  /* Safety net: a wide button group scrolls inside itself, never pushes the page wider than the screen. */
+  .ant-segmented { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .page { overflow-x: clip; }
+  .chart-card .chart-head { flex-wrap: wrap; }
+  .chart-card .chart-title { font-size: 15px; }
+  .chart-card .chart-sub { font-size: 12px; }
+  .chart-card .legend { flex-wrap: wrap; row-gap: 4px; }
+  .oil-big { font-size: 32px; }
+  .company-grid { grid-template-columns: minmax(0, 1fr); }
+  /* Formula: the three figures stay in one row, smaller. */
+  .formula-row { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px 14px; }
+  .formula-row-name { width: auto; }
+  .formula { flex-wrap: nowrap; gap: 4px; }
+  .formula-item { min-width: 0; padding: 8px 10px; border-radius: 10px; }
+  .formula-item .f-label { font-size: 11.5px; }
+  .formula-item .f-value { font-size: 14.5px; margin-top: 2px; overflow-wrap: anywhere; }
+  .formula-op { width: 10px; font-size: 15px; }
+  /* Compact cards: less padding and smaller gaps, so cards look made for the phone, not shrunk. */
+  .grid, .viz-grid { gap: 10px; }
+  .kpi, .stat-tile, .loc-card, .stock-card { padding: 12px 14px; }
+  .chart-card { padding: 14px 14px 10px; }
+  .viz-card { padding: 12px 12px 8px; }
+  .loc-badge { width: 36px; height: 36px; font-size: 14px; border-radius: 10px; }
+  .welcome-top { padding: 10px 12px; }
+  .welcome-body { padding: 16px 12px 32px; }
+  .welcome-hero { padding: 20px 18px; border-radius: 14px; }
+  .welcome-hero .eyebrow { font-size: 11px; margin-bottom: 6px; }
+  .welcome-hero h1 { font-size: 22px; }
+  .welcome-hero p { font-size: 13.5px; line-height: 1.5; margin-top: 6px; }
+  .welcome-section { margin-top: 16px; }
+  .pick-card { gap: 10px; }
+  .pick-card-name { font-size: 14.5px; }
+  .pick-card-detail { font-size: 12px; }
+  .tabs-pad { padding: 0 8px; }
+  .tabs-pad .entry-cards { padding-inline: 4px; }
+  .tabs-hint { padding-inline: 4px; }
+  /* Forms: one column, summary under the form, buttons share the width. */
+  .grid-split, .grid-split.wide, .grid-split.even, .grid-split.wastage-split { grid-template-columns: minmax(0, 1fr); }
+  /* Popups fit the screen, with less padding. */
+  .ant-modal { max-width: calc(100vw - 24px); margin-inline: auto; }
+  .ant-modal .ant-modal-content { padding: 16px; }
+  .form-card, .form-card.roomy { padding: 16px; }
+  .steps-card { padding: 12px 8px; margin-bottom: 12px; }
+  .form-actions > .ant-btn, .form-actions .ant-btn { flex: 1; min-width: 0; }
+  .form-actions .ant-btn-lg { height: 40px; font-size: 14px; padding-inline: 12px; border-radius: 10px; }
+  /* Grade picker: one short row of chips, no radio circle; the colour shows the pick. */
+  .grade-pick { gap: 8px; }
+  .grade-pick-option.ant-radio-wrapper { padding: 7px 4px; justify-content: center; align-items: center; white-space: nowrap; font-size: 13.5px; }
+  .grade-pick-option .ant-radio { display: none; }
+  .grade-pick-option .ant-radio + span { padding-inline: 0; }
+  .bill-review-preview { position: static; }
+  .bill-review-bar { margin: 0 -12px -32px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); flex-wrap: wrap; }
+  .bill-review-bar > span { font-size: 13px; }
+  .bill-review-bar .form-actions { flex-basis: 100%; }
+  .stat-tile .value { font-size: 22px; }
+  /* Alert buttons drop under the text instead of squeezing it. */
+  .ant-alert:has(.ant-alert-action) { flex-wrap: wrap; }
+  .ant-alert-action { margin-inline-start: 0; margin-top: 10px; flex-basis: 100%; }
+  /* Date range calendars stack, so the two months fit the screen. */
+  .ant-picker-dropdown .ant-picker-panel-layout { flex-direction: column; }
+  .ant-picker-dropdown .ant-picker-panels { flex-direction: column; }
+  .ant-picker-dropdown .ant-picker-presets ul { display: flex; flex-wrap: wrap; gap: 4px; height: auto; }
+}

@@ -90,7 +90,7 @@ export default function ManualTradeForm({ kind, saving, onSaved, back }: { kind:
       : `The GST number for ${party.name} is not added. Ask the Manager to add it.`
 
   return (
-    <div className="grid fade-in" style={{ gridTemplateColumns: 'minmax(0, 1.6fr) minmax(0, 1fr)', gap: 24, alignItems: 'start' }}>
+    <div className="grid grid-split fade-in" style={{ gap: 24 }}>
       <Form<Values>
         form={form}
         layout="vertical"
@@ -123,7 +123,7 @@ export default function ManualTradeForm({ kind, saving, onSaved, back }: { kind:
           })
         }
       >
-        <div className="surface" style={{ padding: 24 }}>
+        <div className="surface form-card">
           <div className="strong" style={{ fontSize: 16, marginBottom: 16 }}>
             {isPurchase ? 'Bill details' : 'Sale details'}
           </div>
@@ -214,17 +214,17 @@ export default function ManualTradeForm({ kind, saving, onSaved, back }: { kind:
           </div>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20 }}>
+        <div className="form-actions">
           <Button size="large" icon={<ArrowLeftOutlined />} onClick={back}>
             Back
           </Button>
-          <Button size="large" type="primary" htmlType="submit" icon={<CheckOutlined />} disabled={over} loading={saving} style={{ minWidth: 220 }}>
+          <Button size="large" type="primary" htmlType="submit" icon={<CheckOutlined />} disabled={over} loading={saving}>
             Save for approval
           </Button>
         </div>
       </Form>
 
-      <div className="surface" style={{ padding: 24, position: 'sticky', top: 92 }}>
+      <div className="surface form-card" style={{ position: 'sticky', top: 92 }}>
         <div className="strong" style={{ fontSize: 16 }}>
           Summary
         </div>

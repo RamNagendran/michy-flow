@@ -2,11 +2,13 @@ import { useState } from 'react'
 import { Alert, App, Button, Form, Input, Modal, Radio, Switch, Table, Tag } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
 import { CompanyBadge } from '../../components/CompanyCards'
+import MobileList from '../../components/MobileList'
 import { useCompanies, useSaveCompany } from '../../hooks/queries/companies'
 import { PROCESSES, processOf } from '../../data/catalog'
 import { errorMessage } from '../../services/apiError'
 import type { Company, CompanyInput } from '../../types/auth'
 import { useAccess } from '../../hooks/useAccess'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import InventoryModal from './InventoryModal'
 import { requiredMark } from '../../utils/formMarks'
 import { gstinRule, normaliseGstin } from '../../utils/gstin'
@@ -56,7 +58,7 @@ function CompanyModal({ company, onClose }: { company?: Company; onClose: () => 
           rules={[{ required: true, message: 'Choose what this company does' }]}
           extra={company ? 'Can be changed only until the company has its first entry.' : 'Decides the raw material it processes and the products it makes.'}
         >
-          <Radio.Group style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 10, width: '100%' }}>
+          <Radio.Group className="process-pick">
             {PROCESSES().map((p) => (
               <Radio key={p.id} value={p.id} style={{ margin: 0, padding: '10px 12px', borderRadius: 10, border: '1.5px solid #e6e8ec', alignItems: 'flex-start' }}>
                 <div style={{ fontWeight: 800 }}>{p.name}</div>
@@ -92,6 +94,7 @@ export default function CompaniesTab() {
   const [configuring, setConfiguring] = useState<Company | null>(null)
   const canConfigure = useAccess().canSystem('manage_config')
 
+  const mobile = useIsMobile()
   const toggle = (c: Company) =>
     modal.confirm({
       title: c.is_active ? `Deactivate ${c.name}?` : `Re-activate ${c.name}?`,
@@ -105,56 +108,89 @@ export default function CompaniesTab() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-        <div className="muted">Each company (entity) keeps its own purchases, production, stock and sales.</div>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setAdding(true)}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+        <div className="muted" style={{ flex: '1 1 240px' }}>
+          Each company (entity) keeps its own purchases, production, stock and sales.
+        </div>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setAdding(true)} block={mobile}>
           Add a company
         </Button>
       </div>
-      <Table<Company>
-        scroll={{ x: 'max-content' }}
-        rowKey="id"
-        loading={companies.isLoading}
-        pagination={false}
-        dataSource={companies.data}
-        columns={[
-          {
-            title: 'Company',
-            render: (_, c) => (
-              <span style={{ display: 'flex', alignItems: 'center', gap: 12, opacity: c.is_active ? 1 : 0.55 }}>
-                <CompanyBadge code={c.code} size={34} />
-                <span>
-                  <div style={{ fontWeight: 700 }}>{c.name}</div>
-                  <div className="faint" style={{ fontSize: 12.5 }}>
-                    {processOf(c.category).name} · {c.city || '—'}
-                  </div>
-                  <div className="faint num" style={{ fontSize: 12.5 }}>
-                    {c.gstin ? `GST ${c.gstin}` : <span style={{ color: '#D4380D' }}>GST number not added</span>}
-                  </div>
-                </span>
+      {mobile ? (
+        <MobileList<Company>
+          rows={companies.data}
+          rowKey={(c) => c.id}
+          loading={companies.isLoading}
+          card={(c) => ({
+            title: (
+              <span style={{ display: 'flex', alignItems: 'center', gap: 10, opacity: c.is_active ? 1 : 0.55 }}>
+                <CompanyBadge code={c.code} size={30} />
+                {c.name}
               </span>
             ),
-          },
-          { title: 'Status', render: (_, c) => (c.is_active ? <Tag color="success">Active</Tag> : <Tag>Inactive</Tag>) },
-          { title: 'Active', render: (_, c) => <Switch size="small" checked={c.is_active} onChange={() => toggle(c)} aria-label={`Active: ${c.name}`} /> },
-          {
-            key: 'edit',
-            align: 'right',
-            render: (_, c) => (
-              <span style={{ whiteSpace: 'nowrap' }}>
+            extra: <Switch size="small" checked={c.is_active} onChange={() => toggle(c)} aria-label={`Active: ${c.name}`} />,
+            lines: [
+              `${processOf(c.category).name} · ${c.city || '—'}`,
+              c.gstin ? <span className="num">GST {c.gstin}</span> : <span style={{ color: '#D4380D' }}>GST number not added</span>,
+              <span style={{ display: 'flex', gap: 4, marginLeft: -8 }}>
+                <Button type="link" size="small" onClick={() => setEditing(c)}>
+                  Edit
+                </Button>
                 {canConfigure && (
-                  <Button type="link" onClick={() => setConfiguring(c)}>
+                  <Button type="link" size="small" onClick={() => setConfiguring(c)}>
                     Stock settings
                   </Button>
                 )}
-                <Button type="link" onClick={() => setEditing(c)}>
-                  Edit
-                </Button>
-              </span>
-            ),
-          },
-        ]}
-      />
+              </span>,
+            ],
+          })}
+        />
+      ) : (
+        <Table<Company>
+          scroll={{ x: 'max-content' }}
+          rowKey="id"
+          loading={companies.isLoading}
+          pagination={false}
+          dataSource={companies.data}
+          columns={[
+            {
+              title: 'Company',
+              render: (_, c) => (
+                <span style={{ display: 'flex', alignItems: 'center', gap: 12, opacity: c.is_active ? 1 : 0.55 }}>
+                  <CompanyBadge code={c.code} size={34} />
+                  <span>
+                    <div style={{ fontWeight: 700 }}>{c.name}</div>
+                    <div className="faint" style={{ fontSize: 12.5 }}>
+                      {processOf(c.category).name} · {c.city || '—'}
+                    </div>
+                    <div className="faint num" style={{ fontSize: 12.5 }}>
+                      {c.gstin ? `GST ${c.gstin}` : <span style={{ color: '#D4380D' }}>GST number not added</span>}
+                    </div>
+                  </span>
+                </span>
+              ),
+            },
+            { title: 'Status', render: (_, c) => (c.is_active ? <Tag color="success">Active</Tag> : <Tag>Inactive</Tag>) },
+            { title: 'Active', render: (_, c) => <Switch size="small" checked={c.is_active} onChange={() => toggle(c)} aria-label={`Active: ${c.name}`} /> },
+            {
+              key: 'edit',
+              align: 'right',
+              render: (_, c) => (
+                <span style={{ whiteSpace: 'nowrap' }}>
+                  {canConfigure && (
+                    <Button type="link" onClick={() => setConfiguring(c)}>
+                      Stock settings
+                    </Button>
+                  )}
+                  <Button type="link" onClick={() => setEditing(c)}>
+                    Edit
+                  </Button>
+                </span>
+              ),
+            },
+          ]}
+        />
+      )}
       {configuring && <InventoryModal key={configuring.id} company={configuring} onClose={() => setConfiguring(null)} />}
       {(adding || editing) && (
         <CompanyModal

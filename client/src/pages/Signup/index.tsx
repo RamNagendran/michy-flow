@@ -105,7 +105,7 @@ export default function Signup() {
           >
             Verify and create account
           </Button>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 18 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'space-between', alignItems: 'center', marginTop: 18 }}>
             <Button type="link" icon={<ArrowLeftOutlined />} style={{ padding: 0 }} onClick={() => setDetails(null)} disabled={signup.isPending}>
               Change details
             </Button>

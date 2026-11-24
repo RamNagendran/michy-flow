@@ -3,43 +3,70 @@ import { Table } from 'antd'
 import { InfoCircleFilled } from '@ant-design/icons'
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import ChartTooltip from '../../components/ChartTooltip'
+import MobileList from '../../components/MobileList'
 import { Formula, GradeTag, PageHeader, SectionTitle } from '../../components/ui'
 import { gradeInfo } from '../../data/grades'
 import { itemsOfCompanies, itemColor } from '../../data/catalog'
 import { useSummaries } from '../../hooks/queries/stock'
 import { useAccess } from '../../hooks/useAccess'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import { usePeriod } from '../../hooks/usePeriod'
 import type { MoneyTotals } from '../../types/entries'
 import { formatINR, formatINRShort, formatPercent, formatKg } from '../../utils/format'
 import { periodLabels } from '../../utils/period'
 
 function ByItemChart({ title, totals, items }: { title: string; totals: MoneyTotals | undefined; items: { id: string; name: string }[] }) {
+  const mobile = useIsMobile()
   const data = items.map((i) => ({ key: i.id, name: i.name, value: totals?.by_item.find((x) => x.item === i.id)?.amount ?? 0 }))
+  const max = Math.max(...data.map((d) => d.value), 1)
   return (
-    <div className="surface" style={{ padding: 22 }}>
+    <div className="surface money-card">
       <div className="strong" style={{ fontSize: 16 }}>
         {title}
       </div>
-      <div style={{ height: 200, marginTop: 8 }}>
-        <ResponsiveContainer>
-          <BarChart data={data} layout="vertical" margin={{ left: 8, right: 84 }}>
-            <XAxis type="number" hide />
-            <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} width={120} tick={{ fill: '#3a3f47', fontSize: 13, fontWeight: 700 }} />
-            <Tooltip cursor={{ fill: 'rgba(16,24,40,0.04)' }} content={<ChartTooltip format={(v) => formatINR(v)} />} />
-            <Bar isAnimationActive={false} dataKey="value" name="Value" radius={[0, 4, 4, 0]} barSize={22} label={{ position: 'right', formatter: (v: unknown) => formatINRShort(Number(v)), fill: '#1f2329', fontSize: 12.5, fontWeight: 700 }}>
-              {data.map((d) => (
-                <Cell key={d.key} fill={itemColor(d.key)} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+      {mobile ? (
+        // On a phone a bar chart leaves no room for the bars: a ranked list with a thin bar under each name instead.
+        <div className="bar-list">
+          {[...data]
+            .sort((a, b) => b.value - a.value)
+            .map((d) => (
+              <div key={d.key} className="bar-list-row">
+                <div className="bar-list-line">
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                    <span className="legend-dot" style={{ background: itemColor(d.key) }} />
+                    {d.name}
+                  </span>
+                  <b className="num">{formatINRShort(d.value)}</b>
+                </div>
+                <div className="bar-list-track">
+                  <i style={{ width: `${(d.value / max) * 100}%`, background: itemColor(d.key) }} />
+                </div>
+              </div>
+            ))}
+        </div>
+      ) : (
+        <div style={{ height: 200, marginTop: 8 }}>
+          <ResponsiveContainer>
+            <BarChart data={data} layout="vertical" margin={{ left: 8, right: 84 }}>
+              <XAxis type="number" hide />
+              <YAxis type="category" dataKey="name" axisLine={false} tickLine={false} width={120} tick={{ fill: '#3a3f47', fontSize: 13, fontWeight: 700 }} />
+              <Tooltip cursor={{ fill: 'rgba(16,24,40,0.04)' }} content={<ChartTooltip format={(v) => formatINR(v)} />} />
+              <Bar isAnimationActive={false} dataKey="value" name="Value" radius={[0, 4, 4, 0]} barSize={22} label={{ position: 'right', formatter: (v: unknown) => formatINRShort(Number(v)), fill: '#1f2329', fontSize: 12.5, fontWeight: 700 }}>
+                {data.map((d) => (
+                  <Cell key={d.key} fill={itemColor(d.key)} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
     </div>
   )
 }
 
 export default function Finance() {
   const { period, range, subtitle } = usePeriod()
+  const mobile = useIsMobile()
   // Only companies where this person may see money figures.
   const { scope, can } = useAccess()
   const companies = useMemo(() => scope.filter((c) => can('view_finance', c.id) && can('view_all_entries', c.id)), [scope, can])
@@ -66,7 +93,7 @@ export default function Finance() {
             ['Final only (Finance approved)', t?.sales.verified_amount, t?.purchases.verified_amount, verifiedMargin],
           ] as const
         ).map(([label, sales, spend, diff]) => (
-          <div key={label} className="surface" style={{ padding: 22 }}>
+          <div key={label} className="surface money-card">
             <div className="strong" style={{ marginBottom: 12 }}>
               {label}
             </div>
@@ -88,57 +115,112 @@ export default function Finance() {
 
       <SectionTitle title="By grade" />
       <div className="surface table-card">
-        <Table
-          scroll={{ x: 'max-content' }}
-          pagination={false}
-          rowKey="grade"
-          dataSource={t ? t.purchases.by_grade.map((p, i) => ({ grade: p.grade, bought: p, sold: t.sales.by_grade[i] })) : []}
-          columns={[
-            { title: 'Grade', render: (_, r) => <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><GradeTag grade={r.grade} /><b>{gradeInfo(r.grade).name}</b></span> },
-            { title: 'Bought', align: 'right', render: (_, r) => <span className="num">{formatKg(r.bought.qty_kg)} · {r.bought.count} bills</span> },
-            { title: 'Spent', align: 'right', render: (_, r) => <span className="num strong">{formatINR(r.bought.amount)}</span> },
-            { title: 'Sold', align: 'right', render: (_, r) => <span className="num">{formatKg(r.sold.qty_kg)} · {r.sold.count} invoices</span> },
-            { title: 'Received', align: 'right', render: (_, r) => <span className="num strong">{formatINR(r.sold.amount)}</span> },
-            {
-              title: 'Basic difference',
-              align: 'right',
-              render: (_, r) => {
-                const d = r.sold.amount - r.bought.amount
-                return <span className="num strong" style={{ color: d < 0 ? '#D4380D' : undefined }}>{formatINR(d)}</span>
+        {mobile ? (
+          <MobileList
+            rows={t ? t.purchases.by_grade.map((p, i) => ({ grade: p.grade, bought: p, sold: t.sales.by_grade[i] })) : undefined}
+            rowKey={(r) => r.grade}
+            card={(r) => {
+              const d = r.sold.amount - r.bought.amount
+              return {
+                title: (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <GradeTag grade={r.grade} />
+                    {gradeInfo(r.grade).name}
+                  </span>
+                ),
+                extra: <span className="num strong" style={{ color: d < 0 ? '#D4380D' : undefined }}>{formatINRShort(d)}</span>,
+                lines: [
+                  <span className="num">
+                    Spent <b>{formatINR(r.bought.amount)}</b> · {formatKg(r.bought.qty_kg)} · {r.bought.count} bills
+                  </span>,
+                  <span className="num">
+                    Received <b>{formatINR(r.sold.amount)}</b> · {formatKg(r.sold.qty_kg)} · {r.sold.count} invoices
+                  </span>,
+                ],
+              }
+            }}
+          />
+        ) : (
+          <Table
+            scroll={{ x: 'max-content' }}
+            pagination={false}
+            rowKey="grade"
+            dataSource={t ? t.purchases.by_grade.map((p, i) => ({ grade: p.grade, bought: p, sold: t.sales.by_grade[i] })) : []}
+            columns={[
+              { title: 'Grade', render: (_, r) => <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}><GradeTag grade={r.grade} /><b>{gradeInfo(r.grade).name}</b></span> },
+              { title: 'Bought', align: 'right', render: (_, r) => <span className="num">{formatKg(r.bought.qty_kg)} · {r.bought.count} bills</span> },
+              { title: 'Spent', align: 'right', render: (_, r) => <span className="num strong">{formatINR(r.bought.amount)}</span> },
+              { title: 'Sold', align: 'right', render: (_, r) => <span className="num">{formatKg(r.sold.qty_kg)} · {r.sold.count} invoices</span> },
+              { title: 'Received', align: 'right', render: (_, r) => <span className="num strong">{formatINR(r.sold.amount)}</span> },
+              {
+                title: 'Basic difference',
+                align: 'right',
+                render: (_, r) => {
+                  const d = r.sold.amount - r.bought.amount
+                  return <span className="num strong" style={{ color: d < 0 ? '#D4380D' : undefined }}>{formatINR(d)}</span>
+                },
               },
-            },
-          ]}
-        />
+            ]}
+          />
+        )}
       </div>
 
       <SectionTitle title="By company" hint={periodLabels[period]} />
       <div className="surface table-card">
-        <Table
-          scroll={{ x: 'max-content' }}
-          pagination={false}
-          rowKey="id"
-          dataSource={companies.filter((c) => byCompany.has(c.id)).map((c) => ({ ...c, s: byCompany.get(c.id)! }))}
-          columns={[
-            { title: 'Company', dataIndex: 'name', render: (v) => <b>{v}</b> },
-            { title: 'Bought (kg)', align: 'right', render: (_, c) => <span className="num">{formatKg(c.s.purchases.qty_kg)}</span> },
-            { title: 'Spent', align: 'right', render: (_, c) => <span className="num strong">{formatINR(c.s.purchases.amount)}</span> },
-            { title: 'Sold', align: 'right', render: (_, c) => <span className="num">{formatKg(c.s.sales.qty_kg)}</span> },
-            { title: 'Received', align: 'right', render: (_, c) => <span className="num strong">{formatINR(c.s.sales.amount)}</span> },
-            {
-              title: 'Basic difference',
-              align: 'right',
-              render: (_, c) => {
-                const d = c.s.sales.amount - c.s.purchases.amount
-                return (
+        {mobile ? (
+          <MobileList
+            rows={companies.filter((c) => byCompany.has(c.id)).map((c) => ({ ...c, s: byCompany.get(c.id)! }))}
+            rowKey={(c) => c.id}
+            card={(c) => {
+              const d = c.s.sales.amount - c.s.purchases.amount
+              const open = c.s.queue.pending + c.s.queue.approved + c.s.queue.change_requested
+              return {
+                title: c.name,
+                extra: (
                   <span className="num strong" style={{ color: d < 0 ? '#D4380D' : undefined }}>
-                    {formatINR(d)} <span className="faint">({formatPercent(c.s.sales.amount ? (d / c.s.sales.amount) * 100 : 0)})</span>
+                    {formatINRShort(d)} <span className="faint">({formatPercent(c.s.sales.amount ? (d / c.s.sales.amount) * 100 : 0)})</span>
                   </span>
-                )
+                ),
+                lines: [
+                  <span className="num">
+                    Spent <b>{formatINR(c.s.purchases.amount)}</b> · {formatKg(c.s.purchases.qty_kg)} bought
+                  </span>,
+                  <span className="num">
+                    Received <b>{formatINR(c.s.sales.amount)}</b> · {formatKg(c.s.sales.qty_kg)} sold
+                  </span>,
+                  open > 0 && `${open} not final yet`,
+                ],
+              }
+            }}
+          />
+        ) : (
+          <Table
+            scroll={{ x: 'max-content' }}
+            pagination={false}
+            rowKey="id"
+            dataSource={companies.filter((c) => byCompany.has(c.id)).map((c) => ({ ...c, s: byCompany.get(c.id)! }))}
+            columns={[
+              { title: 'Company', dataIndex: 'name', render: (v) => <b>{v}</b> },
+              { title: 'Bought (kg)', align: 'right', render: (_, c) => <span className="num">{formatKg(c.s.purchases.qty_kg)}</span> },
+              { title: 'Spent', align: 'right', render: (_, c) => <span className="num strong">{formatINR(c.s.purchases.amount)}</span> },
+              { title: 'Sold', align: 'right', render: (_, c) => <span className="num">{formatKg(c.s.sales.qty_kg)}</span> },
+              { title: 'Received', align: 'right', render: (_, c) => <span className="num strong">{formatINR(c.s.sales.amount)}</span> },
+              {
+                title: 'Basic difference',
+                align: 'right',
+                render: (_, c) => {
+                  const d = c.s.sales.amount - c.s.purchases.amount
+                  return (
+                    <span className="num strong" style={{ color: d < 0 ? '#D4380D' : undefined }}>
+                      {formatINR(d)} <span className="faint">({formatPercent(c.s.sales.amount ? (d / c.s.sales.amount) * 100 : 0)})</span>
+                    </span>
+                  )
+                },
               },
-            },
-            { title: 'Not final yet', align: 'right', render: (_, c) => <span className="num">{c.s.queue.pending + c.s.queue.approved + c.s.queue.change_requested}</span> },
-          ]}
-        />
+              { title: 'Not final yet', align: 'right', render: (_, c) => <span className="num">{c.s.queue.pending + c.s.queue.approved + c.s.queue.change_requested}</span> },
+            ]}
+          />
+        )}
       </div>
     </div>
   )

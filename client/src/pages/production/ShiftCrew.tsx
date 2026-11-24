@@ -37,7 +37,7 @@ export default function ShiftCrew({ companyId, shift, machine, onMachine, crew, 
 
   return (
     <>
-      <div className="grid" style={{ gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)', gap: 24, marginTop: 24 }}>
+      <div className="grid grid-split wide" style={{ gap: 24, marginTop: 24 }}>
         <div>
           <div style={{ fontWeight: 700, marginBottom: 6 }}>{requiredMark('Machine', { required: true })}</div>
           <Select<number>

@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
 import { Alert, Form, Input, Modal, Select, Switch, Table, Tag, Button } from 'antd'
+import MobileList from '../../components/MobileList'
 import { useMachines, useOperators, useSaveMachine, useSaveOperator } from '../../hooks/queries/plant'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import { errorMessage } from '../../services/apiError'
 import type { Machine, MachineInput, Operator, OperatorInput } from '../../types/entries'
 import { requiredMark } from '../../utils/formMarks'
@@ -78,6 +80,32 @@ export function OperatorsTable({ companyId, q, onEdit }: { companyId: number; q:
     const needle = q.trim().toLowerCase()
     return (operators.data ?? []).filter((o) => matches(needle, o.name, o.phone, o.email))
   }, [operators.data, q])
+  const mobile = useIsMobile()
+  if (mobile)
+    return (
+      <MobileList<Operator>
+        rows={operators.data && rows}
+        rowKey={(o) => o.id}
+        loading={operators.isLoading}
+        emptyText="No operators yet"
+        card={(o) => ({
+          title: <span style={dim(o.is_active)}>{o.name}</span>,
+          extra: status(o.is_active),
+          lines: [
+            o.phone ? (
+              <a href={`tel:${o.phone}`} className="num" onClick={(e) => e.stopPropagation()}>
+                {o.phone}
+              </a>
+            ) : (
+              <span style={{ color: '#D4380D' }}>Phone not added</span>
+            ),
+            o.email,
+            o.shift && `Usual shift: Shift ${o.shift}`,
+          ],
+          onClick: () => onEdit(o),
+        })}
+      />
+    )
   return (
     <Table<Operator>
       scroll={{ x: 'max-content' }}
@@ -112,6 +140,17 @@ export function MachinesTable({ companyId, q, onEdit }: { companyId: number; q: 
     const needle = q.trim().toLowerCase()
     return (machines.data ?? []).filter((m) => matches(needle, m.code, m.name))
   }, [machines.data, q])
+  const mobile = useIsMobile()
+  if (mobile)
+    return (
+      <MobileList<Machine>
+        rows={machines.data && rows}
+        rowKey={(m) => m.id}
+        loading={machines.isLoading}
+        emptyText="No machines yet"
+        card={(m) => ({ title: <span className="num" style={dim(m.is_active)}>{m.code}</span>, extra: status(m.is_active), lines: [m.name], onClick: () => onEdit(m) })}
+      />
+    )
   return (
     <Table<Machine>
       scroll={{ x: 'max-content' }}

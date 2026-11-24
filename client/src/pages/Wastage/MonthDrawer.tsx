@@ -69,6 +69,7 @@ function StockChanges({ m }: { m: WastageMonthDetail }) {
         size="small"
         rowKey="item"
         pagination={false}
+        scroll={{ x: 'max-content' }}
         dataSource={m.adjustments}
         columns={[
           { title: 'Tyre type', render: (_, a) => <b>{itemName(a.item)}</b> },

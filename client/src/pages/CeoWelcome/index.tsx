@@ -3,6 +3,7 @@ import { Button } from 'antd'
 import { AppstoreOutlined, LogoutOutlined, RightOutlined } from '@ant-design/icons'
 import { useAccess } from '../../hooks/useAccess'
 import { useAuth } from '../../hooks/useAuth'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import { CompanyBadge } from '../../components/CompanyCards'
 import { MichyMark } from '../../components/ui'
 import { totalOf } from '../../utils/stock'
@@ -19,13 +20,11 @@ const greeting = () => {
 
 function PickCard({ badge, name, detail, onClick }: { badge: React.ReactNode; name: string; detail: string; onClick: () => void }) {
   return (
-    <div className="surface loc-card fade-in" onClick={onClick} style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+    <div className="surface loc-card pick-card fade-in" onClick={onClick}>
       {badge}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div className="strong" style={{ fontSize: 16 }}>
-          {name}
-        </div>
-        <div className="faint" style={{ fontSize: 13 }}>
+        <div className="strong pick-card-name">{name}</div>
+        <div className="faint pick-card-detail">
           {detail}
         </div>
       </div>
@@ -39,6 +38,7 @@ export default function CeoWelcome() {
   const { user, logout } = useAuth()
   const access = useAccess()
   const navigate = useNavigate()
+  const mobile = useIsMobile()
   const stocks = useStocks(access.companies.filter((c) => c.permissions.includes('view_stock')).map((c) => c.company))
   if (access.companies.length < 2) return <Navigate to="/" replace />
 
@@ -51,7 +51,7 @@ export default function CeoWelcome() {
     <div className="welcome">
       <header className="welcome-top">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <MichyMark size={44} />
+          <MichyMark size={mobile ? 32 : 44} />
           <div style={{ lineHeight: 1.15 }}>
             <div style={{ fontWeight: 800, letterSpacing: '0.14em', fontSize: 17 }}>
               <span style={{ color: '#D82E54' }}>MICHY</span>
@@ -60,11 +60,12 @@ export default function CeoWelcome() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
-          <Button size="large" icon={<AppstoreOutlined />} onClick={() => navigate('/')}>
-            Go to dashboard
+          {/* Icons only on a phone, so both fit next to the logo. */}
+          <Button size={mobile ? 'middle' : 'large'} icon={<AppstoreOutlined />} onClick={() => navigate('/')} aria-label="Go to dashboard">
+            {!mobile && 'Go to dashboard'}
           </Button>
-          <Button size="large" icon={<LogoutOutlined />} onClick={() => logout()}>
-            Sign out
+          <Button size={mobile ? 'middle' : 'large'} icon={<LogoutOutlined />} onClick={() => logout()} aria-label="Sign out">
+            {!mobile && 'Sign out'}
           </Button>
         </div>
       </header>
@@ -92,7 +93,7 @@ export default function CeoWelcome() {
               return (
                 <PickCard
                   key={company.id}
-                  badge={<CompanyBadge code={company.code} />}
+                  badge={<CompanyBadge code={company.code} size={mobile ? 36 : undefined} />}
                   name={company.name}
                   detail={[
                     !user?.global_role && role ? companyRoleLabel[role] : company.city,

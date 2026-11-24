@@ -43,7 +43,7 @@ export default function StatusBoard({ type, companies }: { type: EntryType; comp
               ) : null,
             )}
           </div>
-          <div className="grid" style={{ gridTemplateColumns: 'repeat(5, minmax(0, 1fr))', gap: 12, marginTop: 14 }}>
+          <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: 12, marginTop: 14 }}>
             {rows.map((r) => (
               <div key={r.status}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 800, color: '#5b6270' }}>

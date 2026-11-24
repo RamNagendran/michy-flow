@@ -8,6 +8,7 @@ import { defaultSaleGrade, itemAllowed, itemsFor, stockSection } from '../../dat
 import { useParties } from '../../hooks/queries/parties'
 import { useStocks } from '../../hooks/queries/stock'
 import { useAccess } from '../../hooks/useAccess'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import type { BillDocument, EntryDraft, ParsedValue } from '../../types/documents'
 import { isValidGstin, normaliseGstin } from '../../utils/gstin'
 import type { Grade } from '../../types/entries'
@@ -92,6 +93,7 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
   const p = doc.parsed
   const isPurchase = doc.kind === 'purchase'
   const access = useAccess()
+  const mobile = useIsMobile()
   const company = access.accessFor(doc.company_id)?.company
   const partyList = useParties(doc.company_id, isPurchase ? 'supplier' : 'buyer')
   const parties = useMemo(() => (partyList.data ?? []).filter((x) => x.is_active), [partyList.data])
@@ -141,9 +143,9 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
   const oneUnit = itemUnit === 'L' ? 'litre' : 'kg'
 
   return (
-    <div className="grid fade-in" style={{ gridTemplateColumns: 'minmax(0, 1.05fr) minmax(0, 1fr)', gap: 24, alignItems: 'start' }}>
-      <div style={{ position: 'sticky', top: 92 }}>
-        <BillPreview doc={doc} />
+    <div className="grid grid-split even fade-in" style={{ gap: 24 }}>
+      <div className="bill-review-preview">
+        <BillPreview doc={doc} height={mobile ? '60vh' : undefined} />
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -305,27 +307,12 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
         )}
       </div>
 
-      <div
-        style={{
-          position: 'sticky',
-          bottom: 0,
-          gridColumn: '1 / -1',
-          margin: '0 -32px -48px',
-          background: 'rgba(255,255,255,0.96)',
-          backdropFilter: 'blur(8px)',
-          borderTop: '1px solid #e8eaee',
-          padding: '14px 32px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          zIndex: 30,
-        }}
-      >
+      <div className="bill-review-bar">
         <span style={{ fontWeight: 700 }}>
           {blocking.length ? `${blocking.length} check${blocking.length > 1 ? 's' : ''} to fix · ` : ''}
           {verifiedCount} of 3 key values checked by you
         </span>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div className="form-actions">
           <Button size="large" icon={<DeleteOutlined />} onClick={onDiscard}>
             Discard
           </Button>
@@ -336,7 +323,6 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
               icon={<CheckOutlined />}
               disabled={!ready}
               loading={saving}
-              style={{ minWidth: 220 }}
               onClick={() => onConfirm({ companyId: doc.company_id, partyId: partyId!, grade, invoiceNo: invoiceNo.trim(), date, item: item!, qty, rate, documentId: doc.id, billCompanyGstin: gstOnBill.company_gstin_on_bill, billPartyGstin: gstOnBill.party_gstin_on_bill, debitNoteIds: isPurchase ? notesOff : undefined, vehicleNos: isPurchase ? vehicleNos : undefined })}
             >
               Save for approval

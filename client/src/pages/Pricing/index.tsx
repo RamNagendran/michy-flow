@@ -1,10 +1,12 @@
 import { useMemo, useState } from 'react'
-import { Segmented, Table, Tag, Tooltip } from 'antd'
+import { Segmented, Select, Table, Tag, Tooltip } from 'antd'
 import { ArrowDownOutlined, ArrowUpOutlined, RightOutlined } from '@ant-design/icons'
 import PriceChart from '../../components/charts/PriceChart'
+import MobileList from '../../components/MobileList'
 import { PageHeader, SectionTitle } from '../../components/ui'
 import { companyItems, itemName } from '../../data/catalog'
 import { usePrices } from '../../hooks/queries/reports'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import { usePeriod } from '../../hooks/usePeriod'
 import { useReportCompany } from '../../hooks/useReportCompany'
 import type { SupplierPrice, TradeSide } from '../../types/reports'
@@ -30,6 +32,7 @@ const WORDS = {
 export default function Pricing({ side = 'purchase' }: { side?: TradeSide }) {
   const w = WORDS[side]
   const { label, range, subtitle } = usePeriod()
+  const mobile = useIsMobile()
   const { company } = useReportCompany('view_finance')
   const inputs = useMemo(() => (company ? companyItems(company)[side === 'purchase' ? 'inputs' : 'products'].map((i) => i.id) : []), [company, side])
   const [pickedItem, setItem] = useState<string>()
@@ -60,8 +63,12 @@ export default function Pricing({ side = 'purchase' }: { side?: TradeSide }) {
       <SectionTitle
         title={`${w.parties} against the average`}
         hint={`click a ${w.party} for their price history`}
-        extra={inputs.length > 1 && <Segmented value={item} onChange={setItem} options={inputs.map((i) => ({ value: i, label: itemName(i) }))} />}
+        extra={!mobile && inputs.length > 1 && <Segmented value={item} onChange={setItem} options={inputs.map((i) => ({ value: i, label: itemName(i) }))} />}
       />
+      {/* On a phone the items are a dropdown: as buttons they run off the screen. */}
+      {mobile && inputs.length > 1 && (
+        <Select size="large" style={{ width: '100%', marginBottom: 10 }} value={item} onChange={setItem} options={inputs.map((i) => ({ value: i, label: itemName(i) }))} aria-label="Item" />
+      )}
       <div className="grid grid-4 stagger" style={{ marginBottom: 16 }}>
         {(
           [
@@ -79,50 +86,89 @@ export default function Pricing({ side = 'purchase' }: { side?: TradeSide }) {
         ))}
       </div>
       <div className={`surface table-card ${detail.isPlaceholderData ? 'refreshing' : 'settled'}`}>
-        <Table<SupplierPrice>
-          rowKey="supplier_id"
-          loading={detail.isLoading}
-          pagination={false}
-          dataSource={h?.suppliers}
-          scroll={{ x: 'max-content' }}
-          locale={{ emptyText: `No ${itemName(item ?? '').toLowerCase()} ${w.done} in this period` }}
-          onRow={(s) => ({ onClick: () => setOpen(s), className: 'clickable' })}
-          columns={[
-            {
-              title: side === 'purchase' ? 'Supplier' : 'Buyer',
-              render: (_, s, i) => (
-                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <b>{s.name}</b>
-                  {i === 0 && (h?.suppliers.length ?? 0) > 1 && <Tag color="success">Best price</Tag>}
+        {mobile ? (
+          <MobileList<SupplierPrice>
+            rows={detail.isLoading ? undefined : (h?.suppliers ?? [])}
+            rowKey={(s) => s.supplier_id}
+            loading={detail.isLoading}
+            emptyText={`No ${itemName(item ?? '').toLowerCase()} ${w.done} in this period`}
+            card={(s) => ({
+              title: (
+                <span style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                  {s.name}
+                  {h?.suppliers[0]?.supplier_id === s.supplier_id && h.suppliers.length > 1 && <Tag color="success">Best price</Tag>}
                 </span>
               ),
-            },
-            { title: 'Bills', dataIndex: 'bills', align: 'right' },
-            { title: 'Quantity', align: 'right', render: (_, s) => <span className="num">{formatQty(s.qty, unit)}</span> },
-            { title: 'Their average', align: 'right', render: (_, s) => <span className="num strong">{formatRateIn(s.avg_rate, unit)}</span> },
-            {
-              title: 'vs average',
-              align: 'right',
-              render: (_, s) => (
-                <span className="num strong" style={{ color: good(s.diff_pct) ? '#1F9D6B' : '#D4380D' }}>
+              extra: (
+                <span className="num strong" style={{ color: good(s.diff_pct) ? '#1F9D6B' : '#D4380D', whiteSpace: 'nowrap' }}>
                   {s.diff_pct <= 0 ? <ArrowDownOutlined /> : <ArrowUpOutlined />} {formatPercent(Math.abs(s.diff_pct), 1)}
                 </span>
               ),
-            },
-            { title: 'Range', align: 'right', render: (_, s) => <span className="num faint">{`${formatRateIn(s.min_rate, unit)} – ${formatRateIn(s.max_rate, unit)}`}</span> },
-            {
-              title: <Tooltip title={w.gainHint}>{w.gain}</Tooltip>,
-              align: 'right',
-              render: (_, s) => (
-                <span className="num" style={{ color: s.saving >= 0 ? '#1F9D6B' : '#D4380D', fontWeight: 800 }}>
-                  {s.saving >= 0 ? '' : '−'}
-                  {formatINR(Math.abs(s.saving))} <span className="faint">· {formatPercent(s.roi_pct, 1)}</span>
-                </span>
-              ),
-            },
-            { key: 'go', width: 32, render: () => <RightOutlined className="faint" /> },
-          ]}
-        />
+              lines: [
+                <span className="num">
+                  <b>{formatRateIn(s.avg_rate, unit)}</b> average · {s.bills} bills · {formatQty(s.qty, unit)}
+                </span>,
+                <span className="num faint">
+                  Range {formatRateIn(s.min_rate, unit)} – {formatRateIn(s.max_rate, unit)}
+                </span>,
+                <span className="num">
+                  {w.gain}:{' '}
+                  <b style={{ color: s.saving >= 0 ? '#1F9D6B' : '#D4380D' }}>
+                    {s.saving >= 0 ? '' : '−'}
+                    {formatINR(Math.abs(s.saving))}
+                  </b>{' '}
+                  · {formatPercent(s.roi_pct, 1)}
+                </span>,
+              ],
+              onClick: () => setOpen(s),
+            })}
+          />
+        ) : (
+          <Table<SupplierPrice>
+            rowKey="supplier_id"
+            loading={detail.isLoading}
+            pagination={false}
+            dataSource={h?.suppliers}
+            scroll={{ x: 'max-content' }}
+            locale={{ emptyText: `No ${itemName(item ?? '').toLowerCase()} ${w.done} in this period` }}
+            onRow={(s) => ({ onClick: () => setOpen(s), className: 'clickable' })}
+            columns={[
+              {
+                title: side === 'purchase' ? 'Supplier' : 'Buyer',
+                render: (_, s, i) => (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <b>{s.name}</b>
+                    {i === 0 && (h?.suppliers.length ?? 0) > 1 && <Tag color="success">Best price</Tag>}
+                  </span>
+                ),
+              },
+              { title: 'Bills', dataIndex: 'bills', align: 'right' },
+              { title: 'Quantity', align: 'right', render: (_, s) => <span className="num">{formatQty(s.qty, unit)}</span> },
+              { title: 'Their average', align: 'right', render: (_, s) => <span className="num strong">{formatRateIn(s.avg_rate, unit)}</span> },
+              {
+                title: 'vs average',
+                align: 'right',
+                render: (_, s) => (
+                  <span className="num strong" style={{ color: good(s.diff_pct) ? '#1F9D6B' : '#D4380D' }}>
+                    {s.diff_pct <= 0 ? <ArrowDownOutlined /> : <ArrowUpOutlined />} {formatPercent(Math.abs(s.diff_pct), 1)}
+                  </span>
+                ),
+              },
+              { title: 'Range', align: 'right', render: (_, s) => <span className="num faint">{`${formatRateIn(s.min_rate, unit)} – ${formatRateIn(s.max_rate, unit)}`}</span> },
+              {
+                title: <Tooltip title={w.gainHint}>{w.gain}</Tooltip>,
+                align: 'right',
+                render: (_, s) => (
+                  <span className="num" style={{ color: s.saving >= 0 ? '#1F9D6B' : '#D4380D', fontWeight: 800 }}>
+                    {s.saving >= 0 ? '' : '−'}
+                    {formatINR(Math.abs(s.saving))} <span className="faint">· {formatPercent(s.roi_pct, 1)}</span>
+                  </span>
+                ),
+              },
+              { key: 'go', width: 32, render: () => <RightOutlined className="faint" /> },
+            ]}
+          />
+        )}
       </div>
       {company && <SupplierDrawer side={side} company={company} history={h} supplier={open} bucket={bucket} onClose={() => setOpen(null)} />}
     </div>

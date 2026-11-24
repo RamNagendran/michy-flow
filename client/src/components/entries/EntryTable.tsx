@@ -1,30 +1,21 @@
 import { useMemo, useState } from 'react'
-import { DatePicker, Input, Select, Table, Tag, Tooltip } from 'antd'
-import { ExperimentOutlined, SearchOutlined, ShopOutlined, ShoppingCartOutlined, WarningFilled } from '@ant-design/icons'
+import { DatePicker, Input, Pagination, Select, Table, Tag, Tooltip } from 'antd'
+import { SearchOutlined, WarningFilled } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { Dayjs } from 'dayjs'
-import { itemName, WASTAGE_ALERT_PCT, itemColor } from '../../data/catalog'
+import { WASTAGE_ALERT_PCT } from '../../data/catalog'
 import { useEntries } from '../../hooks/queries/entries'
+import { useIsMobile } from '../../hooks/useIsMobile'
+import { FilterButton, FilterChips, FilterField, FilterSheet, type FilterChip } from '../FilterSheet'
 import type { Company } from '../../types/auth'
 import type { EntryRow, EntryStatus, EntryType, EscalatedTo, Grade } from '../../types/entries'
 import { formatDate, formatINR, formatKg, formatPercent, formatQty, formatRateIn } from '../../utils/format'
 import { GradeTag, SourceTag, StatusTag } from '../ui'
 import { GRADES } from '../../data/grades'
 import { statusMeta } from '../../utils/entryStatus'
+import EntryCards, { Item } from './EntryCards'
+import { typeMeta } from './typeMeta'
 import EntryDrawer, { type EntryRef } from './EntryDrawer'
-
-const typeMeta: Record<EntryType, { label: string; fg: string; icon: React.ReactNode }> = {
-  purchase: { label: 'Purchase', fg: '#2F6FEB', icon: <ShoppingCartOutlined /> },
-  production: { label: 'Production', fg: '#3a3f47', icon: <ExperimentOutlined /> },
-  sale: { label: 'Sale', fg: '#D82E54', icon: <ShopOutlined /> },
-}
-
-const Item = ({ id }: { id: string }) => (
-  <span className="pill" style={{ background: '#fff', border: '1px solid #e6e8ec', color: '#3a3f47' }}>
-    <span className="legend-dot" style={{ background: itemColor(id) }} />
-    {itemName(id)}
-  </span>
-)
 
 function columnsFor(types: EntryType[], showCompany: boolean): ColumnsType<EntryRow> {
   const only = types.length === 1 ? types[0] : null
@@ -149,7 +140,7 @@ interface Props {
   escalatedTo?: EscalatedTo
 }
 
-/** Entries from the server with search, filters and paging. Click a row for the full entry. */
+/** Entries from the server with search, filters and paging. Click a row for the full entry. On a phone, a card per entry. */
 export default function EntryTable({ types, companies, statuses, pageSize = 15, compact, partyId, item, escalated, escalatedTo }: Props) {
   const [page, setPage] = useState(1)
   const [q, setQ] = useState('')
@@ -157,6 +148,8 @@ export default function EntryTable({ types, companies, statuses, pageSize = 15, 
   const [grade, setGrade] = useState<Grade>()
   const [range, setRange] = useState<[Dayjs | null, Dayjs | null] | null>(null)
   const [open, setOpen] = useState<EntryRef | null>(null)
+  const [sheetOpen, setSheetOpen] = useState(false)
+  const mobile = useIsMobile()
 
   const query = useMemo(
     () => ({
@@ -181,40 +174,84 @@ export default function EntryTable({ types, companies, statuses, pageSize = 15, 
     set(v)
     setPage(1)
   }
+  const openRow = (r: EntryRow) => setOpen({ companyId: r.company_id, type: r.type, id: r.id })
+
+  const showStatus = !statuses
+  const showGrade = !types.every((t) => t === 'production')
+  const statusOptions = (Object.keys(statusMeta) as EntryStatus[]).map((s) => ({ value: s, label: statusMeta[s].label }))
+  const gradeOptions = GRADES.map((g) => ({ value: g.id, label: g.name }))
+  const search = (
+    <Input prefix={<SearchOutlined className="faint" />} placeholder="Search reference, bill no. or party" style={mobile ? { flex: 1, minWidth: 0 } : { width: 280 }} allowClear value={q} onChange={(e) => reset(setQ)(e.target.value)} />
+  )
+  const count = <Tag style={{ marginInlineEnd: 0 }}>{entries.data?.total ?? 0} entries</Tag>
+  // On a phone: filters in use as chips; the pickers themselves are in the sheet.
+  const chips: FilterChip[] = [
+    showStatus && status && { key: 'status', label: statusMeta[status].label, clear: () => reset(setStatus)(undefined) },
+    showGrade && grade && { key: 'grade', label: GRADES.find((g) => g.id === grade)?.name ?? grade, clear: () => reset(setGrade)(undefined) },
+    range?.[0] && range[1] && { key: 'dates', label: `${range[0].format('D MMM')} – ${range[1].format('D MMM YYYY')}`, clear: () => reset(setRange)(null) },
+  ].filter((c) => !!c)
+  const clearFilters = () => {
+    setStatus(undefined)
+    setGrade(undefined)
+    setRange(null)
+    setPage(1)
+  }
 
   return (
     <>
-      {!compact && (
+      {!compact && !mobile && (
         <div style={{ display: 'flex', gap: 10, padding: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-          <Input prefix={<SearchOutlined className="faint" />} placeholder="Search reference, bill no. or party" style={{ width: 280 }} allowClear value={q} onChange={(e) => reset(setQ)(e.target.value)} />
-          {!statuses && (
-            <Select
-              allowClear
-              placeholder="Any status"
-              style={{ width: 190 }}
-              value={status}
-              onChange={reset(setStatus)}
-              options={(Object.keys(statusMeta) as EntryStatus[]).map((s) => ({ value: s, label: statusMeta[s].label }))}
-            />
-          )}
-          {!types.every((t) => t === 'production') && (
-            <Select allowClear placeholder="Any grade" style={{ width: 200 }} value={grade} onChange={reset(setGrade)} options={GRADES.map((g) => ({ value: g.id, label: g.name }))} />
-          )}
+          {search}
+          {showStatus && <Select allowClear placeholder="Any status" style={{ width: 190 }} value={status} onChange={reset(setStatus)} options={statusOptions} />}
+          {showGrade && <Select allowClear placeholder="Any grade" style={{ width: 200 }} value={grade} onChange={reset(setGrade)} options={gradeOptions} />}
           <DatePicker.RangePicker format="DD MMM YYYY" value={range} onChange={reset(setRange)} />
           <div style={{ flex: 1 }} />
-          <Tag style={{ marginInlineEnd: 0 }}>{entries.data?.total ?? 0} entries</Tag>
+          {count}
         </div>
       )}
-      <Table<EntryRow>
-        scroll={{ x: 'max-content' }}
-        rowKey={(r) => `${r.type}-${r.id}`}
-        loading={entries.isFetching}
-        columns={columnsFor(types, companies.length > 1)}
-        dataSource={entries.data?.items}
-        pagination={{ current: page, pageSize, total: entries.data?.total, onChange: setPage, showSizeChanger: false, hideOnSinglePage: compact }}
-        onRow={(r) => ({ onClick: () => setOpen({ companyId: r.company_id, type: r.type, id: r.id }), style: { cursor: 'pointer' } })}
-        locale={{ emptyText: <Tooltip title="Saved entries will show here">Nothing here yet</Tooltip> }}
-      />
+      {!compact && mobile && (
+        <div className="m-list-filters">
+          <div className="m-filter-row">
+            {search}
+            <FilterButton label="Status & dates" count={chips.length} onClick={() => setSheetOpen(true)} />
+          </div>
+          <FilterChips chips={chips} extra={count} />
+          <FilterSheet title="Status & dates" open={sheetOpen} onClose={() => setSheetOpen(false)} onReset={clearFilters} canReset={chips.length > 0}>
+            {showStatus && (
+              <FilterField label="Status">
+                <Select allowClear placeholder="Any status" style={{ width: '100%' }} value={status} onChange={reset(setStatus)} options={statusOptions} />
+              </FilterField>
+            )}
+            {showGrade && (
+              <FilterField label="Grade">
+                <Select allowClear placeholder="Any grade" style={{ width: '100%' }} value={grade} onChange={reset(setGrade)} options={gradeOptions} />
+              </FilterField>
+            )}
+            <FilterField label="Dates">
+              <DatePicker.RangePicker format="DD MMM YYYY" value={range} onChange={reset(setRange)} style={{ width: '100%' }} />
+            </FilterField>
+          </FilterSheet>
+        </div>
+      )}
+      {mobile ? (
+        <>
+          <EntryCards rows={entries.data?.items} loading={entries.isFetching} showType={types.length > 1} showCompany={companies.length > 1} onOpen={openRow} />
+          {(entries.data?.total ?? 0) > pageSize && (
+            <Pagination simple align="center" current={page} pageSize={pageSize} total={entries.data?.total} onChange={setPage} style={{ padding: '4px 0 16px' }} />
+          )}
+        </>
+      ) : (
+        <Table<EntryRow>
+          scroll={{ x: 'max-content' }}
+          rowKey={(r) => `${r.type}-${r.id}`}
+          loading={entries.isFetching}
+          columns={columnsFor(types, companies.length > 1)}
+          dataSource={entries.data?.items}
+          pagination={{ current: page, pageSize, total: entries.data?.total, onChange: setPage, showSizeChanger: false, hideOnSinglePage: compact }}
+          onRow={(r) => ({ onClick: () => openRow(r), style: { cursor: 'pointer' } })}
+          locale={{ emptyText: <Tooltip title="Saved entries will show here">Nothing here yet</Tooltip> }}
+        />
+      )}
       <EntryDrawer entryRef={open} onClose={() => setOpen(null)} />
     </>
   )

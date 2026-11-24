@@ -1,10 +1,11 @@
 import { useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Badge, Tabs } from 'antd'
+import { Badge, Select, Tabs } from 'antd'
 import { PageHeader } from '../../components/ui'
 import EntryTable from '../../components/entries/EntryTable'
 import { useEntries } from '../../hooks/queries/entries'
 import { useAccess } from '../../hooks/useAccess'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import type { Company, CompanyPermission } from '../../types/auth'
 import type { EntryStatus, EscalatedTo } from '../../types/entries'
 
@@ -22,11 +23,15 @@ interface Queue {
   companies: Company[]
 }
 
-function QueueLabel({ queue }: { queue: Queue }) {
+function QueueCount({ queue }: { queue: Queue }) {
   const count = useEntries({ status: queue.statuses, company_id: queue.companies.map((c) => c.id), escalated: queue.escalated, escalated_to: queue.escalatedTo, page_size: 1 }, queue.companies.length > 0)
+  return <Badge count={count.data?.total ?? 0} color={URGENT.has(queue.key) ? '#D4380D' : '#d98a0b'} style={{ marginLeft: 4 }} />
+}
+
+function QueueLabel({ queue }: { queue: Queue }) {
   return (
     <span>
-      {queue.label} <Badge count={count.data?.total ?? 0} color={URGENT.has(queue.key) ? '#D4380D' : '#d98a0b'} style={{ marginLeft: 4 }} />
+      {queue.label} <QueueCount queue={queue} />
     </span>
   )
 }
@@ -37,6 +42,7 @@ function QueueLabel({ queue }: { queue: Queue }) {
  */
 export default function Review() {
   const { scope, can } = useAccess()
+  const mobile = useIsMobile()
   const [params, setParams] = useSearchParams()
   const where = (p: CompanyPermission) => scope.filter((c) => can(p, c.id))
 
@@ -66,27 +72,51 @@ export default function Review() {
   return (
     <div className="page">
       <PageHeader title="Approvals" subtitle={subtitle} />
-      <div className="surface table-card">
-        <div style={{ padding: '4px 20px 0' }}>
-          <Tabs
-            activeKey={active}
-            onChange={(tab) => setParams({ tab }, { replace: true })}
-            destroyOnHidden
-            items={queues.map((q) => ({
-              key: q.key,
-              label: <QueueLabel queue={q} />,
-              children: (
-                <>
-                  <div className="muted" style={{ fontSize: 13, marginBottom: 4 }}>
-                    {q.hint}
-                  </div>
-                  <EntryTable types={[...ALL_TYPES]} companies={q.companies} statuses={q.statuses} escalated={q.escalated} escalatedTo={q.escalatedTo} />
-                </>
-              ),
-            }))}
-          />
+      {mobile ? (
+        // On a phone the queues are in a dropdown, so none hide off screen.
+        <div className="surface table-card">
+          <div style={{ padding: '12px 12px 0' }}>
+            <Select
+              size="large"
+              style={{ width: '100%' }}
+              value={active}
+              onChange={(tab) => setParams({ tab }, { replace: true })}
+              options={queues.map((q) => ({ value: q.key, label: <QueueLabel queue={q} /> }))}
+              aria-label="Choose a list"
+            />
+          </div>
+          {queues
+            .filter((q) => q.key === active)
+            .map((q) => (
+              <div key={q.key}>
+                <div className="muted queue-hint">{q.hint}</div>
+                <EntryTable types={[...ALL_TYPES]} companies={q.companies} statuses={q.statuses} escalated={q.escalated} escalatedTo={q.escalatedTo} />
+              </div>
+            ))}
         </div>
-      </div>
+      ) : (
+        <div className="surface table-card">
+          <div className="tabs-pad">
+            <Tabs
+              activeKey={active}
+              onChange={(tab) => setParams({ tab }, { replace: true })}
+              destroyOnHidden
+              items={queues.map((q) => ({
+                key: q.key,
+                label: <QueueLabel queue={q} />,
+                children: (
+                  <>
+                    <div className="muted tabs-hint" style={{ fontSize: 13, marginBottom: 4 }}>
+                      {q.hint}
+                    </div>
+                    <EntryTable types={[...ALL_TYPES]} companies={q.companies} statuses={q.statuses} escalated={q.escalated} escalatedTo={q.escalatedTo} />
+                  </>
+                ),
+              }))}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }
