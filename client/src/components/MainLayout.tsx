@@ -11,12 +11,14 @@ import {
   KeyOutlined,
   QuestionCircleOutlined,
   LogoutOutlined,
+  MenuOutlined,
   PlusOutlined,
   ShoppingCartOutlined,
   ShopOutlined,
 } from '@ant-design/icons'
 import { useAuth } from '../hooks/useAuth'
 import { useAccess } from '../hooks/useAccess'
+import { useIsMobile } from '../hooks/useIsMobile'
 import { useQueueCounts } from '../hooks/useQueueCounts'
 import { useCatalog } from '../hooks/queries/catalog'
 import { roleColor, SCREEN_ACCESS } from '../utils/permissions'
@@ -64,6 +66,8 @@ export default function MainLayout() {
   const navigate = useNavigate()
   const { pathname } = useLocation()
   const [helpOpen, setHelpOpen] = useState(false)
+  const mobile = useIsMobile()
+  const [menuOpen, setMenuOpen] = useState(false)
   const sees = (screen: keyof typeof SCREEN_ACCESS) => access.canAnywhere(...SCREEN_ACCESS[screen])
   const seesDashboard = sees('dashboard')
   // Search opens the widest list this person may see.
@@ -90,7 +94,7 @@ export default function MainLayout() {
     { key: 'wastageEscalated', n: queue.wastageEscalated, text: (n: number) => `${n} ${n === 1 ? 'month' : 'months'} of wastage sent back by the Super Admin. Please reply.` },
   ].filter((i) => i.n > 0)
   const notifications = (
-    <div style={{ width: 340 }}>
+    <div style={{ width: 'min(340px, calc(100vw - 56px))' }}>
       <div style={{ fontWeight: 800, fontSize: 15, padding: '4px 4px 10px' }}>Notifications</div>
       {wastageItems.map((i) => (
         <div key={i.key} className="qa-row" onClick={() => navigate('/wastage')}>
@@ -163,25 +167,26 @@ export default function MainLayout() {
 
   return (
     <Layout hasSider style={{ minHeight: '100vh' }}>
-      <SidebarNavigation />
+      <SidebarNavigation mobileOpen={menuOpen} onMobileClose={() => setMenuOpen(false)} />
 
       <Layout>
         <ConfigProvider theme={HEADER_THEME}>
           <Header className="topbar">
             <div className="topbar-group topbar-left">
+              {mobile && <Button type="text" icon={<MenuOutlined />} onClick={() => setMenuOpen(true)} aria-label="Open menu" />}
               <div className="topbar-title">{title}</div>
-              <CompanySwitcher />
-              {showPeriod && <PeriodPicker />}
+              {!mobile && <CompanySwitcher />}
+              {!mobile && showPeriod && <PeriodPicker />}
             </div>
             <div className="topbar-group topbar-right">
               {access.canAnywhere(...SCREEN_ACCESS.enterAny) && (
                 <Dropdown menu={newEntry} placement="bottomRight">
-                  <Button type="primary" icon={<PlusOutlined />}>
-                    New entry
+                  <Button type="primary" icon={<PlusOutlined />} aria-label="New entry">
+                    {!mobile && 'New entry'}
                   </Button>
                 </Dropdown>
               )}
-              {searchScreen && (
+              {searchScreen && !mobile && (
                 <Tooltip title="Search records">
                   <Button shape="circle" icon={<FileSearchOutlined />} onClick={() => navigate(`/${searchScreen}`)} />
                 </Tooltip>
@@ -201,6 +206,13 @@ export default function MainLayout() {
               </Dropdown>
             </div>
           </Header>
+          {/* On a phone the company and dates move to their own row, which scrolls away with the page. */}
+          {mobile && (
+            <div className="topbar-sub">
+              <CompanySwitcher />
+              {showPeriod && <PeriodPicker />}
+            </div>
+          )}
         </ConfigProvider>
         <Content>
           {/* Keyed on the path so each page eases in; opacity and transform only, so it stays cheap. */}

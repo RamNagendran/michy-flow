@@ -4,7 +4,7 @@ import { MichyLogo, MichyMark } from './ui'
 
 const flow = ['Purchase', 'Production', 'Rubber · Steel', 'Sales', 'Finance check']
 
-/** Brand panel on the left, form on the right. Shared by Login and Signup. */
+/** Brand panel on the left, form on the right. Shared by Login and Signup. On phones only the form shows. */
 export default function AuthLayout({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   return (
     <div className="login">
@@ -32,7 +32,7 @@ export default function AuthLayout({ title, subtitle, children }: { title: strin
             See what each company bought, what it produced, what is in stock and what was sold — approved, all in one place.
           </p>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 36 }}>
+          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginTop: 36 }}>
             {flow.map((f, i) => (
               <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <div
@@ -60,8 +60,8 @@ export default function AuthLayout({ title, subtitle, children }: { title: strin
       </div>
 
       <div className="login-form">
-        <div style={{ width: 420 }}>
-          <div style={{ marginBottom: 28 }}>
+        <div className="login-card">
+          <div className="login-logo">
             <MichyLogo height={110} />
           </div>
           <h2 style={{ fontSize: 26, fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>{title}</h2>

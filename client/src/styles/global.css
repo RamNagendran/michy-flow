@@ -27,7 +27,6 @@ body {
   color: var(--text);
   font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   -webkit-font-smoothing: antialiased;
-  min-width: 1200px;
 }
 
 .num { font-variant-numeric: tabular-nums; }
@@ -188,6 +187,17 @@ body {
 .login-brand { background: radial-gradient(circle at 20% 10%, #2c2c33 0%, #17171a 60%); color: #fff; padding: 48px 56px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; }
 .login-brand::before { content: ''; position: absolute; width: 520px; height: 520px; border-radius: 50%; background: radial-gradient(circle, rgba(216,46,84,0.35) 0%, rgba(216,46,84,0) 70%); right: -160px; top: -120px; }
 .login-form { display: flex; align-items: center; justify-content: center; padding: 48px; }
+.login-card { width: 100%; max-width: 420px; }
+.login-logo { margin-bottom: 28px; }
+@supports (min-height: 100dvh) { .login { min-height: 100dvh; } }
+@media (max-width: 900px) {
+  /* Phones and small tablets: drop the brand panel, the logo above the form carries the brand. */
+  .login { grid-template-columns: minmax(0, 1fr); }
+  .login-brand { display: none; }
+  .login-form { padding: calc(32px + env(safe-area-inset-top)) 20px calc(32px + env(safe-area-inset-bottom)); }
+  .login-logo { margin-bottom: 20px; }
+  .login-logo img { height: 72px !important; }
+}
 .demo-card { display: flex; align-items: center; gap: 14px; padding: 14px 16px; border: 1.5px solid var(--border); border-radius: 14px; cursor: pointer; transition: all .15s; background: #fff; }
 .demo-card:hover { border-color: var(--brand); background: #fffafb; }
 
@@ -342,7 +352,7 @@ body {
   .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .grid-2, .grid-3, .viz-grid.cols-2, .viz-grid.cols-3, .viz-grid.wide-left { grid-template-columns: minmax(0, 1fr); }
 }
-@media (max-width: 520px) {
+@media (max-width: 359px) {
   .grid-4 { grid-template-columns: minmax(0, 1fr); }
 }
 
@@ -367,3 +377,63 @@ body {
 .company-strip-meta { font-size: 12.5px; color: #6b7280; margin-top: 2px; }
 .company-strip-period { display: flex; align-items: center; gap: 8px; padding: 10px 18px; background: var(--brand-soft); color: var(--brand); font-weight: 700; font-size: 13px; }
 .company-strip-period small { display: block; font-weight: 600; color: #8a919e; font-size: 12px; }
+
+/* ---------- Phone (keep 767px in step with hooks/useIsMobile.ts) ---------- */
+.sider-drawer .ant-drawer-content { background: var(--ink); }
+.sider-drawer .ant-drawer-body { padding: 0; display: flex; flex-direction: column; }
+.topbar-sub { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #fff; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+.topbar-sub > * { flex: none; }
+.topbar-sub:empty { display: none; }
+.grid-split { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); align-items: start; }
+.grid-split.wide { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+.grid-split.even { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); }
+.form-card { padding: 24px; }
+.form-card.roomy { padding: 28px; }
+.steps-card { padding: 16px 24px; margin-bottom: 20px; }
+.form-actions { display: flex; justify-content: space-between; gap: 10px; margin-top: 20px; }
+.form-actions > .ant-btn-primary, .form-actions .ant-btn-primary { min-width: 200px; }
+.bill-review-preview { position: sticky; top: 92px; }
+/* Save bar under the bill review: stuck to the bottom, edge to edge across the page padding. */
+.bill-review-bar { position: sticky; bottom: 0; grid-column: 1 / -1; margin: 0 -32px -48px; background: rgba(255,255,255,0.96); backdrop-filter: blur(8px); border-top: 1px solid #e8eaee; padding: 14px 32px; display: flex; align-items: center; justify-content: space-between; gap: 10px; z-index: 30; }
+.bill-review-bar .form-actions { margin-top: 0; }
+.entry-cards { display: grid; gap: 10px; padding: 0 12px 12px; }
+.entry-cards:first-child { padding-top: 12px; }
+.entry-card { display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; background: #fff; cursor: pointer; font-size: 13.5px; }
+.entry-card:active { background: #fafbfc; }
+.entry-card-line { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+@media (max-width: 767px) {
+  .topbar.ant-layout-header { padding: 0 8px 0 4px; gap: 8px; }
+  .topbar-group { gap: 6px; }
+  .topbar-title { overflow: hidden; text-overflow: ellipsis; }
+  .page { padding: 16px 12px 32px; }
+  .page-header { flex-direction: column; align-items: stretch; gap: 12px; margin-bottom: 16px; }
+  .page-header h1 { font-size: 22px; }
+  .company-strip { display: flex; }
+  .company-strip > * { flex: 1 1 100%; }
+  .section-title { flex-wrap: wrap; gap: 4px 8px; margin: 24px 0 10px; }
+  .section-title > div { flex-wrap: wrap; row-gap: 2px; }
+  .section-title .hint { margin-left: 8px; }
+  .viz-head { flex-wrap: wrap; }
+  .stock-card-head { flex-wrap: wrap; }
+  .kpi-value { font-size: 22px; }
+  .page-header > div + div { width: 100%; }
+  .page-header > div + div > .ant-btn { flex: 1; }
+  .table-card { overflow: hidden; }
+  /* Forms: one column, summary under the form, buttons share the width. */
+  .grid-split, .grid-split.wide, .grid-split.even { grid-template-columns: minmax(0, 1fr); }
+  .form-card, .form-card.roomy { padding: 16px; }
+  .steps-card { padding: 12px 8px; margin-bottom: 12px; }
+  .form-actions > .ant-btn, .form-actions .ant-btn { flex: 1; min-width: 0; }
+  .bill-review-preview { position: static; }
+  .bill-review-bar { margin: 0 -12px -32px; padding: 10px 12px calc(10px + env(safe-area-inset-bottom)); flex-wrap: wrap; }
+  .bill-review-bar > span { font-size: 13px; }
+  .bill-review-bar .form-actions { flex-basis: 100%; }
+  .stat-tile .value { font-size: 22px; }
+  /* Alert buttons drop under the text instead of squeezing it. */
+  .ant-alert:has(.ant-alert-action) { flex-wrap: wrap; }
+  .ant-alert-action { margin-inline-start: 0; margin-top: 10px; flex-basis: 100%; }
+  /* Date range calendars stack, so the two months fit the screen. */
+  .ant-picker-dropdown .ant-picker-panel-layout { flex-direction: column; }
+  .ant-picker-dropdown .ant-picker-panels { flex-direction: column; }
+  .ant-picker-dropdown .ant-picker-presets ul { display: flex; flex-wrap: wrap; gap: 4px; height: auto; }
+}

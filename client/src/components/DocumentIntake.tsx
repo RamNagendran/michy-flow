@@ -4,6 +4,7 @@ import { ArrowLeftOutlined, CameraOutlined, CheckCircleFilled, CloudUploadOutlin
 import BillReview from './bill/BillReview'
 import { useUploadBill } from '../hooks/queries/documents'
 import { useAccess } from '../hooks/useAccess'
+import { useIsMobile } from '../hooks/useIsMobile'
 import { useNotify } from '../hooks/useNotify'
 import { errorMessage } from '../services/apiError'
 import type { BillDocument, EntryDraft } from '../types/documents'
@@ -43,6 +44,7 @@ interface Props {
 /** Add a purchase or sale: upload the bill and check what was read, or type it in. */
 export default function DocumentIntake({ kind, save, renderManual, renderDone, onStepChange, onDiscard }: Props) {
   const notify = useNotify()
+  const mobile = useIsMobile()
   const { companiesWith, scope } = useAccess()
   // Always the header's company; the form never asks for one.
   const companies = useMemo(() => companiesWith(kind === 'purchase' ? 'enter_purchase' : 'enter_sales'), [companiesWith, kind])
@@ -98,14 +100,17 @@ export default function DocumentIntake({ kind, save, renderManual, renderDone, o
   return (
     <div>
       {step !== 'done' && (
-        <div className="surface" style={{ padding: '16px 24px', marginBottom: 20 }}>
+        <div className="surface steps-card">
+          {/* On a phone the steps stay in one short row, titles only. */}
           <Steps
             current={current}
             size="small"
+            responsive={false}
+            titlePlacement={mobile ? 'vertical' : undefined}
             items={[
               { title: step === 'manual' ? 'Type in details' : `Add the ${label}` },
-              { title: 'Check what we read', content: 'Nothing saved yet' },
-              { title: 'Saved', content: 'Sent for approval' },
+              { title: 'Check what we read', content: mobile ? undefined : 'Nothing saved yet' },
+              { title: 'Saved', content: mobile ? undefined : 'Sent for approval' },
             ]}
           />
         </div>

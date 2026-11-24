@@ -11,6 +11,7 @@ import { useCreateEntry } from '../../hooks/queries/entries'
 import { useMachines } from '../../hooks/queries/plant'
 import { useStocks } from '../../hooks/queries/stock'
 import { useAccess } from '../../hooks/useAccess'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import { useNotify } from '../../hooks/useNotify'
 import type { EntryDetail, WastageType } from '../../types/entries'
 import { formatDate, formatKg, formatKgFine, formatPercent, formatQty, kgInputProps, qtyInputProps } from '../../utils/format'
@@ -44,6 +45,7 @@ export default function NewProductionPage() {
 
 function NewProduction() {
   const navigate = useNavigate()
+  const mobile = useIsMobile()
   const notify = useNotify()
   const { companiesWith, scope } = useAccess()
   // The header's company, when this person may record production there; material comes from its stock.
@@ -157,25 +159,28 @@ function NewProduction() {
         }
       />
 
-      <div className="surface" style={{ padding: '16px 24px', marginBottom: 20 }}>
+      <div className="surface steps-card">
+        {/* On a phone the steps stay in one short row, titles only. */}
         <Steps
           current={step}
           size="small"
+          responsive={false}
+          titlePlacement={mobile ? 'vertical' : undefined}
           items={[
-            { title: 'Date & shift', content: company?.name },
-            { title: 'What came out', content: outputKg ? formatKg(outputKg + wastageKg) : undefined },
-            { title: 'Raw material', content: materials.length && step > 2 ? formatKgFine(stockOutKg) : undefined },
+            { title: 'Date & shift', content: mobile ? undefined : company?.name },
+            { title: 'What came out', content: !mobile && outputKg ? formatKg(outputKg + wastageKg) : undefined },
+            { title: 'Raw material', content: !mobile && materials.length && step > 2 ? formatKgFine(stockOutKg) : undefined },
             { title: 'Check & save' },
           ]}
         />
       </div>
 
-      <div className="surface fade-in" key={step} style={{ padding: 28 }}>
+      <div className="surface form-card roomy fade-in" key={step}>
         {step === 0 && !company && <Alert type="warning" showIcon title={`You cannot record production for ${scope[0]?.name ?? 'this company'}.`} description="Switch the company at the top of the screen." />}
         {step === 0 && company && (
           <>
             <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
-              <div style={{ width: 280 }}>
+              <div style={{ width: 280, maxWidth: '100%' }}>
                 <div style={{ fontWeight: 700, marginBottom: 6 }}>Production date</div>
                 <DatePicker value={date} onChange={(d) => d && setDate(d)} format="DD MMM YYYY" size="large" style={{ width: '100%' }} allowClear={false} disabledDate={(d) => d.isAfter(dayjs(), 'day')} />
               </div>
@@ -317,16 +322,16 @@ function NewProduction() {
         )}
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20 }}>
+      <div className="form-actions">
         <Button size="large" icon={<ArrowLeftOutlined />} disabled={step === 0} onClick={() => go(step - 1)}>
           Back
         </Button>
         {step < 3 ? (
-          <Button size="large" type="primary" disabled={!canNext} onClick={() => go(step + 1)} style={{ minWidth: 180 }}>
+          <Button size="large" type="primary" disabled={!canNext} onClick={() => go(step + 1)}>
             Continue <ArrowRightOutlined />
           </Button>
         ) : (
-          <Button size="large" type="primary" icon={<CheckOutlined />} loading={create.isPending} onClick={save} style={{ minWidth: 200 }}>
+          <Button size="large" type="primary" icon={<CheckOutlined />} loading={create.isPending} onClick={save}>
             Save for approval
           </Button>
         )}

@@ -1,30 +1,20 @@
 import { useMemo, useState } from 'react'
-import { DatePicker, Input, Select, Table, Tag, Tooltip } from 'antd'
-import { ExperimentOutlined, SearchOutlined, ShopOutlined, ShoppingCartOutlined, WarningFilled } from '@ant-design/icons'
+import { DatePicker, Input, Pagination, Select, Table, Tag, Tooltip } from 'antd'
+import { SearchOutlined, WarningFilled } from '@ant-design/icons'
 import type { ColumnsType } from 'antd/es/table'
 import type { Dayjs } from 'dayjs'
-import { itemName, WASTAGE_ALERT_PCT, itemColor } from '../../data/catalog'
+import { WASTAGE_ALERT_PCT } from '../../data/catalog'
 import { useEntries } from '../../hooks/queries/entries'
+import { useIsMobile } from '../../hooks/useIsMobile'
 import type { Company } from '../../types/auth'
 import type { EntryRow, EntryStatus, EntryType, EscalatedTo, Grade } from '../../types/entries'
 import { formatDate, formatINR, formatKg, formatPercent, formatQty, formatRateIn } from '../../utils/format'
 import { GradeTag, SourceTag, StatusTag } from '../ui'
 import { GRADES } from '../../data/grades'
 import { statusMeta } from '../../utils/entryStatus'
+import EntryCards, { Item } from './EntryCards'
+import { typeMeta } from './typeMeta'
 import EntryDrawer, { type EntryRef } from './EntryDrawer'
-
-const typeMeta: Record<EntryType, { label: string; fg: string; icon: React.ReactNode }> = {
-  purchase: { label: 'Purchase', fg: '#2F6FEB', icon: <ShoppingCartOutlined /> },
-  production: { label: 'Production', fg: '#3a3f47', icon: <ExperimentOutlined /> },
-  sale: { label: 'Sale', fg: '#D82E54', icon: <ShopOutlined /> },
-}
-
-const Item = ({ id }: { id: string }) => (
-  <span className="pill" style={{ background: '#fff', border: '1px solid #e6e8ec', color: '#3a3f47' }}>
-    <span className="legend-dot" style={{ background: itemColor(id) }} />
-    {itemName(id)}
-  </span>
-)
 
 function columnsFor(types: EntryType[], showCompany: boolean): ColumnsType<EntryRow> {
   const only = types.length === 1 ? types[0] : null
@@ -149,7 +139,7 @@ interface Props {
   escalatedTo?: EscalatedTo
 }
 
-/** Entries from the server with search, filters and paging. Click a row for the full entry. */
+/** Entries from the server with search, filters and paging. Click a row for the full entry. On a phone, a card per entry. */
 export default function EntryTable({ types, companies, statuses, pageSize = 15, compact, partyId, item, escalated, escalatedTo }: Props) {
   const [page, setPage] = useState(1)
   const [q, setQ] = useState('')
@@ -157,6 +147,7 @@ export default function EntryTable({ types, companies, statuses, pageSize = 15, 
   const [grade, setGrade] = useState<Grade>()
   const [range, setRange] = useState<[Dayjs | null, Dayjs | null] | null>(null)
   const [open, setOpen] = useState<EntryRef | null>(null)
+  const mobile = useIsMobile()
 
   const query = useMemo(
     () => ({
@@ -181,40 +172,52 @@ export default function EntryTable({ types, companies, statuses, pageSize = 15, 
     set(v)
     setPage(1)
   }
+  const openRow = (r: EntryRow) => setOpen({ companyId: r.company_id, type: r.type, id: r.id })
+  // On a phone the search and dates take a full row; the pickers share one.
+  const picker = mobile ? { flex: '1 1 140px' } : undefined
 
   return (
     <>
       {!compact && (
         <div style={{ display: 'flex', gap: 10, padding: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-          <Input prefix={<SearchOutlined className="faint" />} placeholder="Search reference, bill no. or party" style={{ width: 280 }} allowClear value={q} onChange={(e) => reset(setQ)(e.target.value)} />
+          <Input prefix={<SearchOutlined className="faint" />} placeholder="Search reference, bill no. or party" style={{ width: mobile ? '100%' : 280 }} allowClear value={q} onChange={(e) => reset(setQ)(e.target.value)} />
           {!statuses && (
             <Select
               allowClear
               placeholder="Any status"
-              style={{ width: 190 }}
+              style={picker ?? { width: 190 }}
               value={status}
               onChange={reset(setStatus)}
               options={(Object.keys(statusMeta) as EntryStatus[]).map((s) => ({ value: s, label: statusMeta[s].label }))}
             />
           )}
           {!types.every((t) => t === 'production') && (
-            <Select allowClear placeholder="Any grade" style={{ width: 200 }} value={grade} onChange={reset(setGrade)} options={GRADES.map((g) => ({ value: g.id, label: g.name }))} />
+            <Select allowClear placeholder="Any grade" style={picker ?? { width: 200 }} value={grade} onChange={reset(setGrade)} options={GRADES.map((g) => ({ value: g.id, label: g.name }))} />
           )}
-          <DatePicker.RangePicker format="DD MMM YYYY" value={range} onChange={reset(setRange)} />
-          <div style={{ flex: 1 }} />
+          <DatePicker.RangePicker format="DD MMM YYYY" value={range} onChange={reset(setRange)} style={mobile ? { width: '100%' } : undefined} />
+          {!mobile && <div style={{ flex: 1 }} />}
           <Tag style={{ marginInlineEnd: 0 }}>{entries.data?.total ?? 0} entries</Tag>
         </div>
       )}
-      <Table<EntryRow>
-        scroll={{ x: 'max-content' }}
-        rowKey={(r) => `${r.type}-${r.id}`}
-        loading={entries.isFetching}
-        columns={columnsFor(types, companies.length > 1)}
-        dataSource={entries.data?.items}
-        pagination={{ current: page, pageSize, total: entries.data?.total, onChange: setPage, showSizeChanger: false, hideOnSinglePage: compact }}
-        onRow={(r) => ({ onClick: () => setOpen({ companyId: r.company_id, type: r.type, id: r.id }), style: { cursor: 'pointer' } })}
-        locale={{ emptyText: <Tooltip title="Saved entries will show here">Nothing here yet</Tooltip> }}
-      />
+      {mobile ? (
+        <>
+          <EntryCards rows={entries.data?.items} loading={entries.isFetching} showType={types.length > 1} showCompany={companies.length > 1} onOpen={openRow} />
+          {(entries.data?.total ?? 0) > pageSize && (
+            <Pagination simple align="center" current={page} pageSize={pageSize} total={entries.data?.total} onChange={setPage} style={{ padding: '4px 0 16px' }} />
+          )}
+        </>
+      ) : (
+        <Table<EntryRow>
+          scroll={{ x: 'max-content' }}
+          rowKey={(r) => `${r.type}-${r.id}`}
+          loading={entries.isFetching}
+          columns={columnsFor(types, companies.length > 1)}
+          dataSource={entries.data?.items}
+          pagination={{ current: page, pageSize, total: entries.data?.total, onChange: setPage, showSizeChanger: false, hideOnSinglePage: compact }}
+          onRow={(r) => ({ onClick: () => openRow(r), style: { cursor: 'pointer' } })}
+          locale={{ emptyText: <Tooltip title="Saved entries will show here">Nothing here yet</Tooltip> }}
+        />
+      )}
       <EntryDrawer entryRef={open} onClose={() => setOpen(null)} />
     </>
   )
