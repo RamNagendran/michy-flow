@@ -98,7 +98,7 @@ export default function SidebarNavigation({ mobileOpen, onMobileClose }: { mobil
       sees('production') && { key: '/production', icon: <ExperimentOutlined />, label: 'Production' },
       sees('sales') && { key: '/sales', icon: <ShopOutlined />, label: 'Sales' },
       sees('review') && { key: '/review', icon: <AuditOutlined />, label: withBadge('Approvals', queue.entries) },
-      sees('parties') && { key: '/parties', icon: <TeamOutlined />, label: access.canAnywhere('manage_plant') ? 'Suppliers & plant' : 'Suppliers & buyers' },
+      sees('parties') && { key: '/parties', icon: <TeamOutlined />, label: access.canAnywhere('manage_plant') || access.canAnywhere('view_plant_analytics') ? 'Suppliers & plant' : 'Suppliers & buyers' },
     ]),
     ...group(collapsed ? null : 'Stock', [sees('stock') && { key: '/stock', icon: <InboxOutlined />, label: 'Stock by company' }]),
     ...group(collapsed ? null : 'Reports', [

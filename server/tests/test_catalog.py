@@ -2,7 +2,7 @@
 
 from httpx import AsyncClient
 
-from tests.conftest import bearer, create_company, make_gstin
+from tests.conftest import bearer, create_company, create_user, login_new_user, make_gstin
 from tests.entry_helpers import TODAY, purchase, team
 
 
@@ -77,12 +77,21 @@ async def test_new_items_and_types_flow_into_companies_and_entries(client: Async
     )
     assert res.status_code == 422
 
-    # Bought, run and recorded like any built-in item.
+    # Bought, run and recorded like any built-in item (the Manager adds the supplier, the
+    # in-charge enters the bill).
     url = f"/companies/{company['id']}"
+    member = [{"company_id": company["id"], "role": "manager", "duties": []}]
+    manager = await login_new_user(
+        client, await create_user(client, sa, "belt-mgr@example.com", memberships=member)
+    )
+    member = [{"company_id": company["id"], "role": "operator", "duties": ["purchase"]}]
+    clerk = await login_new_user(
+        client, await create_user(client, sa, "belt-ops@example.com", memberships=member)
+    )
     supplier = await client.post(
         f"{url}/parties",
         json={"kind": "supplier", "name": "Belt Traders", "gstin": make_gstin("belts")},
-        headers=bearer(sa),
+        headers=bearer(manager),
     )
     assert supplier.status_code == 201, supplier.text
     bill = {
@@ -96,14 +105,14 @@ async def test_new_items_and_types_flow_into_companies_and_entries(client: Async
         "bill_company_gstin": company["gstin"],
         "bill_party_gstin": make_gstin("belts"),
     }
-    res = await client.post(f"{url}/purchases", json=bill, headers=bearer(sa))
+    res = await client.post(f"{url}/purchases", json=bill, headers=bearer(clerk))
     assert res.status_code == 201, res.text
     assert res.json()["item"] == "conveyor_belts"
     # Truck tyres are not this company's raw material.
     res = await client.post(
         f"{url}/purchases",
         json={**bill, "material": "truck", "invoice_no": "B-2"},
-        headers=bearer(sa),
+        headers=bearer(clerk),
     )
     assert res.status_code == 422
 

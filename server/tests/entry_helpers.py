@@ -16,8 +16,9 @@ class Team:
     company: dict
     super_admin: str
     manager: str
-    # The Admin role is gone. Tests that need someone who can do everything (enter, approve,
-    # manage wastage) use the Super Admin under this name.
+    # The Admin role is gone. Tests that need someone who can edit, reject, count stock and
+    # approve wastage use the Super Admin under this name. The Super Admin does not enter
+    # entries: the entry helpers hand `admin` over to `clerk`.
     admin: str
     finance: str
     operator: str
@@ -26,6 +27,8 @@ class Team:
     buyer: int
     machine: int = 0
     crew: int = 0
+    # An in-charge with every duty, who enters what tests used to enter as the Super Admin.
+    clerk: str = ""
     # Each supplier's / buyer's registered GST number, by id.
     gstins: dict[int, str] = field(default_factory=dict)
 
@@ -61,6 +64,7 @@ async def team(client: AsyncClient, category: str = "crumb") -> Team:
         supplier=0,
         buyer=0,
     )
+    t.clerk = await _member(client, sa, cid, "clerk@example.com", "operator", all_duties)
     t.supplier = await party(client, t, "supplier", "Sri Balaji Tyres")
     t.buyer = await party(client, t, "buyer", "Apex Mouldings")
     res = await client.post(
@@ -84,6 +88,11 @@ async def party(client: AsyncClient, t: Team, kind: str, name: str, **extra: obj
     return res.json()["id"]
 
 
+def entering(t: Team, token: str) -> str:
+    """Who enters an entry: the Super Admin may not, so `admin` becomes the clerk."""
+    return t.clerk if token == t.admin else token
+
+
 async def approve_new(client: AsyncClient, t: Team, res, approve: bool = True):  # noqa: ANN001, ANN201
     """New entries wait for the Manager and do not count in stock until approved. Most tests
     need the stock, so the helpers approve straight away (the response is still the one from
@@ -104,6 +113,7 @@ async def purchase(  # noqa: ANN201
     approve: bool = True,
     **extra: object,
 ):
+    token = entering(t, token)
     body = {
         "entry_date": TODAY,
         "supplier_id": t.supplier,
@@ -130,6 +140,7 @@ async def production(
     wastage_type: str | None = None,
 ):  # noqa: ANN201
     """A run of truck tyres. Stock goes down by the outputs + any wastage."""
+    token = entering(t, token)
     body = {
         "entry_date": TODAY,
         "machine_id": t.machine,
@@ -167,6 +178,7 @@ async def sale(  # noqa: ANN201
     invoice: str = "MR/1",
     approve: bool = True,
 ):
+    token = entering(t, token)
     body = {
         "entry_date": TODAY,
         "buyer_id": t.buyer,

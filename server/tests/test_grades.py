@@ -17,7 +17,7 @@ async def _sale(client: AsyncClient, t: Team, item: str, qty: str, invoice: str,
         **t.bill_gstins(t.buyer),
         **extra,
     }
-    res = await client.post(t.url("/sales"), json=body, headers=bearer(t.admin))
+    res = await client.post(t.url("/sales"), json=body, headers=bearer(t.clerk))
     return await approve_new(client, t, res)
 
 

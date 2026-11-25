@@ -2,7 +2,7 @@
 
 from httpx import AsyncClient
 
-from tests.conftest import bearer, create_company, make_gstin
+from tests.conftest import bearer, create_company, create_user, login_new_user, make_gstin
 from tests.entry_helpers import TODAY, act, party, production, purchase, sale, stock_of, team
 
 
@@ -102,10 +102,14 @@ async def test_duplicate_bill_is_refused(client: AsyncClient) -> None:
 async def test_party_must_belong_to_the_company(client: AsyncClient) -> None:
     t = await team(client)
     other = await create_company(client, t.super_admin, code="ES")
+    member = [{"company_id": other["id"], "role": "manager", "duties": []}]
+    their_manager = await login_new_user(
+        client, await create_user(client, t.super_admin, "es-mgr@example.com", memberships=member)
+    )
     res = await client.post(
         f"/companies/{other['id']}/parties",
         json={"kind": "supplier", "name": "Elsewhere", "gstin": make_gstin("elsewhere")},
-        headers=bearer(t.super_admin),
+        headers=bearer(their_manager),
     )
     foreign = res.json()["id"]
     assert (await purchase(client, t, t.operator, supplier_id=foreign)).status_code == 400
@@ -195,7 +199,11 @@ async def test_parties_are_managed_by_the_manager(client: AsyncClient) -> None:
     assert (
         await client.post(t.url("/parties"), json=body, headers=bearer(t.finance))
     ).status_code == 403
-    created = await client.post(t.url("/parties"), json=body, headers=bearer(t.admin))
+    # The Super Admin only looks: the Manager keeps the list.
+    assert (
+        await client.post(t.url("/parties"), json=body, headers=bearer(t.admin))
+    ).status_code == 403
+    created = await client.post(t.url("/parties"), json=body, headers=bearer(t.manager))
     assert created.status_code == 201
     assert created.json()["gstin"] == "33AAJCR8510J1Z9"
     dup = await client.post(

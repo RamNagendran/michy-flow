@@ -12,9 +12,12 @@ from app.auth.permissions import (
 )
 
 
-def test_super_admin_has_everything() -> None:
+def test_super_admin_has_everything_but_entering_and_lists() -> None:
     assert system_permissions("super_admin") == frozenset(SystemPermission)
-    assert global_company_permissions("super_admin") == frozenset(P)
+    # Never enters entries; the Manager keeps suppliers, buyers, operators and machines.
+    left_out = {P.ENTER_PURCHASE, P.ENTER_SALES, P.ENTER_PRODUCTION, P.MANAGE_PARTIES}
+    left_out |= {P.MANAGE_PLANT}
+    assert global_company_permissions("super_admin") == frozenset(P) - left_out
 
 
 def test_ceo_is_read_only_everywhere() -> None:

@@ -20,7 +20,7 @@ async def test_trends_are_continuous_and_split_units(client: AsyncClient) -> Non
         "wastage_kg": "11",
         "wastage_type": "gas",
     }
-    made = await client.post(t.url("/production"), json=body, headers=bearer(t.admin))
+    made = await client.post(t.url("/production"), json=body, headers=bearer(t.clerk))
     assert (await approve_new(client, t, made)).status_code == 201
     rows = (
         await client.get(t.url(f"/trends?{RANGE}&bucket=month"), headers=bearer(t.admin))
@@ -48,7 +48,7 @@ async def test_oil_kpi_is_for_the_ceo_and_managers(client: AsyncClient) -> None:
         "wastage_type": "gas",
     }
     await approve_new(
-        client, t, await client.post(t.url("/production"), json=body, headers=bearer(t.admin))
+        client, t, await client.post(t.url("/production"), json=body, headers=bearer(t.clerk))
     )
     url = t.url(f"/oil-kpi?{RANGE}&bucket=month")
     kpi = (await client.get(url, headers=bearer(t.manager))).json()
@@ -91,7 +91,7 @@ async def test_sale_prices_put_the_best_paying_buyer_first(client: AsyncClient) 
     for buyer, qty, rate, n in ((t.buyer, "1000", "30", 1), (good, "1000", "34", 2)):
         body = {"entry_date": TODAY, "buyer_id": buyer, "product": "rubber", "qty": qty}
         body |= {"rate": rate, "invoice_no": f"MR/{n}", **t.bill_gstins(buyer)}
-        res = await client.post(t.url("/sales"), json=body, headers=bearer(t.admin))
+        res = await client.post(t.url("/sales"), json=body, headers=bearer(t.clerk))
         await approve_new(client, t, res)
     url = t.url(f"/prices?item=rubber&side=sale&date_from={TODAY}&date_to={TODAY}")
     res = await client.get(url, headers=bearer(t.finance))

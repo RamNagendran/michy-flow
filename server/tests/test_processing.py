@@ -19,7 +19,7 @@ async def _run(client: AsyncClient, t: Team, material: str, outputs: dict, **ext
         "outputs": [{"product": p, "qty": q} for p, q in outputs.items()],
         **extra,
     }
-    res = await client.post(t.url("/production"), json=body, headers=bearer(t.admin))
+    res = await client.post(t.url("/production"), json=body, headers=bearer(t.clerk))
     return await approve_new(client, t, res)
 
 
@@ -34,7 +34,7 @@ async def _sell(client: AsyncClient, t: Team, item: str, qty: str, rate: str, **
         **t.bill_gstins(t.buyer),
         **extra,
     }
-    res = await client.post(t.url("/sales"), json=body, headers=bearer(t.admin))
+    res = await client.post(t.url("/sales"), json=body, headers=bearer(t.clerk))
     return await approve_new(client, t, res)
 
 

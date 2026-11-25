@@ -68,13 +68,14 @@ export default function Parties() {
   const [editingOperator, setEditingOperator] = useState<Operator | 'new' | null>(null)
   const [editingMachine, setEditingMachine] = useState<Machine | 'new' | null>(null)
   const current = scope[0]
-  // Operators and machines are kept by the Manager (and the Super Admin) only.
+  // Operators and machines are kept by the Manager only; the Super Admin sees them.
   const canPlant = !!current && can('manage_plant', current.id)
+  const seesPlant = canPlant || (!!current && can('view_plant_analytics', current.id))
   const isParty = tab === 'supplier' || tab === 'buyer'
   const kind: PartyKind = tab === 'buyer' ? 'buyer' : 'supplier'
   const parties = useParties(isParty ? current?.id : undefined, kind)
   const canManage = !!current && (isParty ? can('manage_parties', current.id) : canPlant)
-  const tabs = TABS.filter((t) => canPlant || t.value === 'supplier' || t.value === 'buyer')
+  const tabs = TABS.filter((t) => seesPlant || t.value === 'supplier' || t.value === 'buyer')
   const meta = TABS.find((t) => t.value === tab)!
   const add = () => (tab === 'operator' ? setEditingOperator('new') : tab === 'machine' ? setEditingMachine('new') : setEditing('new'))
   const rows = useMemo(() => {
@@ -85,8 +86,8 @@ export default function Parties() {
   return (
     <div className="page">
       <PageHeader
-        title={canPlant ? 'Suppliers & plant' : 'Suppliers & buyers'}
-        subtitle={canPlant ? 'Each company has its own lists. Only the Manager can add or edit. In-charges pick from them when entering bills and production.' : 'Each company has its own list. The Manager can add or edit. Everyone can pick from it when entering bills.'}
+        title={seesPlant ? 'Suppliers & plant' : 'Suppliers & buyers'}
+        subtitle={seesPlant ? 'Each company has its own lists. Only the Manager can add or edit. In-charges pick from them when entering bills and production.' : 'Each company has its own list. The Manager can add or edit. Everyone can pick from it when entering bills.'}
         extra={
           canManage && (
             <Button type="primary" size="large" icon={<PlusOutlined />} onClick={add}>
@@ -100,8 +101,8 @@ export default function Parties() {
           <Segmented<Tab> block={mobile} value={tab} onChange={setTab} options={tabs.map((t) => ({ value: t.value, label: t.label }))} style={mobile ? { width: '100%' } : undefined} />
           <Input prefix={<SearchOutlined className="faint" />} placeholder={meta.search} allowClear value={q} onChange={(e) => setQ(e.target.value)} style={{ width: mobile ? '100%' : 260 }} />
         </div>
-        {tab === 'operator' && current && <OperatorsTable companyId={current.id} q={q} onEdit={setEditingOperator} />}
-        {tab === 'machine' && current && <MachinesTable companyId={current.id} q={q} onEdit={setEditingMachine} />}
+        {tab === 'operator' && current && <OperatorsTable companyId={current.id} q={q} onEdit={canPlant ? setEditingOperator : undefined} />}
+        {tab === 'machine' && current && <MachinesTable companyId={current.id} q={q} onEdit={canPlant ? setEditingMachine : undefined} />}
         {isParty && mobile && (
           <MobileList<Party>
             rows={parties.data && rows}
