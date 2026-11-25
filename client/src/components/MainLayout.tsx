@@ -80,7 +80,7 @@ export default function MainLayout() {
 
   const found = titles.find(([p]) => pathname.startsWith(p))?.[1] ?? (seesDashboard ? 'Dashboard' : 'Home')
   // The Manager's list page also holds operators and machines.
-  const title = pathname.startsWith('/parties') && access.canAnywhere('manage_plant') ? 'Suppliers & plant' : found
+  const title = pathname.startsWith('/parties') && (access.canAnywhere('manage_plant') || access.canAnywhere('view_plant_analytics')) ? 'Suppliers & plant' : found
   const showPeriod = seesDashboard && !pathname.endsWith('/new') && (pathname === '/' || PERIOD_PAGES.some((p) => pathname.startsWith(p)))
 
   const items = [

@@ -114,7 +114,7 @@ async def test_super_admin_configures_items_and_kg_per_litre(client: AsyncClient
         "material": "rubber",
         "outputs": [{"product": "oil", "qty": "900"}],
     }
-    run = await client.post(t.url("/production"), json=body, headers=bearer(t.admin))
+    run = await client.post(t.url("/production"), json=body, headers=bearer(t.clerk))
     assert run.status_code == 201, run.text
     assert run.json()["output_kg"] == 945  # 900 L × 1.05
     stock = (await client.get(t.url("/stock"), headers=bearer(t.admin))).json()
@@ -123,7 +123,7 @@ async def test_super_admin_configures_items_and_kg_per_litre(client: AsyncClient
     # With no number of its own, the company uses the item's (oil: 1.040).
     res = await client.put(url, json={**config, "kg_per_litre": {}}, headers=bearer(t.super_admin))
     assert res.status_code == 200 and res.json()["kg_per_litre"] == {}
-    run = await client.post(t.url("/production"), json=body, headers=bearer(t.admin))
+    run = await client.post(t.url("/production"), json=body, headers=bearer(t.clerk))
     assert run.json()["output_kg"] == 936  # 900 L × 1.04
     res = await client.put(url, json=config, headers=bearer(t.super_admin))
 

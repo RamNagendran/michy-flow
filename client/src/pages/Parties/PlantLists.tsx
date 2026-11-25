@@ -74,7 +74,8 @@ export function MachineModal({ companyId, machine, onClose }: { companyId: numbe
   )
 }
 
-export function OperatorsTable({ companyId, q, onEdit }: { companyId: number; q: string; onEdit: (o: Operator) => void }) {
+/** `onEdit` left out: view only (the Super Admin sees the list but the Manager keeps it). */
+export function OperatorsTable({ companyId, q, onEdit }: { companyId: number; q: string; onEdit?: (o: Operator) => void }) {
   const operators = useOperators(companyId)
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase()
@@ -102,7 +103,7 @@ export function OperatorsTable({ companyId, q, onEdit }: { companyId: number; q:
             o.email,
             o.shift && `Usual shift: Shift ${o.shift}`,
           ],
-          onClick: () => onEdit(o),
+          onClick: onEdit && (() => onEdit(o)),
         })}
       />
     )
@@ -120,21 +121,25 @@ export function OperatorsTable({ companyId, q, onEdit }: { companyId: number; q:
         { title: 'Email', dataIndex: 'email', render: (v: string | null) => <span className="muted">{v}</span> },
         { title: 'Usual shift', dataIndex: 'shift', render: (v: number | null) => (v ? `Shift ${v}` : <span className="faint">—</span>) },
         { title: 'Status', render: (_, o) => status(o.is_active) },
-        {
-          key: 'edit',
-          align: 'right',
-          render: (_, o) => (
-            <Button type="link" onClick={() => onEdit(o)}>
-              Edit
-            </Button>
-          ),
-        },
+        ...(onEdit
+          ? [
+              {
+                key: 'edit',
+                align: 'right' as const,
+                render: (_: unknown, o: Operator) => (
+                  <Button type="link" onClick={() => onEdit(o)}>
+                    Edit
+                  </Button>
+                ),
+              },
+            ]
+          : []),
       ]}
     />
   )
 }
 
-export function MachinesTable({ companyId, q, onEdit }: { companyId: number; q: string; onEdit: (m: Machine) => void }) {
+export function MachinesTable({ companyId, q, onEdit }: { companyId: number; q: string; onEdit?: (m: Machine) => void }) {
   const machines = useMachines(companyId)
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase()
@@ -148,7 +153,7 @@ export function MachinesTable({ companyId, q, onEdit }: { companyId: number; q: 
         rowKey={(m) => m.id}
         loading={machines.isLoading}
         emptyText="No machines yet"
-        card={(m) => ({ title: <span className="num" style={dim(m.is_active)}>{m.code}</span>, extra: status(m.is_active), lines: [m.name], onClick: () => onEdit(m) })}
+        card={(m) => ({ title: <span className="num" style={dim(m.is_active)}>{m.code}</span>, extra: status(m.is_active), lines: [m.name], onClick: onEdit && (() => onEdit(m)) })}
       />
     )
   return (
@@ -171,15 +176,19 @@ export function MachinesTable({ companyId, q, onEdit }: { companyId: number; q: 
         },
         { title: 'Name', dataIndex: 'name', render: (v, m) => <span style={dim(m.is_active)}>{v}</span> },
         { title: 'Status', render: (_, m) => status(m.is_active) },
-        {
-          key: 'edit',
-          align: 'right',
-          render: (_, m) => (
-            <Button type="link" onClick={() => onEdit(m)}>
-              Edit
-            </Button>
-          ),
-        },
+        ...(onEdit
+          ? [
+              {
+                key: 'edit',
+                align: 'right' as const,
+                render: (_: unknown, m: Machine) => (
+                  <Button type="link" onClick={() => onEdit(m)}>
+                    Edit
+                  </Button>
+                ),
+              },
+            ]
+          : []),
       ]}
     />
   )

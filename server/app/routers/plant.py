@@ -14,8 +14,9 @@ from app.services.access_service import CompanyContext
 
 router = APIRouter(prefix="/companies/{company_id}", tags=["plant"])
 
-# The in-charge reads the active ones to fill the production form; the Manager reads them all.
-_read = require_company_permission(P.ENTER_PRODUCTION, P.MANAGE_PLANT)
+# The in-charge reads the active ones to fill the production form; the Manager (and the Super
+# Admin, who only looks) reads them all.
+_read = require_company_permission(P.ENTER_PRODUCTION, P.MANAGE_PLANT, P.VIEW_PLANT_ANALYTICS)
 _manage = require_company_permission(P.MANAGE_PLANT)
 
 
@@ -25,7 +26,9 @@ async def list_operators(
 ) -> list[Operator]:
     """Active operators; the Manager also sees the inactive ones."""
     return await operator_service.list_operators(
-        db, ctx.company.id, include_inactive=ctx.can(P.MANAGE_PLANT)
+        db,
+        ctx.company.id,
+        include_inactive=ctx.can(P.MANAGE_PLANT) or ctx.can(P.VIEW_PLANT_ANALYTICS),
     )
 
 
@@ -60,7 +63,9 @@ async def list_machines(
 ) -> list[Machine]:
     """Active machines; the Manager also sees the inactive ones."""
     return await operator_service.list_machines(
-        db, ctx.company.id, include_inactive=ctx.can(P.MANAGE_PLANT)
+        db,
+        ctx.company.id,
+        include_inactive=ctx.can(P.MANAGE_PLANT) or ctx.can(P.VIEW_PLANT_ANALYTICS),
     )
 
 

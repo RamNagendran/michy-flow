@@ -41,7 +41,7 @@ async def _run(client: AsyncClient, t: Team, day: str, rubber: str, material: st
         "wastage_kg": str(Decimal(rubber) * 2 / 100),
         "wastage_type": "solid",
     }
-    res = await client.post(t.url("/production"), json=body, headers=bearer(t.admin))
+    res = await client.post(t.url("/production"), json=body, headers=bearer(t.clerk))
     assert res.status_code == 201, res.text
     run = res.json()
     assert (await act(client, t, t.manager, run, "approve")).status_code == 200
@@ -120,7 +120,7 @@ async def test_ended_months_wait_for_the_super_admin_and_lock_once_approved(
         "material": "truck",
         "outputs": [{"product": "rubber", "qty": "10"}],
     }
-    res = await client.post(t.url("/production"), json=late, headers=bearer(t.admin))
+    res = await client.post(t.url("/production"), json=late, headers=bearer(t.clerk))
     assert res.status_code == 409 and res.json()["code"] == "month_locked"
     moved = {**late, "entry_date": TODAY, "comment": "wrong month"}
     res = await client.put(

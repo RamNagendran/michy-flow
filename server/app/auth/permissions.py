@@ -52,8 +52,20 @@ SYSTEM_PERMISSIONS: dict[GlobalRole, frozenset[SystemPermission]] = {
     GlobalRole.CEO: frozenset(),
 }
 
+# The Super Admin oversees: never records entries, and leaves suppliers, buyers, operators and
+# machines to the Manager (sees them, but does not add or edit).
+_OVERSEER_EXCLUDED = frozenset(
+    {
+        _CP.ENTER_PURCHASE,
+        _CP.ENTER_SALES,
+        _CP.ENTER_PRODUCTION,
+        _CP.MANAGE_PARTIES,
+        _CP.MANAGE_PLANT,
+    }
+)
+
 GLOBAL_COMPANY_PERMISSIONS: dict[GlobalRole, frozenset[CompanyPermission]] = {
-    GlobalRole.SUPER_ADMIN: frozenset(CompanyPermission),
+    GlobalRole.SUPER_ADMIN: frozenset(CompanyPermission) - _OVERSEER_EXCLUDED,
     # Read-only across every company.
     GlobalRole.CEO: frozenset(
         {_CP.VIEW, _CP.VIEW_ALL_ENTRIES, _CP.VIEW_STOCK, _CP.VIEW_FINANCE, _CP.VIEW_OIL_KPI}

@@ -77,12 +77,12 @@ async def test_every_run_names_a_machine_and_the_report_credits_it(client: Async
     url = t.url("/production")
     # The machine and at least one operator are required.
     for missing in ({"machine_id": None}, {"crew_ids": []}):
-        res = await client.post(url, json={**body, **missing}, headers=bearer(t.admin))
+        res = await client.post(url, json={**body, **missing}, headers=bearer(t.clerk))
         assert res.status_code == 422, missing
     stranger = {**body, "crew_ids": [max(ops) + 1]}
-    bad = await client.post(url, json=stranger, headers=bearer(t.admin))
+    bad = await client.post(url, json=stranger, headers=bearer(t.clerk))
     assert bad.status_code == 422 and bad.json()["code"] == "unknown_operator"
-    res = await client.post(url, json=body, headers=bearer(t.admin))
+    res = await client.post(url, json=body, headers=bearer(t.clerk))
     assert res.status_code == 201, res.text
     run = res.json()
     assert run["efficiency_pct"] == 75.0 and run["kg_per_hour"] == 160.0
@@ -94,7 +94,7 @@ async def test_every_run_names_a_machine_and_the_report_credits_it(client: Async
     res = await client.put(t.url(f"/machines/{second}"), json=retire, headers=bearer(t.manager))
     assert res.status_code == 200 and not res.json()["is_active"], res.text
     retired = {**body, "machine_id": second}
-    res = await client.post(url, json=retired, headers=bearer(t.admin))
+    res = await client.post(url, json=retired, headers=bearer(t.clerk))
     assert res.status_code == 422 and res.json()["code"] == "inactive_machine"
 
     report = (await client.get(t.url(REPORT), headers=bearer(t.manager))).json()
