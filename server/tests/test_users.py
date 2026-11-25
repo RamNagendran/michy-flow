@@ -82,6 +82,36 @@ async def test_duplicate_email_conflicts(client: AsyncClient) -> None:
     assert res.status_code == 409
 
 
+async def test_a_deactivated_users_email_can_be_used_again(client: AsyncClient) -> None:
+    admin, a, b = await _setup(client)
+    old = await create_user(
+        client, admin, "ops@example.com", memberships=[{"company_id": a["id"], "role": "manager"}]
+    )
+    # While the first is active, the email cannot be given to anyone else.
+    res = await client.post(
+        "/users/otp",
+        json={"email": "OPS@example.com", "full_name": "Two"},
+        headers=bearer(admin),
+    )
+    assert res.status_code == 409
+    res = await client.patch(
+        f"/users/{old['user']['id']}", json={"is_active": False}, headers=bearer(admin)
+    )
+    assert res.status_code == 200
+    new = await create_user(
+        client,
+        admin,
+        "ops@example.com",
+        memberships=[{"company_id": b["id"], "role": "operator", "duties": ["sales"]}],
+    )
+    # The new user signs in with it; the old one cannot come back while the new one is active.
+    await login_new_user(client, new)
+    res = await client.patch(
+        f"/users/{old['user']['id']}", json={"is_active": True}, headers=bearer(admin)
+    )
+    assert res.status_code == 409
+
+
 async def test_multi_company_membership_with_different_roles(client: AsyncClient) -> None:
     admin, a, b = await _setup(client)
     created = await create_user(

@@ -14,7 +14,7 @@ from app.models import CompanyMembership, User
 from app.models.enums import GlobalRole
 from app.schemas.user import AccessInput, MembershipInput, UserCreate, UserUpdate
 from app.services import audit_service, company_service, otp_service
-from app.services.auth_service import get_by_email, normalize_email
+from app.services.auth_service import email_in_use, normalize_email
 
 # No look-alike characters (0/O, 1/l/I), so a password read out over the phone is typed right.
 _PASSWORD_ALPHABET = "".join(c for c in string.ascii_letters + string.digits if c not in "0O1lI")
@@ -104,7 +104,7 @@ async def request_otp(
 ) -> str:
     """Mail-able code proving the new person owns this email. Returns the code."""
     email = normalize_email(email)
-    if await get_by_email(db, email):
+    if await email_in_use(db, email):
         raise ConflictError("A user with this email already exists")
     audit_service.record(
         db,
@@ -124,7 +124,7 @@ async def create(
 ) -> tuple[User, str]:
     await _check_companies(db, actor.account_id, data.memberships)
     email = normalize_email(data.email)
-    if await get_by_email(db, email):
+    if await email_in_use(db, email):
         raise ConflictError("A user with this email already exists")
     try:
         await otp_service.check(db, email, data.otp)
@@ -175,6 +175,10 @@ async def update(
     }
     if not changes:
         return user
+    if changes.get("is_active") is True and await email_in_use(db, user.email):
+        raise ConflictError(
+            "Another active user has this email. Deactivate that user first, then try again."
+        )
     if changes.get("is_active") is False:
         if user.id == actor.id:
             raise ForbiddenError("You cannot deactivate your own account")

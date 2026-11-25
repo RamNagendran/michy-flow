@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, false, true
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, false, text, true
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
@@ -13,13 +13,18 @@ if TYPE_CHECKING:
 
 class User(TimestampMixin, Base):
     __tablename__ = "users"
+    __table_args__ = (
+        # One active user per email: login is by email alone. A deactivated user's email may be
+        # given to a new user.
+        Index("uq_users_active_email", "email", unique=True, postgresql_where=text("is_active")),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
     account_id: Mapped[int] = mapped_column(
         ForeignKey("accounts.id", ondelete="CASCADE"), index=True
     )
-    # Stored lowercased; unique across all accounts because login is by email alone.
-    email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
+    # Stored lowercased; unique among active users across all accounts (see __table_args__).
+    email: Mapped[str] = mapped_column(String(320), index=True)
     full_name: Mapped[str] = mapped_column(String(200))
     password_hash: Mapped[str] = mapped_column(String(255))
     # Set for Super Admin and CEO. Company-level people have None and get access via memberships.

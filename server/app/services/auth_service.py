@@ -47,13 +47,21 @@ async def issue_tokens(db: AsyncSession, user: User) -> TokenResponse:
 
 
 async def get_by_email(db: AsyncSession, email: str) -> User | None:
-    return await db.scalar(select(User).where(User.email == normalize_email(email)))
+    """The user who signs in with this email: the active one, else the latest deactivated one."""
+    query = select(User).where(User.email == normalize_email(email))
+    return await db.scalar(query.order_by(User.is_active.desc(), User.id.desc()).limit(1))
+
+
+async def email_in_use(db: AsyncSession, email: str) -> bool:
+    """An active user has this email. A deactivated user's email may be used again."""
+    query = select(User.id).where(User.email == normalize_email(email), User.is_active)
+    return await db.scalar(query.limit(1)) is not None
 
 
 async def request_signup_otp(db: AsyncSession, email: str) -> str:
     """Make a sign-up code for an email that has no account yet. Returns the code to mail."""
     email = normalize_email(email)
-    if await get_by_email(db, email):
+    if await email_in_use(db, email):
         raise EmailAlreadyRegisteredError
     return await otp_service.issue(db, email)
 
@@ -62,7 +70,7 @@ async def signup(db: AsyncSession, data: SignupRequest, request: Request | None 
     """Create a new organisation (account) with the signing-up person as its Super Admin.
     The mailed code must be right; it is used up in the same transaction as the account."""
     email = normalize_email(data.email)
-    if await get_by_email(db, email):
+    if await email_in_use(db, email):
         raise EmailAlreadyRegisteredError
     await otp_service.check(db, email, data.otp)
     account = Account(name=data.account_name.strip())
