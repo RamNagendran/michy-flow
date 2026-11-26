@@ -160,6 +160,16 @@ export interface EntryDetail {
   invoice_no: string | null
   /** Purchases: vehicles the goods came in. */
   vehicle_nos: string[]
+  /** Purchases: an import is priced in its currency; rate and amount are in ₹ at fx_rate. */
+  origin: PurchaseOrigin
+  currency: string
+  fx_rate: number | null
+  foreign_rate: number | null
+  foreign_amount: number | null
+  /** Customs duty on the Bill of Entry, in ₹. Not part of the amount. */
+  customs_duty: number | null
+  be_no: string | null
+  be_date: string | null
   source: EntrySource
   document_id: number | null
   /** Purchase: notes raised on this bill, notes this bill took off, and the supplier's other open notes. */
@@ -189,6 +199,20 @@ export interface EntryDetail {
   materials: { material: string; kg: number }[]
 }
 
+export type PurchaseOrigin = 'domestic' | 'import'
+
+/** An import's price in its own currency, and the Bill of Entry. */
+export interface ImportFields {
+  origin: 'import'
+  currency: string
+  foreign_rate: number
+  /** ₹ for one unit of the currency. */
+  fx_rate: number
+  customs_duty: number | null
+  be_no: string
+  be_date: string | null
+}
+
 interface EntryBody {
   entry_date: string
   notes?: string
@@ -199,13 +223,21 @@ export interface PurchaseBody extends EntryBody {
   grade: Grade
   material: string
   qty: number
-  rate: number
+  /** ₹ per unit. Left out on an import: the server works it out from the foreign rate. */
+  rate: number | null
   invoice_no: string
   source?: EntrySource
   document_id?: number
   /** GST numbers on the bill as confirmed (or corrected) by the person; only with a document. */
   bill_company_gstin?: string | null
   bill_party_gstin?: string | null
+  origin?: PurchaseOrigin
+  currency?: string
+  foreign_rate?: number | null
+  fx_rate?: number | null
+  customs_duty?: number | null
+  be_no?: string | null
+  be_date?: string | null
   /** The supplier's open debit notes settled on this bill (new purchases only). */
   debit_note_ids?: number[]
   /** Vehicles the goods came in, for the record only. */
@@ -269,13 +301,15 @@ export interface Party {
   name: string
   /** GST number. A bill from or to this party must show it. */
   gstin: string | null
+  /** A supplier outside India: no GST number, and their bills are imports. */
+  overseas: boolean
   city: string
   contact_name: string
   phone: string
   is_active: boolean
 }
 
-export type PartyInput = Omit<Party, 'id' | 'company_id' | 'gstin'> & { gstin: string }
+export type PartyInput = Omit<Party, 'id' | 'company_id'>
 
 /** In the line's unit: kg, or litres for oil. */
 export interface StockFigures {

@@ -349,6 +349,23 @@ async def detail(
         amount=entry.amount,
         invoice_no=entry.invoice_no,
         vehicle_nos=entry.vehicle_nos if isinstance(entry, Purchase) else [],
+        **(_import_fields(entry) if isinstance(entry, Purchase) else {}),
         source=entry.source,
         document_id=entry.document_id,
     )
+
+
+def _import_fields(entry: Purchase) -> dict:
+    return {
+        k: getattr(entry, k)
+        for k in (
+            "origin",
+            "currency",
+            "fx_rate",
+            "foreign_rate",
+            "foreign_amount",
+            "customs_duty",
+            "be_no",
+            "be_date",
+        )
+    }

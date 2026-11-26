@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from app.core import gstin as gst
 from app.models.enums import PartyKind
@@ -12,6 +12,7 @@ class PartyRead(BaseModel):
     kind: PartyKind
     name: str
     gstin: str | None
+    overseas: bool
     city: str
     contact_name: str
     phone: str
@@ -21,7 +22,9 @@ class PartyRead(BaseModel):
 class PartyInput(BaseModel):
     kind: PartyKind
     name: str = Field(min_length=1, max_length=200)
-    gstin: str = Field(max_length=20)
+    # Required, except for an overseas supplier, who has none.
+    gstin: str | None = Field(default=None, max_length=20)
+    overseas: bool = False
     city: str = Field(default="", max_length=100)
     contact_name: str = Field(default="", max_length=200)
     phone: str = Field(default="", max_length=30, pattern=r"^[0-9+()\- ]*$")
@@ -29,11 +32,18 @@ class PartyInput(BaseModel):
 
     @field_validator("gstin")
     @classmethod
-    def _gstin(cls, value: str) -> str:
-        cleaned = gst.clean(value)
-        if cleaned is None:
+    def _gstin(cls, value: str | None) -> str | None:
+        return gst.clean(value)
+
+    @model_validator(mode="after")
+    def _gstin_unless_overseas(self) -> "PartyInput":
+        if self.overseas:
+            if self.kind != PartyKind.SUPPLIER:
+                raise ValueError("only a supplier can be overseas")
+            self.gstin = None
+        elif self.gstin is None:
             raise ValueError("enter the GST number")
-        return cleaned
+        return self
 
     @field_validator("name", "city", "contact_name", "phone")
     @classmethod

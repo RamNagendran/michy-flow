@@ -1,10 +1,10 @@
 """Which items each grade may carry in a company, and the grade a sale gets when none is given.
 
-Stock is kept separately per grade, so the three never mix:
-- Grade A raw material comes in by Grade A purchases and goes out only into production;
-  Grade A products come out of production and go out by Grade A sales.
-- Grade B raw material comes in by Grade B purchases and goes out by Grade B sales (re-sell).
-- Grade C is a book stock of any item: Grade C purchases in, Grade C sales out.
+- Grade A raw material comes in by Grade A purchases and goes out into production, or by
+  Grade B sales; Grade A products come out of production and go out by Grade A sales.
+- Grade B is only a sale: raw material sold as bought, without production. It comes out of the
+  Grade A raw material stock. New purchases are never Grade B (older ones count as Grade A).
+- Grade C is a separate book stock of any item: Grade C purchases in, Grade C sales out.
 
 What counts as raw material and product comes from the company's process (models/catalog.py).
 """
@@ -35,6 +35,15 @@ def check_item(entry_type: EntryType, grade: Grade, item: str, process: Process)
     if item not in allowed_items(entry_type, grade, process):
         rule = _RULES.get((entry_type, grade), "Weighed waste cannot be bought or sold")
         raise InvalidError(rule, code="item_not_allowed")
+
+
+def check_purchase_grade(grade: Grade, current: Grade | None) -> None:
+    """New purchases are Grade A or C. An older Grade B purchase may keep its grade on an edit."""
+    if grade == Grade.B and current != Grade.B:
+        raise InvalidError(
+            "Purchases are Grade A or Grade C. Grade B is only for selling raw material as bought.",
+            code="item_not_allowed",
+        )
 
 
 def default_sale_grade(item: str) -> Grade:

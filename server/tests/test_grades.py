@@ -1,4 +1,4 @@
-"""Grades A, B and C: what each may carry, and that their stocks never mix."""
+"""Grades A, B and C: what each may carry, and which stock each moves."""
 
 from httpx import AsyncClient
 
@@ -27,10 +27,8 @@ async def test_grades_default_sensibly(client: AsyncClient) -> None:
     assert bought["grade"] == "A"
     await production(client, t, t.admin, {"rubber": "900"})
     assert (await sale(client, t, t.admin, "100")).json()["grade"] == "A"
-    resold = await purchase(client, t, t.admin, "500", grade="B", n=2)
-    assert resold.json()["grade"] == "B"
     # Selling tyres without a grade means re-selling them.
-    tyres = await _sale(client, t, "truck", "200", "MR/2")
+    tyres = await _sale(client, t, "truck", "50", "MR/2")
     assert tyres.status_code == 201, tyres.text
     assert tyres.json()["grade"] == "B"
 
@@ -46,18 +44,27 @@ async def test_each_grade_carries_only_its_items(client: AsyncClient) -> None:
     assert books.status_code == 201, books.text
 
 
-async def test_resale_tyres_cannot_go_into_production(client: AsyncClient) -> None:
+async def test_purchases_cannot_be_grade_b(client: AsyncClient) -> None:
     t = await team(client)
-    await purchase(client, t, t.admin, "1000", grade="B")
-    made = await production(client, t, t.admin, {"rubber": "450"})
-    assert made.status_code == 409
-    assert "Grade A truck" in made.json()["detail"]
+    res = await purchase(client, t, t.admin, "1000", grade="B")
+    assert res.status_code == 422
+    assert "Grade A or Grade C" in res.json()["detail"]
 
+
+async def test_grade_b_sales_come_out_of_the_raw_material(client: AsyncClient) -> None:
+    t = await team(client)
+    await purchase(client, t, t.admin, "1000")
     assert (await _sale(client, t, "truck", "400", "MR/1")).status_code == 201
-    assert (await stock_of(client, t, "truck", "resale"))["provisional"]["balance"] == 600
-    assert (await stock_of(client, t, "truck", "raw"))["provisional"]["balance"] == 0
-    too_much = await _sale(client, t, "truck", "601", "MR/2")
+    raw = await stock_of(client, t, "truck", "raw")
+    assert raw["provisional"]["balance"] == 600 and raw["grade"] == "A"
+    stock = (await client.get(t.url("/stock"), headers=bearer(t.admin))).json()
+    assert stock["resale"] == []
+    # Production and re-selling share the same tyres.
+    assert (await production(client, t, t.admin, {"rubber": "450"})).status_code == 201
+    assert (await stock_of(client, t, "truck", "raw"))["provisional"]["balance"] == 150
+    too_much = await _sale(client, t, "truck", "151", "MR/2")
     assert too_much.status_code == 409
+    assert "Grade A truck" in too_much.json()["detail"]
 
 
 async def test_grade_c_is_a_separate_book_stock(client: AsyncClient) -> None:
@@ -74,7 +81,7 @@ async def test_grade_c_is_a_separate_book_stock(client: AsyncClient) -> None:
 
 async def test_admin_can_reclassify_a_purchase(client: AsyncClient) -> None:
     t = await team(client)
-    entry = (await purchase(client, t, t.operator, "1000", grade="B")).json()
+    entry = (await purchase(client, t, t.operator, "1000", grade="C")).json()
     body = {
         "entry_date": TODAY,
         "supplier_id": t.supplier,
@@ -88,22 +95,26 @@ async def test_admin_can_reclassify_a_purchase(client: AsyncClient) -> None:
     url = t.url(f"/purchases/{entry['id']}")
     # Edits must say the grade, so leaving it out never moves the entry by accident.
     assert (await client.put(url, json=body, headers=bearer(t.admin))).status_code == 422
+    # Nor can an edit move a purchase to Grade B.
+    to_b = await client.put(url, json={**body, "grade": "B"}, headers=bearer(t.admin))
+    assert to_b.status_code == 422
     res = await client.put(url, json={**body, "grade": "A"}, headers=bearer(t.admin))
     assert res.status_code == 200, res.text
     assert res.json()["grade"] == "A"
-    assert res.json()["events"][-1]["changes"]["grade"] == ["B", "A"]
+    assert res.json()["events"][-1]["changes"]["grade"] == ["C", "A"]
     assert (await production(client, t, t.admin, {"rubber": "450"})).status_code == 201
 
 
 async def test_lists_and_totals_split_by_grade(client: AsyncClient) -> None:
     t = await team(client)
     await purchase(client, t, t.admin, "1000")
-    await purchase(client, t, t.admin, "500", grade="B", n=2)
+    await purchase(client, t, t.admin, "500", n=2)
     await purchase(client, t, t.admin, "200", grade="C", n=3)
     await production(client, t, t.admin, {"rubber": "900"})
+    await _sale(client, t, "truck", "300", "MR/1")
 
     rows = (await client.get("/entries?grade=B", headers=bearer(t.admin))).json()["items"]
-    assert [(r["type"], r["grade"]) for r in rows] == [("purchase", "B")]
+    assert [(r["type"], r["grade"]) for r in rows] == [("sale", "B")]
     made = (await client.get("/entries?type=production", headers=bearer(t.admin))).json()
     assert made["items"][0]["grade"] == "A"
 
@@ -115,8 +126,8 @@ async def test_lists_and_totals_split_by_grade(client: AsyncClient) -> None:
     by_grade = {g["grade"]: g for g in summary["purchases"]["by_grade"]}
     assert [g["grade"] for g in summary["purchases"]["by_grade"]] == ["A", "B", "C"]
     assert (by_grade["A"]["qty_kg"], by_grade["B"]["qty_kg"], by_grade["C"]["qty_kg"]) == (
-        1000,
-        500,
+        1500,
+        0,
         200,
     )
     assert summary["purchases"]["qty_kg"] == 1700

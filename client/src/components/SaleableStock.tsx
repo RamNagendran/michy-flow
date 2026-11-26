@@ -11,7 +11,8 @@ const color = (item: string) => itemColor(item)
 /** The stock each sale grade takes from. */
 const GROUPS: { grade: Grade; section: StockSection }[] = [
   { grade: 'A', section: 'output' },
-  { grade: 'B', section: 'resale' },
+  // Grade B sells raw material as bought, so it takes from the raw material stock.
+  { grade: 'B', section: 'raw' },
   { grade: 'C', section: 'books' },
 ]
 

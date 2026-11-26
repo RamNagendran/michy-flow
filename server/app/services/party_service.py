@@ -54,7 +54,7 @@ async def save(
     )
     if same_name:
         raise ConflictError(f"A {data.kind} called {data.name} already exists in this company")
-    same_gstin = await db.scalar(
+    same_gstin = data.gstin and await db.scalar(
         select(Party.name).where(
             Party.company_id == ctx.company.id,
             Party.kind == data.kind,

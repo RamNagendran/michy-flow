@@ -34,13 +34,12 @@ function Matrix({ items, companies, lineFor, total }: { items: string[]; compani
 export default function StockOverview() {
   const navigate = useNavigate()
   const mobile = useIsMobile()
-  const { scope, period, stocks, raw, output, resale, books, summaries } = useCompanyData()
+  const { scope, period, stocks, raw, output, books, summaries } = useCompanyData()
   const several = scope.length > 1
   const find = (lines: StockLine[] | undefined, item: string) => lines?.find((l) => l.item === item) ?? zero
   // The server sends each company type's items; keep the ones anybody in view has touched.
   const touched = (lines: StockLine[]) => lines.filter((l) => l.provisional.in_qty || l.provisional.out_qty).map((l) => l.item)
   const rawItems = touched(raw)
-  const resaleItems = touched(resale)
   const bookItems = touched(books)
   const products = output.map((l) => l.item)
   const matrix = (section: StockSection, items: string[], all: StockLine[]) => (
@@ -68,9 +67,6 @@ export default function StockOverview() {
 
       <SectionTitle title="Grade A · Output" />
       {matrix('output', products, output)}
-
-      <SectionTitle title="Grade B · Raw material" />
-      {resaleItems.length ? matrix('resale', resaleItems, resale) : <div className="surface muted" style={{ padding: 18 }}>No Grade B stock yet.</div>}
 
       <SectionTitle title="Grade C" />
       {bookItems.length ? matrix('books', bookItems, books) : <div className="surface muted" style={{ padding: 18 }}>No Grade C entries yet.</div>}
@@ -121,7 +117,10 @@ export default function StockOverview() {
                     extra: <span className="num strong">{formatINRShort(s.purchases.amount)}</span>,
                     lines: [
                       <span className="num">
-                        Bought <b style={{ color: '#1f9d6b' }}>+{formatKg(s.purchases.by_grade[0].qty_kg)}</b> Grade A · <b>+{formatKg(s.purchases.by_grade[1].qty_kg)}</b> Grade B
+                        Bought <b style={{ color: '#1f9d6b' }}>+{formatKg(s.purchases.by_grade[0].qty_kg + s.purchases.by_grade[1].qty_kg)}</b> Grade A
+                      </span>,
+                      <span className="num">
+                        Sold as bought (Grade B) <b style={{ color: '#D82E54' }}>−{formatKg(s.sales.by_grade[1].qty_kg)}</b>
                       </span>,
                       <span className="num">
                         Sent to production <b style={{ color: '#D82E54' }}>−{formatKg(s.production.input_kg)}</b>
@@ -151,8 +150,8 @@ export default function StockOverview() {
                       </span>
                     ),
                   },
-                  { title: 'Grade A purchases', align: 'right', render: (_, c) => <span className="num" style={{ color: '#1f9d6b', fontWeight: 700 }}>+{formatKg(summaries.get(c.id)!.purchases.by_grade[0].qty_kg)}</span> },
-                  { title: 'Grade B purchases', align: 'right', render: (_, c) => <span className="num" style={{ fontWeight: 700 }}>+{formatKg(summaries.get(c.id)!.purchases.by_grade[1].qty_kg)}</span> },
+                  { title: 'Grade A purchases', align: 'right', render: (_, c) => <span className="num" style={{ color: '#1f9d6b', fontWeight: 700 }}>+{formatKg(summaries.get(c.id)!.purchases.by_grade[0].qty_kg + summaries.get(c.id)!.purchases.by_grade[1].qty_kg)}</span> },
+                  { title: 'Grade B sold', align: 'right', render: (_, c) => <span className="num" style={{ color: '#D82E54', fontWeight: 700 }}>−{formatKg(summaries.get(c.id)!.sales.by_grade[1].qty_kg)}</span> },
                   { title: 'Sent to production', align: 'right', render: (_, c) => <span className="num" style={{ color: '#D82E54', fontWeight: 700 }}>−{formatKg(summaries.get(c.id)!.production.input_kg)}</span> },
                   { title: 'Output produced', align: 'right', render: (_, c) => <span className="num" style={{ fontWeight: 700 }}>{formatKg(summaries.get(c.id)!.production.output_kg)}</span> },
                   { title: 'Wastage', align: 'right', render: (_, c) => <span className="num">{formatKg(summaries.get(c.id)!.production.wastage_kg)}</span> },

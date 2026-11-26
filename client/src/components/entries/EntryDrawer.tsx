@@ -42,16 +42,30 @@ function stepMeta(step: Step, e: EntryDetail): StepMeta {
   return { ...actionMeta.escalate, label: `Escalate to ${to}`, prompt: `What is wrong? The ${to} is told at once. You can talk in the comments. Approve when you agree.` }
 }
 
+/** An import's price in its own currency, the exchange rate used, duty and Bill of Entry. */
+const importRows = (e: EntryDetail): [string, string][] => {
+  const money = (n: number) => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return [
+    ['Purchase type', 'Import'],
+    ['Rate on the bill', `${e.currency} ${e.foreign_rate ?? '—'} per ${e.unit === 'L' ? 'litre' : 'kg'}`],
+    ['Bill value', `${e.currency} ${money(e.foreign_amount ?? 0)}`],
+    ['Exchange rate used', `₹${e.fx_rate ?? '—'} per 1 ${e.currency}`],
+    ...(e.customs_duty !== null ? ([['Customs duty (kept apart)', formatINR(e.customs_duty)]] as [string, string][]) : []),
+    ['Bill of Entry', `${e.be_no ?? '—'}${e.be_date ? ` · ${formatDate(e.be_date)}` : ''}`],
+  ]
+}
+
 function Facts({ e }: { e: EntryDetail }) {
   const rows: [string, React.ReactNode][] = [
     ['Date', formatDate(e.entry_date)],
     ...(e.party_name ? ([[e.type === 'sale' ? 'Buyer' : 'Supplier', e.party_name]] as [string, string][]) : []),
     ...(e.invoice_no ? ([['Bill / invoice no.', e.invoice_no]] as [string, string][]) : []),
-    ...(e.vehicle_nos?.length ? ([['Vehicle numbers', e.vehicle_nos.join(', ')]] as [string, string][]) : []),
+    ...(e.vehicle_nos?.length ? ([[e.origin === 'import' ? 'Container or vehicle numbers' : 'Vehicle numbers', e.vehicle_nos.join(', ')]] as [string, string][]) : []),
     ['Grade', <span key="g"><GradeTag grade={e.grade} /> {gradeInfo(e.grade).name}</span>],
     [e.type === 'production' ? 'Raw material' : 'Item', itemName(e.item)],
     [e.type === 'production' ? 'Taken from stock' : 'Quantity', formatQty(e.qty, e.unit)],
     ...(e.rate !== null ? ([['Rate', formatRateIn(e.rate, e.unit)]] as [string, string][]) : []),
+    ...(e.origin === 'import' ? importRows(e) : []),
     ...(e.shift ? ([['Shift', `Shift ${e.shift}`]] as [string, string][]) : []),
     ...(e.machine ? ([['Machine', `${e.machine.code} · ${e.machine.name}`]] as [string, string][]) : []),
     ...(e.crew.length ? ([['Operators', e.crew.map((c) => c.name).join(', ')]] as [string, string][]) : []),

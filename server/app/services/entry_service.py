@@ -26,7 +26,7 @@ from app.models import (
     grades,
 )
 from app.models.catalog import process_of, to_kg
-from app.models.enums import EntrySource, EntryType, PartyKind
+from app.models.enums import EntrySource, EntryType, PartyKind, PurchaseOrigin
 from app.schemas.entries import (
     ProductionInput,
     ProductionUpdate,
@@ -158,7 +158,7 @@ async def _fields(
     party_id = getattr(data, party_field)
     # Keeping the same, since-deactivated party on an edit is fine; choosing one is not.
     unchanged = current is not None and getattr(current, party_field) == party_id
-    await party_service.require_party(
+    party = await party_service.require_party(
         db,
         ctx.company.id,
         party_id,
@@ -166,6 +166,8 @@ async def _fields(
         allow_inactive=unchanged,
     )
     item = data.material if is_purchase else data.product
+    if is_purchase:
+        grades.check_purchase_grade(data.grade, current.grade if current is not None else None)
     grades.check_item(entry_type, data.grade, item, process)
     return {
         **common,
@@ -176,8 +178,41 @@ async def _fields(
         "rate": data.rate,
         "amount": _money(data.qty, data.rate),
         "invoice_no": data.invoice_no,
-        **({"vehicle_nos": data.vehicle_nos} if is_purchase else {}),
+        **(_purchase_fields(data, party) if is_purchase else {}),
     }
+
+
+def _purchase_fields(data: PurchaseInput, supplier: Party) -> dict[str, Any]:
+    """Vehicles, and for an import its currency figures. Imports come from overseas suppliers
+    and only from them. An import's rupee amount is worked out from the foreign amount at the
+    exchange rate, so it is not off by the rounding of the rupee rate."""
+    is_import = data.origin == PurchaseOrigin.IMPORT
+    if is_import and not supplier.overseas:
+        raise InvalidError(
+            f"{supplier.name} is a supplier in India. Choose an overseas supplier for an import.",
+            code="wrong_origin",
+        )
+    if supplier.overseas and not is_import:
+        raise InvalidError(
+            f"{supplier.name} is an overseas supplier. Choose Import as the purchase type.",
+            code="wrong_origin",
+        )
+    fields: dict[str, Any] = {
+        "vehicle_nos": data.vehicle_nos,
+        "origin": data.origin,
+        "currency": data.currency,
+        "fx_rate": data.fx_rate,
+        "foreign_rate": data.foreign_rate,
+        "foreign_amount": None,
+        "customs_duty": data.customs_duty,
+        "be_no": data.be_no,
+        "be_date": data.be_date,
+    }
+    if is_import:
+        assert data.foreign_rate is not None and data.fx_rate is not None
+        fields["foreign_amount"] = _money(data.qty, data.foreign_rate)
+        fields["amount"] = _money(data.qty * data.foreign_rate, data.fx_rate)
+    return fields
 
 
 def _outputs(data: ProductionInput) -> dict[str, Decimal]:

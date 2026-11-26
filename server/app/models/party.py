@@ -1,4 +1,4 @@
-from sqlalchemy import Boolean, ForeignKey, Index, String, text, true
+from sqlalchemy import Boolean, ForeignKey, Index, String, false, text, true
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.models.base import Base, TimestampMixin
@@ -28,6 +28,8 @@ class Party(TimestampMixin, Base):
     city: Mapped[str] = mapped_column(String(100), default="", server_default="")
     # GST number; a bill from or to this party must show it.
     gstin: Mapped[str | None] = mapped_column(String(15))
+    # A supplier outside India: no GST number, and their bills are imports.
+    overseas: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     contact_name: Mapped[str] = mapped_column(String(200), default="", server_default="")
     phone: Mapped[str] = mapped_column(String(30), default="", server_default="")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true())

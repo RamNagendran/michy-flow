@@ -27,7 +27,7 @@ from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
-from app.models.enums import EntrySource, EntryStatus, Grade
+from app.models.enums import EntrySource, EntryStatus, Grade, PurchaseOrigin
 
 if TYPE_CHECKING:
     from app.models.party import Party
@@ -103,6 +103,19 @@ class Purchase(WorkflowMixin, Base):
     source: Mapped[str] = mapped_column(String(10), default=EntrySource.MANUAL)
     # The uploaded bill this was read from, if any.
     document_id: Mapped[int | None] = mapped_column(ForeignKey("documents.id", ondelete="SET NULL"))
+    # An import is priced in the supplier's currency. `rate` and `amount` are always in rupees,
+    # worked out at `fx_rate` (rupees for one unit of the currency), which is kept as used.
+    origin: Mapped[str] = mapped_column(
+        String(10), default=PurchaseOrigin.DOMESTIC, server_default=PurchaseOrigin.DOMESTIC
+    )
+    currency: Mapped[str] = mapped_column(String(3), default="INR", server_default="INR")
+    fx_rate: Mapped[Decimal | None] = mapped_column(Numeric(12, 4))
+    foreign_rate: Mapped[Decimal | None] = mapped_column(Numeric(14, 6))  # per unit, in currency
+    foreign_amount: Mapped[Decimal | None] = mapped_column(MONEY)
+    # Customs duty paid on the Bill of Entry, in rupees. Kept apart from the amount.
+    customs_duty: Mapped[Decimal | None] = mapped_column(MONEY)
+    be_no: Mapped[str | None] = mapped_column(String(30))
+    be_date: Mapped[date | None] = mapped_column(Date)
 
     supplier: Mapped["Party"] = relationship(lazy="joined")
 

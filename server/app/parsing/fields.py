@@ -51,6 +51,17 @@ class ParsedBill:
     tax_amount: Found | None = None
     total: Found | None = None
     einvoice: bool = False
+    # An import's Bill of Entry (see parsing/bill_of_entry.py); rate and amounts above are then
+    # in rupees at fx_rate, and these keep the bill's own currency figures.
+    origin: str = "domestic"
+    currency: str | None = None
+    fx_rate: Found | None = None
+    foreign_rate: Found | None = None  # per kg or per litre, in the currency
+    foreign_amount: Found | None = None
+    customs_duty: Found | None = None
+    be_no: Found | None = None
+    be_date: Found | None = None
+    containers: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
 

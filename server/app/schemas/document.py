@@ -32,6 +32,15 @@ class ParsedBillRead(BaseModel):
     tax_amount: ParsedValue | None = None
     total: ParsedValue | None = None
     einvoice: bool = False
+    origin: Literal["domestic", "import"] = "domestic"
+    currency: str | None = None
+    fx_rate: ParsedValue | None = None
+    foreign_rate: ParsedValue | None = None
+    foreign_amount: ParsedValue | None = None
+    customs_duty: ParsedValue | None = None
+    be_no: ParsedValue | None = None
+    be_date: ParsedValue | None = None
+    containers: list[str] = []
     warnings: list[str] = []
 
 

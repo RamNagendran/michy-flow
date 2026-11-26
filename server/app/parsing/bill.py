@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 
 from app.parsing import text as bill_text
+from app.parsing.bill_of_entry import is_bill_of_entry, parse_bill_of_entry
 from app.parsing.fields import ParsedBill, parse_lines
 from app.parsing.files import FileKind
 from app.parsing.qr import find_einvoice
@@ -19,6 +20,12 @@ class BillReading:
 
 def read_bill(content: bytes, kind: FileKind, entry_kind: str) -> BillReading:
     extracted = bill_text.extract(content, kind)
+    if entry_kind == "purchase" and is_bill_of_entry(extracted.lines):
+        parsed = parse_bill_of_entry(extracted.lines, extracted.confidence)
+        parsed.warnings = extracted.warnings + parsed.warnings
+        return BillReading(
+            parsed=parsed, method=extracted.method, pages=extracted.pages, lines=extracted.lines
+        )
     qr = find_einvoice(extracted.images)
     if qr is None and kind.content_type == "application/pdf":
         # Dense signed QR codes often need a sharper render than the one used for OCR.

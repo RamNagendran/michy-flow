@@ -69,10 +69,17 @@ class Grade(StrEnum):
     """How a purchase or sale moves goods (see models/grades.py for the rules).
 
     - A: physical, through the plant. Tyres bought for production; products made and sold.
-    - B: physical, re-sold as bought. Tyres bought and sold on without processing.
+    - B: sales only. Tyres re-sold as bought; they come out of Grade A raw material.
     - C: invoice / financial record only. No goods move; kept in a separate book stock.
     """
 
     A = "A"
     B = "B"
     C = "C"
+
+
+class PurchaseOrigin(StrEnum):
+    """Bought in India (with GST), or imported from an overseas supplier (in its currency)."""
+
+    DOMESTIC = "domestic"
+    IMPORT = "import"

@@ -278,7 +278,7 @@ function NewProduction() {
             )}
 
             {problem && (
-              <Alert type="error" showIcon style={{ marginTop: 16 }} title={problem} description={problem.startsWith('Only') ? 'Check the weights, enter the missing purchase, or ask the Manager to get a Grade B purchase changed to Grade A.' : undefined} />
+              <Alert type="error" showIcon style={{ marginTop: 16 }} title={problem} description={problem.startsWith('Only') ? 'Check the weights, or enter the missing purchase.' : undefined} />
             )}
           </>
         )}

@@ -27,6 +27,7 @@ from app.routers import (
     debit_notes,
     documents,
     entries,
+    fx,
     health,
     parties,
     plant,
@@ -162,6 +163,7 @@ def create_app() -> FastAPI:
     app.include_router(wastage.queue_router)
     app.include_router(debit_notes.router)
     app.include_router(analytics.router)
+    app.include_router(fx.router)
     app.include_router(realtime_socket.router)
     return app
 

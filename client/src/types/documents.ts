@@ -1,6 +1,6 @@
 // Mirrors server/app/schemas/document.py
 
-import type { Grade } from './entries'
+import type { Grade, ImportFields } from './entries'
 
 export interface ParsedValue<T = string | number> {
   value: T
@@ -36,6 +36,18 @@ export interface ParsedBill {
   tax_amount: ParsedValue<number> | null
   total: ParsedValue<number> | null
   einvoice: boolean
+  /** A customs Bill of Entry reads as an import: prices in `currency`, rate above in ₹. */
+  origin: 'domestic' | 'import'
+  currency: string | null
+  fx_rate: ParsedValue<number> | null
+  /** Per kg or per litre, in the currency. */
+  foreign_rate: ParsedValue<number> | null
+  foreign_amount: ParsedValue<number> | null
+  customs_duty: ParsedValue<number> | null
+  be_no: ParsedValue<string> | null
+  be_date: ParsedValue<string> | null
+  /** Container numbers on a Bill of Entry. */
+  containers: string[]
   warnings: string[]
 }
 
@@ -80,4 +92,6 @@ export interface EntryDraft {
   debitNoteIds?: number[]
   /** Purchases: vehicles the goods came in. */
   vehicleNos?: string[]
+  /** Purchases: an import's currency figures and Bill of Entry. Left out for a domestic bill. */
+  imported?: Omit<ImportFields, 'origin'>
 }

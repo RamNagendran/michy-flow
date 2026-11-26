@@ -2,7 +2,8 @@
  * Grades A, B and C, mirrored from server/app/models/grades.py.
  *
  * - A: physical, through the plant. Tyres bought for production; products made and sold.
- * - B: physical, re-sold as bought. Tyres bought and sold on without processing.
+ * - B: a sale only. Raw material sold as bought, without processing; it takes from Grade A raw
+ *   material. New purchases are never Grade B.
  * - C: invoice / financial record only. No goods move; kept in a separate book stock.
  */
 
@@ -25,6 +26,9 @@ export const GRADES: GradeInfo[] = [
   { id: 'C', name: 'Grade C', fg: '#8a5300', bg: '#fdf3e1' },
 ]
 
+/** Purchases are Grade A or C: Grade B is only a sale. */
+export const PURCHASE_GRADES: Grade[] = ['A', 'C']
+
 const byId = new Map(GRADES.map((g) => [g.id, g]))
 export const gradeInfo = (g: Grade) => byId.get(g)!
 
@@ -43,4 +47,4 @@ export const itemAllowed = (kind: TradeKind, grade: Grade, company: Configured, 
 export const defaultSaleGrade = (item: string | undefined): Grade => (item && allItems().some((m) => m.id === item && m.kind === 'material') ? 'B' : 'A')
 
 /** Which stock a purchase or sale of this grade moves. */
-export const stockSection = (kind: TradeKind, grade: Grade): StockSection => (grade === 'B' ? 'resale' : grade === 'C' ? 'books' : kind === 'purchase' ? 'raw' : 'output')
+export const stockSection = (kind: TradeKind, grade: Grade): StockSection => (grade === 'B' ? 'raw' : grade === 'C' ? 'books' : kind === 'purchase' ? 'raw' : 'output')

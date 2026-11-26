@@ -24,6 +24,8 @@ interface Values {
   company?: { name: string; gstin: string | null }
   /** GST numbers on the bill for each side, as the server worked them out. */
   gstOnBill: Pick<BillDocument, 'company_gstin_on_bill' | 'party_gstin_on_bill'>
+  /** An import: the rate per unit in the bill's currency. */
+  foreignRate?: number
 }
 
 /** Our GST number and the supplier's / buyer's must both be on the bill and match the saved ones. */
@@ -47,7 +49,8 @@ function gstChecks(v: Values): Check[] {
             : `Registered ${saved} · on the bill ${ours}. If the bill was read wrong, correct it below.`,
     })
   }
-  if (v.party) {
+  // An overseas supplier has no GST number; only ours is on a Bill of Entry.
+  if (v.party && !v.party.overseas) {
     const saved = v.party.gstin
     checks.push({
       key: 'gst_party',
@@ -73,6 +76,17 @@ export function billChecks(bill: ParsedBill, v: Values): Check[] {
   const amount = v.qty * v.rate
   const who = v.isPurchase ? 'supplier' : 'buyer'
 
+  if (bill.foreign_amount && v.foreignRate !== undefined) {
+    const cur = bill.currency ?? ''
+    const value = v.qty * v.foreignRate
+    const money = (n: number) => `${cur} ${n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+    checks.push({
+      key: 'math',
+      ok: close(value, bill.foreign_amount.value),
+      title: 'Quantity × rate matches the invoice value',
+      detail: `${formatQty(v.qty, v.unit)} × ${cur} ${v.foreignRate} = ${money(value)} · bill shows ${money(bill.foreign_amount.value)}`,
+    })
+  }
   if (bill.taxable_amount) {
     checks.push({
       key: 'math',

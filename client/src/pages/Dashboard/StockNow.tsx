@@ -11,7 +11,7 @@ import { useCompanyData } from '../../hooks/useCompanyData'
 import type { Company } from '../../types/auth'
 import type { CompanyStock, CompanySummary, StockLine } from '../../types/entries'
 import { formatINRShort, formatQty, formatKg } from '../../utils/format'
-import { activeLines, totalOf } from '../../utils/stock'
+import { totalOf } from '../../utils/stock'
 
 const dot = (item: string) => <span className="legend-dot" style={{ background: itemColor(item) }} />
 
@@ -69,7 +69,6 @@ function CompanyStockCard({ company, stock, summary, days, rates }: { company: C
   const ownInputs = new Set(items.inputs.map((i) => i.id))
   const raw = stock.raw.filter((l) => ownInputs.has(l.item) || l.provisional.balance)
   const ready = stock.output.filter((l) => l.provisional.balance || l.provisional.in_qty)
-  const resale = activeLines(stock.resale)
   const rawKg = totalOf(stock.raw)
   const processed = summary?.production.processed_kg ?? 0
   const soldQty = (item: string) => summary?.sales.by_item.find((i) => i.item === item)?.qty ?? 0
@@ -100,11 +99,6 @@ function CompanyStockCard({ company, stock, summary, days, rates }: { company: C
         <Group title="Ready to sell" lines={ready} empty="Nothing made yet">
           {(l) => <Row key={l.item} line={l} hint={cover(l.provisional.balance, soldQty(l.item), days)} value={rates ? Math.max(l.provisional.balance, 0) * (rates.sell.get(l.item) ?? 0) : undefined} />}
         </Group>
-        {resale.length > 0 && (
-          <Group title="Grade B" lines={resale} empty="">
-            {(l) => <Row key={l.item} line={l} />}
-          </Group>
-        )}
       </div>
     </div>
   )
@@ -116,7 +110,7 @@ function CompanyStockCard({ company, stock, summary, days, rates }: { company: C
  */
 export default function StockNow({ purchases, sales }: { purchases: TradeView | null; sales: TradeView | null }) {
   const navigate = useNavigate()
-  const { scope, range, stocks, summaries, raw, output, resale, isLoading } = useCompanyData()
+  const { scope, range, stocks, summaries, raw, output, isLoading } = useCompanyData()
   const [compare, setCompare] = useState<'raw' | 'output'>('raw')
   const companies = scope.filter((c) => stocks.has(c.id) || isLoading)
   const several = companies.length > 1
@@ -127,7 +121,6 @@ export default function StockNow({ purchases, sales }: { purchases: TradeView | 
   const readyL = totalOf(output, 'provisional', 'L')
   const readyValue = output.reduce((s, l) => s + Math.max(l.provisional.balance, 0) * (rates?.sell.get(l.item) ?? 0), 0)
   const rawValue = raw.reduce((s, l) => s + Math.max(l.provisional.balance, 0) * (rates?.buy.get(l.item) ?? 0), 0)
-  const resaleKg = totalOf(resale)
 
   // Company × item grid, for comparing companies at a glance.
   const section = compare === 'raw' ? 'raw' : 'output'
@@ -153,12 +146,11 @@ export default function StockNow({ purchases, sales }: { purchases: TradeView | 
           </HintButton>
         }
       />
-      <div className="grid grid-3">
+      <div className="grid grid-2">
         {(
           [
             ['Raw material', formatKg(totalOf(raw)), rates && rawValue ? `worth ≈ ${formatINRShort(rawValue)}` : 'for production'],
             ['Ready to sell', formatKg(readyKg), [readyL ? `+ ${formatQty(readyL, 'L')} oil` : null, rates && readyValue ? `worth ≈ ${formatINRShort(readyValue)}` : null].filter(Boolean).join(' · ') || 'made in the plant'],
-            ['Grade B stock', formatKg(resaleKg), 'raw material'],
           ] as const
         ).map(([label, value, sub]) => (
           <div key={label} className="surface stat-tile">

@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     BREVO_API_KEY: str = ""
     MAIL_FROM_EMAIL: str = "noreply@michyconnect.in"
     MAIL_FROM_NAME: str = "Michy Group of Companies"
+    # Live exchange rates for import purchases: {currency} is filled in. Empty turns them off,
+    # and the rate is then typed by hand. The rate used is saved with each entry.
+    FX_RATE_URL: str = "https://open.er-api.com/v6/latest/{currency}"
 
     @field_validator("DATABASE_URL", "JWT_SECRET")
     @classmethod

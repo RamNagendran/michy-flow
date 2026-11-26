@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Alert, DatePicker, Form, Input, InputNumber, Modal, Select } from 'antd'
 import dayjs, { type Dayjs } from 'dayjs'
 import { companyItems, toKg, unitOf } from '../../data/catalog'
-import { itemAllowed, itemsFor } from '../../data/grades'
+import { PURCHASE_GRADES, itemAllowed, itemsFor } from '../../data/grades'
 import { useParties } from '../../hooks/queries/parties'
 import { useMachines, useOperators } from '../../hooks/queries/plant'
 import { useUpdateEntry } from '../../hooks/queries/entries'
@@ -14,9 +14,11 @@ import { useAccess } from '../../hooks/useAccess'
 import GradePicker from './GradePicker'
 import MaterialSplit from './MaterialSplit'
 import VehicleNumbersInput from './VehicleNumbersInput'
+import ImportPriceFields from './ImportPriceFields'
+import { toImportFields, type ImportValues } from '../../utils/importPrice'
 import { requiredMark } from '../../utils/formMarks'
 
-interface Values {
+interface Values extends ImportValues {
   entry_date: Dayjs
   party_id?: number
   grade: Grade
@@ -44,6 +46,8 @@ interface Values {
 export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail; onClose: () => void }) {
   const [form] = Form.useForm<Values>()
   const isProduction = entry.type === 'production'
+  // An import keeps its type: priced in its currency, from an overseas supplier.
+  const isImport = entry.type === 'purchase' && entry.origin === 'import'
   const machines = useMachines(isProduction ? entry.company_id : undefined)
   const operators = useOperators(isProduction ? entry.company_id : undefined)
   const grade: Grade = Form.useWatch('grade', form) ?? entry.grade
@@ -89,13 +93,22 @@ export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail;
     outputs: Object.fromEntries(process.outputs.map((o) => [o.id, entry.outputs.find((x) => x.product === o.id)?.qty ?? null])),
     notes: entry.notes,
     comment: '',
+    ...(isImport && {
+      currency: entry.currency,
+      foreignRate: entry.foreign_rate ?? undefined,
+      fxRate: entry.fx_rate ?? undefined,
+      customsDuty: entry.customs_duty,
+      beNo: entry.be_no ?? '',
+      beDate: entry.be_date ? dayjs(entry.be_date) : null,
+    }),
   }
 
   const onFinish = (v: Values) => {
     const base = { entry_date: v.entry_date.format('YYYY-MM-DD'), notes: v.notes ?? '', comment: v.comment ?? '' }
     const target = { companyId: entry.company_id, id: entry.id }
     if (entry.type === 'purchase') {
-      purchase.mutate({ ...target, body: { ...base, supplier_id: v.party_id!, grade: v.grade, material: v.item, qty: v.qty, rate: v.rate!, invoice_no: v.invoice_no!, vehicle_nos: v.vehicle_nos ?? [] } }, { onSuccess: onClose })
+      const priced = isImport ? { rate: null, origin: 'import' as const, ...toImportFields(v) } : { rate: v.rate! }
+      purchase.mutate({ ...target, body: { ...base, supplier_id: v.party_id!, grade: v.grade, material: v.item, qty: v.qty, invoice_no: v.invoice_no!, vehicle_nos: v.vehicle_nos ?? [], ...priced } }, { onSuccess: onClose })
     } else if (entry.type === 'sale') {
       sale.mutate({ ...target, body: { ...base, buyer_id: v.party_id!, grade: v.grade, product: v.item, qty: v.qty, rate: v.rate!, invoice_no: v.invoice_no! } }, { onSuccess: onClose })
     } else if (!problem) {
@@ -123,7 +136,8 @@ export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail;
       >
         {entry.type !== 'production' && (
           <Form.Item label="Grade" name="grade" rules={[{ required: true }]} extra="If you change the grade, the stock also moves to that grade.">
-            <GradePicker />
+            {/* An old Grade B purchase keeps its grade on screen until it is changed. */}
+            <GradePicker only={entry.type === 'purchase' && entry.grade !== 'B' ? PURCHASE_GRADES : undefined} />
           </Form.Item>
         )}
         <div className="grid grid-2" style={{ columnGap: 16, rowGap: 0 }}>
@@ -142,13 +156,17 @@ export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail;
           {!isProduction && (
             <>
               <Form.Item label={entry.type === 'sale' ? 'Buyer' : 'Supplier'} name="party_id" rules={[{ required: true }]}>
-                <Select loading={parties.isLoading} showSearch={{ optionFilterProp: 'label' }} options={parties.data?.map((p) => ({ value: p.id, label: `${p.name}${p.is_active ? '' : ' (inactive)'}` }))} />
+                <Select
+                  loading={parties.isLoading}
+                  showSearch={{ optionFilterProp: 'label' }}
+                  options={parties.data?.filter((p) => entry.type !== 'purchase' || p.overseas === isImport).map((p) => ({ value: p.id, label: `${p.name}${p.is_active ? '' : ' (inactive)'}` }))}
+                />
               </Form.Item>
               <Form.Item label="Bill / invoice no." name="invoice_no" rules={[{ required: true, whitespace: true, max: 50 }]}>
                 <Input />
               </Form.Item>
               {entry.type === 'purchase' && (
-                <Form.Item label="Vehicle numbers" name="vehicle_nos" style={{ gridColumn: '1 / -1' }} rules={[{ required: true, type: 'array', min: 1, message: 'Enter the vehicle number' }]}>
+                <Form.Item label={isImport ? 'Container or vehicle numbers' : 'Vehicle numbers'} name="vehicle_nos" style={{ gridColumn: '1 / -1' }} rules={[{ required: true, type: 'array', min: 1, message: 'Enter the vehicle number' }]}>
                   <VehicleNumbersInput />
                 </Form.Item>
               )}
@@ -175,11 +193,14 @@ export default function EntryEditModal({ entry, onClose }: { entry: EntryDetail;
               <Select allowClear options={[1, 2, 3].map((s) => ({ value: s, label: `Shift ${s}` }))} />
             </Form.Item>
           ) : (
-            <Form.Item label={`Rate per ${unit === "L" ? "litre" : "kg"}`} name="rate" rules={[{ required: true, type: 'number', min: 0 }]}>
-              <InputNumber style={{ width: '100%' }} prefix="₹" suffix={perUnit(unit)} min={0} step={0.1} precision={2} />
-            </Form.Item>
+            !isImport && (
+              <Form.Item label={`Rate per ${unit === 'L' ? 'litre' : 'kg'}`} name="rate" rules={[{ required: true, type: 'number', min: 0 }]}>
+                <InputNumber style={{ width: '100%' }} prefix="₹" suffix={perUnit(unit)} min={0} step={0.1} precision={2} />
+              </Form.Item>
+            )
           )}
         </div>
+        {isImport && <ImportPriceFields unit={unit} />}
         {isProduction && (
           <Form.Item label="Machine" name="machine_id" rules={[{ required: true, message: 'Choose the machine' }]}>
             <Select

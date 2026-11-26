@@ -12,6 +12,7 @@ from app.models.enums import (
     EntryStatus,
     EntryType,
     Grade,
+    PurchaseOrigin,
     WastageType,
 )
 
@@ -22,6 +23,11 @@ KgOrZero = Annotated[Decimal, Field(ge=0, le=10_000_000, max_digits=14, decimal_
 Qty = Kg
 QtyOrZero = KgOrZero
 Rate = Annotated[Decimal, Field(ge=0, le=1_000_000, max_digits=12, decimal_places=4)]
+Money = Annotated[Decimal, Field(ge=0, le=100_000_000_000, max_digits=16, decimal_places=2)]
+# A price in the supplier's currency, per kg: $105 a tonne is 0.105 a kg.
+ForeignRate = Annotated[Decimal, Field(gt=0, le=1_000_000, max_digits=14, decimal_places=6)]
+# Rupees for one unit of the currency, e.g. 94.1 for a dollar.
+FxRate = Annotated[Decimal, Field(gt=0, le=100_000, max_digits=12, decimal_places=4)]
 Text = Annotated[str, Field(max_length=2000)]
 # Any catalogue item key. Which ones a purchase or sale may carry depends on its grade and the
 # company's items, checked by the service (models/grades.py).
@@ -81,14 +87,38 @@ class _BillGstins(BaseModel):
         return gst.clean(value)
 
 
-class PurchaseInput(EntryInput, _Invoice, _BillGstins):
+class _Import(BaseModel):
+    """An import: priced in the supplier's currency, turned into rupees at `fx_rate`. A
+    domestic purchase leaves all of this out and gives its rupee rate."""
+
+    origin: PurchaseOrigin = PurchaseOrigin.DOMESTIC
+    currency: str = Field(default="INR", pattern=r"^[A-Z]{3}$")
+    foreign_rate: ForeignRate | None = None
+    fx_rate: FxRate | None = None
+    customs_duty: Money | None = None
+    be_no: str | None = Field(default=None, max_length=30)
+    be_date: date | None = None
+
+    @field_validator("currency", mode="before")
+    @classmethod
+    def _upper(cls, value: object) -> object:
+        return value.strip().upper() if isinstance(value, str) else value
+
+    @field_validator("be_no")
+    @classmethod
+    def _clean_be(cls, value: str | None) -> str | None:
+        return value.strip() or None if value else None
+
+
+class PurchaseInput(EntryInput, _Invoice, _BillGstins, _Import):
     supplier_id: int = Field(gt=0)
     # A: tyres for production (the default), B: tyres to re-sell, C: invoice only.
     # Which items a grade may carry depends on the company type: checked in entry_service.
     grade: Grade = Grade.A
     material: Item
     qty: Qty
-    rate: Rate  # per unit of the item
+    # Per unit of the item, in rupees. Left out on an import: worked out from the foreign rate.
+    rate: Rate | None = None
     source: EntrySource = EntrySource.MANUAL
     # The uploaded bill this was read from (POST /companies/{id}/documents).
     document_id: int | None = Field(default=None, gt=0)
@@ -111,6 +141,24 @@ class PurchaseInput(EntryInput, _Invoice, _BillGstins):
         if not vehicles:
             raise ValueError("enter the vehicle number")
         return vehicles
+
+    @model_validator(mode="after")
+    def _priced(self) -> "PurchaseInput":
+        if self.origin == PurchaseOrigin.DOMESTIC:
+            if self.rate is None:
+                raise ValueError("enter the rate")
+            self.currency = "INR"
+            self.foreign_rate = self.fx_rate = self.customs_duty = None
+            self.be_no = self.be_date = None
+            return self
+        if self.currency == "INR":
+            raise ValueError("choose the currency of the import bill")
+        if self.foreign_rate is None or self.fx_rate is None:
+            raise ValueError("enter the rate in the bill's currency and the exchange rate")
+        if not self.be_no:
+            raise ValueError("enter the Bill of Entry number")
+        self.rate = (self.foreign_rate * self.fx_rate).quantize(Decimal("0.0001"))
+        return self
 
 
 class SaleInput(EntryInput, _Invoice, _BillGstins):
@@ -383,6 +431,15 @@ class EntryDetail(BaseModel):
     amount: float | None = None
     invoice_no: str | None = None
     vehicle_nos: list[str] = []  # purchases only
+    # Purchases: an import's currency, price and exchange rate (see models/entries.py).
+    origin: PurchaseOrigin = PurchaseOrigin.DOMESTIC
+    currency: str = "INR"
+    fx_rate: float | None = None
+    foreign_rate: float | None = None
+    foreign_amount: float | None = None
+    customs_duty: float | None = None
+    be_no: str | None = None
+    be_date: date | None = None
     source: EntrySource = EntrySource.MANUAL
     document_id: int | None = None
     # Purchase: debit notes raised on this bill, those this bill took off, and the

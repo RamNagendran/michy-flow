@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
-import { Alert, Button, Collapse, DatePicker, Input, InputNumber, Progress, Select, Tag, Tooltip } from 'antd'
+import { Alert, Button, Collapse, DatePicker, Form, Input, InputNumber, Progress, Select, Tag, Tooltip } from 'antd'
 import { CheckCircleFilled, CheckOutlined, CloseCircleFilled, DeleteOutlined, ExclamationOutlined, LockFilled, QrcodeOutlined, SafetyCertificateFilled } from '@ant-design/icons'
 import { Link } from 'react-router-dom'
 import dayjs from 'dayjs'
 import { itemName, unitOf } from '../../data/catalog'
-import { defaultSaleGrade, itemAllowed, itemsFor, stockSection } from '../../data/grades'
+import { PURCHASE_GRADES, defaultSaleGrade, itemAllowed, itemsFor, stockSection } from '../../data/grades'
 import { useParties } from '../../hooks/queries/parties'
 import { useStocks } from '../../hooks/queries/stock'
 import { useAccess } from '../../hooks/useAccess'
@@ -20,6 +20,8 @@ import { billChecks } from './billChecks'
 import SupplierDebitNotes from '../debitNotes/DebitNoteList'
 import { XField } from './ReviewField'
 import VehicleNumbersInput from '../entries/VehicleNumbersInput'
+import ImportPriceFields from '../entries/ImportPriceFields'
+import { rupeeRate, toImportFields, type ImportValues } from '../../utils/importPrice'
 
 type VerifyKey = 'party' | 'qty' | 'rate'
 // Checks that stop saving. The others are warnings the person can accept.
@@ -92,11 +94,18 @@ interface Props {
 export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props) {
   const p = doc.parsed
   const isPurchase = doc.kind === 'purchase'
+  // A customs Bill of Entry: priced in its currency, from an overseas supplier.
+  const isImport = isPurchase && p.origin === 'import'
+  const [importForm] = Form.useForm<ImportValues>()
+  const foreignRate: number | undefined = Form.useWatch('foreignRate', importForm)
+  const fxRate: number | undefined = Form.useWatch('fxRate', importForm)
+  const importCurrency: string | undefined = Form.useWatch('currency', importForm)
+  const beNo: string | undefined = Form.useWatch('beNo', importForm)
   const access = useAccess()
   const mobile = useIsMobile()
   const company = access.accessFor(doc.company_id)?.company
   const partyList = useParties(doc.company_id, isPurchase ? 'supplier' : 'buyer')
-  const parties = useMemo(() => (partyList.data ?? []).filter((x) => x.is_active), [partyList.data])
+  const parties = useMemo(() => (partyList.data ?? []).filter((x) => x.is_active && (!isPurchase || x.overseas === isImport)), [partyList.data, isPurchase, isImport])
   const stocks = useStocks(company && access.canReadStock(company.id) ? [company] : [])
 
   const [partyId, setPartyIdRaw] = useState<number | undefined>(doc.party_id ?? undefined)
@@ -107,11 +116,13 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
     setNotesOff([])
   }
   const [invoiceNo, setInvoiceNo] = useState(p.invoice_no?.value ?? '')
-  const [vehicleNos, setVehicleNos] = useState<string[]>([])
+  // A Bill of Entry lists the containers the goods came in.
+  const [vehicleNos, setVehicleNos] = useState<string[]>(p.containers ?? [])
   // GST numbers on the bill: as read, or as corrected by the person.
   const [billOurs, setBillOurs] = useState(doc.company_gstin_on_bill ?? '')
   const [billTheirs, setBillTheirs] = useState(doc.party_gstin_on_bill ?? '')
-  const [date, setDate] = useState(p.invoice_date?.value ?? today())
+  // An import is entered on its Bill of Entry date, when the goods were cleared.
+  const [date, setDate] = useState((isImport ? p.be_date?.value : undefined) ?? p.invoice_date?.value ?? today())
   const configured = company ?? { category: 'crumb' as const }
   // Purchases default to raw material for production; a sales bill for raw material is a re-sell.
   const [grade, setGradeRaw] = useState<Grade>(isPurchase ? 'A' : (p.grade ?? defaultSaleGrade(p.item?.value)))
@@ -122,7 +133,8 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
     if (!itemAllowed(doc.kind, g, configured, item)) setItem(undefined)
   }
   const [qty, setQty] = useState(p.qty?.value ?? 0)
-  const [rate, setRate] = useState(p.rate?.value ?? 0)
+  const [rateTyped, setRate] = useState(p.rate?.value ?? 0)
+  const rate = isImport ? rupeeRate({ foreignRate, fxRate }) : rateTyped
   const itemUnit = item ? unitOf(item) : (p.unit ?? 'kg')
   const [verified, setVerified] = useState<Record<VerifyKey, boolean>>({ party: false, qty: false, rate: false })
   const tick = (k: VerifyKey) => ({ checked: verified[k], onChange: (v: boolean) => setVerified((s) => ({ ...s, [k]: v })) })
@@ -131,11 +143,12 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
   const line = company && item ? stocks.byCompany.get(company.id)?.[stockSection(doc.kind, grade)].find((l) => l.item === item) : undefined
   const available = line?.provisional.balance ?? null
   const gstOnBill = { company_gstin_on_bill: normaliseGstin(billOurs) || null, party_gstin_on_bill: normaliseGstin(billTheirs) || null }
-  const checks = billChecks(p, { party, qty, unit: itemUnit, rate, date, available, isPurchase, company, gstOnBill })
+  const checks = billChecks(p, { party, qty, unit: itemUnit, rate, date, available, isPurchase, company, gstOnBill, foreignRate: isImport ? (foreignRate ?? 0) : undefined })
   const blocking = checks.filter((c) => !c.ok && BLOCKING.has(c.key))
   const warnings = checks.filter((c) => !c.ok && !BLOCKING.has(c.key))
   const verifiedCount = Object.values(verified).filter(Boolean).length
-  const complete = !!partyId && !!invoiceNo.trim() && !!item && qty > 0 && rate >= 0 && (!isPurchase || vehicleNos.length > 0)
+  const importDone = !isImport || (!!foreignRate && !!fxRate && !!importCurrency && !!beNo?.trim())
+  const complete = !!partyId && !!invoiceNo.trim() && !!item && qty > 0 && rate >= 0 && (!isPurchase || vehicleNos.length > 0) && importDone
   const ready = complete && blocking.length === 0 && verifiedCount === 3 && !doc.duplicate_of
   const progress = Math.round(((checks.length - blocking.length) / checks.length) * 50 + (verifiedCount / 3) * 50)
   // The bill was in tonnes or kilolitres and has been converted.
@@ -220,7 +233,7 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
             </XField>
             {isPurchase && <SupplierDebitNotes companyId={doc.company_id} supplierId={partyId} supplierName={party?.name} selected={notesOff} onSelect={setNotesOff} />}
             <GstField
-              label={`Our GST number · ${company?.name ?? ''}`}
+              label={`Our GST number${isImport ? ' (on the Bill of Entry)' : ''} · ${company?.name ?? ''}`}
               registered={company?.gstin}
               missing={access.canSystem('manage_companies') ? <Link to="/settings">Not added. Add it in Settings → Companies</Link> : 'Not added. Ask the Super Admin to add it.'}
               read={isPurchase ? p.buyer_gstin : p.seller_gstin}
@@ -228,6 +241,7 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
               value={billOurs}
               onChange={setBillOurs}
             />
+            {!isImport && (
             <GstField
               label={`${isPurchase ? 'Supplier' : 'Buyer'}'s GST number${party ? ` · ${party.name}` : ''}`}
               registered={party ? party.gstin : undefined}
@@ -243,17 +257,18 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
               value={billTheirs}
               onChange={setBillTheirs}
             />
+            )}
             <div className="grid grid-2" style={{ gap: 12 }}>
               <XField label="Bill / invoice number" read={p.invoice_no}>
                 <Input value={invoiceNo} onChange={(e) => setInvoiceNo(e.target.value)} maxLength={50} />
               </XField>
-              <XField label="Bill date" read={p.invoice_date}>
+              <XField label={isImport ? 'Date (Bill of Entry)' : 'Bill date'} read={isImport ? (p.be_date ?? p.invoice_date) : p.invoice_date}>
                 <DatePicker value={dayjs(date)} onChange={(d) => d && setDate(d.format('YYYY-MM-DD'))} format="DD MMM YYYY" style={{ width: '100%' }} allowClear={false} disabledDate={(d) => d.isAfter(dayjs(), 'day')} />
               </XField>
             </div>
             {isPurchase && (
               <div>
-                <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 6 }}>Vehicle numbers</div>
+                <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 6 }}>{isImport ? 'Container or vehicle numbers' : 'Vehicle numbers'}</div>
                 <VehicleNumbersInput value={vehicleNos} onChange={setVehicleNos} />
               </div>
             )}
@@ -267,7 +282,7 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
           <div style={{ display: 'grid', gap: 12 }}>
             <div>
               <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 6 }}>Grade</div>
-              <GradePicker value={grade} onChange={setGrade} />
+              <GradePicker value={grade} onChange={setGrade} only={isPurchase ? PURCHASE_GRADES : undefined} />
             </div>
             <XField label={isPurchase ? (grade === 'C' ? 'Item' : 'Raw material') : grade === 'A' ? 'Product sold' : 'Item sold'} read={p.item} note={p.item_text ? `Bill says: "${p.item_text}"` : undefined}>
               <Select<string>
@@ -282,10 +297,37 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
               <XField label={`Quantity (${unitWord(itemUnit)})`} read={p.qty} note={converted && p.qty_on_bill ? `Bill says ${p.qty_on_bill.value} ${billUnitWord(p.unit_on_bill)} → changed to ${unitWord(itemUnit)}` : undefined} verify={tick('qty')}>
                 <InputNumber<number> value={qty} onChange={(v) => setQty(v ?? 0)} style={{ width: '100%' }} {...qtyInputProps(itemUnit)} />
               </XField>
-              <XField label={`Rate per ${oneUnit}`} read={p.rate} note={converted && p.rate_on_bill ? `Bill says ₹${p.rate_on_bill.value.toLocaleString('en-IN')} per ${p.unit_on_bill === 'MT' ? 'tonne' : p.unit_on_bill === 'KL' ? 'kilolitre' : oneUnit}` : undefined} verify={tick('rate')}>
-                <InputNumber value={rate} onChange={(v) => setRate(v ?? 0)} style={{ width: '100%' }} prefix="₹" suffix={perUnit(itemUnit)} min={0} step={0.1} precision={4} />
+              <XField
+                label={`Rate per ${oneUnit}${isImport ? ' in ₹' : ''}`}
+                read={p.rate}
+                note={
+                  isImport
+                    ? 'Worked out: rate in the bill currency × exchange rate (below)'
+                    : converted && p.rate_on_bill
+                      ? `Bill says ₹${p.rate_on_bill.value.toLocaleString('en-IN')} per ${p.unit_on_bill === 'MT' ? 'tonne' : p.unit_on_bill === 'KL' ? 'kilolitre' : oneUnit}`
+                      : undefined
+                }
+                verify={tick('rate')}
+              >
+                <InputNumber value={rate} onChange={(v) => setRate(v ?? 0)} disabled={isImport} style={{ width: '100%' }} prefix="₹" suffix={perUnit(itemUnit)} min={0} step={0.1} precision={4} />
               </XField>
             </div>
+            {isImport && (
+              <Form<ImportValues>
+                form={importForm}
+                layout="vertical"
+                initialValues={{
+                  currency: p.currency ?? undefined,
+                  foreignRate: p.foreign_rate?.value,
+                  fxRate: p.fx_rate?.value,
+                  customsDuty: p.customs_duty?.value ?? null,
+                  beNo: p.be_no?.value ?? '',
+                  beDate: p.be_date ? dayjs(p.be_date.value) : null,
+                }}
+              >
+                <ImportPriceFields unit={itemUnit} rateFromBill={!!p.fx_rate} />
+              </Form>
+            )}
             <div className="summary-line" style={{ background: '#f7f8fa', borderRadius: 10, padding: '10px 14px' }}>
               <span className="muted">Amount{item ? ` · ${itemName(item)}` : ''}</span>
               <b className="num">{formatINR(qty * rate, true)}</b>
@@ -323,7 +365,24 @@ export default function BillReview({ doc, saving, onConfirm, onDiscard }: Props)
               icon={<CheckOutlined />}
               disabled={!ready}
               loading={saving}
-              onClick={() => onConfirm({ companyId: doc.company_id, partyId: partyId!, grade, invoiceNo: invoiceNo.trim(), date, item: item!, qty, rate, documentId: doc.id, billCompanyGstin: gstOnBill.company_gstin_on_bill, billPartyGstin: gstOnBill.party_gstin_on_bill, debitNoteIds: isPurchase ? notesOff : undefined, vehicleNos: isPurchase ? vehicleNos : undefined })}
+              onClick={() =>
+                onConfirm({
+                  companyId: doc.company_id,
+                  partyId: partyId!,
+                  grade,
+                  invoiceNo: invoiceNo.trim(),
+                  date,
+                  item: item!,
+                  qty,
+                  rate,
+                  documentId: doc.id,
+                  billCompanyGstin: gstOnBill.company_gstin_on_bill,
+                  billPartyGstin: isImport ? null : gstOnBill.party_gstin_on_bill,
+                  debitNoteIds: isPurchase ? notesOff : undefined,
+                  vehicleNos: isPurchase ? vehicleNos : undefined,
+                  imported: isImport ? toImportFields(importForm.getFieldsValue(true)) : undefined,
+                })
+              }
             >
               Save for approval
             </Button>

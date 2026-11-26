@@ -5,7 +5,8 @@ from dataclasses import dataclass
 from app.core.errors import AppError
 
 MAX_BYTES = 10 * 1024 * 1024
-MAX_PDF_PAGES = 5
+# A Bill of Entry runs to six pages.
+MAX_PDF_PAGES = 8
 # Refuse images that would expand to a huge bitmap in memory (decompression bombs).
 MAX_IMAGE_PIXELS = 40_000_000
 

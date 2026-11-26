@@ -1,7 +1,8 @@
 """Stock and period totals, worked out in the database from the entries themselves.
 
-Stock is kept per grade (see models/grades.py): Grade A raw material and products, Grade B
-re-sell material, and the Grade C book stock. Quantities are in each item's unit (litres for
+Stock is kept per grade (see models/grades.py): Grade A raw material and products, and the
+Grade C book stock. A Grade B sale (raw material sold as bought) comes out of the Grade A raw
+material, and older Grade B purchases count into it. Quantities are in each item's unit (litres for
 oil, kg for the rest; see models/catalog.py). Two figures for every item:
 - provisional: every entry the Manager has approved (approved_at is set), including ones still
   waiting for Finance. Entries waiting for the Manager do not count yet. This is what new
@@ -89,6 +90,27 @@ def _fold(rows: list) -> Sums:
         if status == EntryStatus.VERIFIED:
             totals[(grade, item)][1] += qty
     return {k: (v[0], v[1]) for k, v in totals.items()}
+
+
+def _as_raw(*sums: Sums) -> Sums:
+    """Add up movements, counting Grade B ones as Grade A raw material."""
+    totals: dict[Key, tuple[Decimal, Decimal]] = {}
+    for part in sums:
+        for (grade, item), (p, c) in part.items():
+            if grade == Grade.B.value:
+                key = (Grade.A.value, item)
+            elif grade == Grade.A.value:
+                key = (grade, item)
+            else:
+                continue
+            tp, tc = totals.get(key, (Decimal(0), Decimal(0)))
+            totals[key] = (tp + p, tc + c)
+    return totals
+
+
+def _sold_raw(sold: Sums) -> Sums:
+    """Grade B sales only: raw material sold as bought."""
+    return {k: v for k, v in sold.items() if k[0] == Grade.B.value}
 
 
 def _lines(
@@ -250,17 +272,29 @@ async def stock_lines(
     for section, item, _, diff in by_kind["counted"]:
         counted[section][item] = diff
     wasted = {item: qty for _, item, _, qty in by_kind["wasted"]}
+    # Older counts of the Grade B stock now belong to the raw material it was folded into.
+    raw_counted = dict(counted.get("raw", {}))
+    for item, diff in counted.get("resale", {}).items():
+        raw_counted[item] = raw_counted.get(item, Decimal(0)) + diff
     return {
-        "raw": _lines(Grade.A, process.inputs, bought, used, counted.get("raw"), wasted),
+        "raw": _lines(
+            Grade.A,
+            process.inputs,
+            _as_raw(bought),
+            _as_raw(used, _sold_raw(sold)),
+            raw_counted,
+            wasted,
+        ),
         "output": _lines(Grade.A, process.products, produced, sold, counted.get("output")),
-        "resale": _lines(Grade.B, process.inputs, bought, sold, counted.get("resale")),
+        # Kept for older screens: Grade B no longer has a stock of its own.
+        "resale": [],
         "books": _lines(Grade.C, (), bought, sold),
     }
 
 
 _SHORT_HINT = {
     Grade.A: "",
-    Grade.B: " Grade B stock comes only from Grade B purchases.",
+    Grade.B: "",
     Grade.C: " Grade C is a separate book stock, filled only by Grade C purchases.",
 }
 
@@ -270,7 +304,7 @@ async def assert_stock_not_negative(
 ) -> None:
     """Call after a change, inside the same locked transaction. Refuses the change if it
     would leave any item in any grade below zero (selling more than you have, processing
-    tyres that were bought to re-sell, rejecting a purchase that was already used, ...).
+    or re-selling more raw material than is left, rejecting a purchase already used, ...).
     `also` counts a new entry that is still waiting for the Manager."""
     await db.flush()
     company = await db.get(Company, company_id)

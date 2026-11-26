@@ -25,21 +25,30 @@ function PartyModal({ companyId, kind, party, onClose }: { companyId: number; ki
   const [form] = Form.useForm<PartyInput>()
   const save = useSaveParty(companyId)
   const label = kind === 'supplier' ? 'supplier' : 'buyer'
+  // An overseas supplier (imports) has no GST number.
+  const overseas = Form.useWatch('overseas', form) ?? party?.overseas ?? false
   const onFinish = (v: PartyInput) =>
-    save.mutate({ id: party?.id, body: { ...v, gstin: normaliseGstin(v.gstin), kind, is_active: v.is_active ?? true } }, { onSuccess: onClose })
+    save.mutate({ id: party?.id, body: { ...v, overseas: !!v.overseas, gstin: v.overseas ? null : normaliseGstin(v.gstin ?? ''), kind, is_active: v.is_active ?? true } }, { onSuccess: onClose })
 
   return (
     <Modal open title={party ? `Edit ${party.name}` : `Add a ${label}`} okText="Save" onOk={() => form.submit()} onCancel={onClose} confirmLoading={save.isPending}>
       {save.isError && <Alert type="error" showIcon title={errorMessage(save.error)} style={{ marginBottom: 12 }} />}
-      <Form<PartyInput> form={form} layout="vertical" requiredMark={requiredMark} initialValues={party ? { ...party, gstin: party.gstin ?? '' } : { is_active: true, gstin: '', city: '', contact_name: '', phone: '' }} onFinish={onFinish} style={{ marginTop: 8 }}>
+      <Form<PartyInput> form={form} layout="vertical" requiredMark={requiredMark} initialValues={party ? { ...party, gstin: party.gstin ?? '' } : { is_active: true, overseas: false, gstin: '', city: '', contact_name: '', phone: '' }} onFinish={onFinish} style={{ marginTop: 8 }}>
         <Form.Item label="Name" name="name" rules={[{ required: true, whitespace: true, max: 200, message: 'Enter the name' }]}>
           <Input placeholder="e.g. Sri Balaji Tyre Traders" />
         </Form.Item>
-        <Form.Item label="GST number" name="gstin" required rules={[gstinRule]} normalize={(v: string) => v.toUpperCase()} extra={`Bills ${kind === 'supplier' ? 'from' : 'to'} this ${label} must show this number.`}>
-          <Input placeholder="33AEPPM7308L3Z1" maxLength={20} />
-        </Form.Item>
+        {kind === 'supplier' && (
+          <Form.Item name="overseas" valuePropName="checked" extra="Turn on for a supplier outside India. Their bills are imports, in their own currency, with no GST number.">
+            <Switch checkedChildren="Overseas (import)" unCheckedChildren="In India" />
+          </Form.Item>
+        )}
+        {!overseas && (
+          <Form.Item label="GST number" name="gstin" required rules={[gstinRule]} normalize={(v: string) => v.toUpperCase()} extra={`Bills ${kind === 'supplier' ? 'from' : 'to'} this ${label} must show this number.`}>
+            <Input placeholder="33AEPPM7308L3Z1" maxLength={20} />
+          </Form.Item>
+        )}
         <div className="grid grid-2" style={{ columnGap: 16, rowGap: 0 }}>
-          <Form.Item label="City" name="city" rules={[{ max: 100 }]}>
+          <Form.Item label={overseas ? 'City and country' : 'City'} name="city" rules={[{ max: 100 }]}>
             <Input />
           </Form.Item>
           <Form.Item label="Contact person" name="contact_name" rules={[{ max: 200 }]}>
@@ -112,7 +121,7 @@ export default function Parties() {
               title: <span style={{ opacity: p.is_active ? 1 : 0.5 }}>{p.name}</span>,
               extra: p.is_active ? <Tag color="success">Active</Tag> : <Tag>Inactive</Tag>,
               lines: [
-                p.gstin ? <span className="num">GST {p.gstin}</span> : <span style={{ color: '#D4380D' }}>GST number not added</span>,
+                p.overseas ? <Tag color="blue">Overseas · import</Tag> : p.gstin ? <span className="num">GST {p.gstin}</span> : <span style={{ color: '#D4380D' }}>GST number not added</span>,
                 [p.city, p.contact_name].filter(Boolean).join(' · '),
                 p.phone && (
                   <a href={`tel:${p.phone}`} className="num" onClick={(e) => e.stopPropagation()}>
@@ -133,7 +142,11 @@ export default function Parties() {
             dataSource={rows}
             columns={[
               { title: 'Name', dataIndex: 'name', render: (v, p) => <span style={{ fontWeight: 700, opacity: p.is_active ? 1 : 0.5 }}>{v}</span> },
-              { title: 'GST number', dataIndex: 'gstin', render: (v: string | null) => (v ? <span className="num">{v}</span> : <span style={{ color: '#D4380D' }}>Not added</span>) },
+              {
+                title: 'GST number',
+                dataIndex: 'gstin',
+                render: (v: string | null, p) => (p.overseas ? <Tag color="blue">Overseas · import</Tag> : v ? <span className="num">{v}</span> : <span style={{ color: '#D4380D' }}>Not added</span>),
+              },
               { title: 'City', dataIndex: 'city' },
               { title: 'Contact', dataIndex: 'contact_name' },
               { title: 'Phone', dataIndex: 'phone', render: (v) => <span className="num muted">{v}</span> },

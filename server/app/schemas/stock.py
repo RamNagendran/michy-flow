@@ -34,7 +34,7 @@ class CompanyStock(BaseModel):
     # Lines follow the company type, plus any other item that has stock or movement.
     raw: list[StockLine]  # Grade A raw material: in by Grade A purchases, out into production
     output: list[StockLine]  # Grade A products: in from production, out by Grade A sales
-    resale: list[StockLine]  # Grade B raw material: bought and re-sold as it is
+    resale: list[StockLine]  # Always empty: Grade B sales come out of the raw stock
     books: list[StockLine]  # Grade C book stock (no goods move): only items that moved
     # The Super Admin's physical stock check, every 1 or 3 months.
     check_every_months: int

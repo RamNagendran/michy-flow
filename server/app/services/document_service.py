@@ -257,6 +257,9 @@ def check_gstins(
     """The bill's GST numbers (as read, or as corrected by the person) must be the registered
     ones: ours, and the supplier's / buyer's."""
     who = "supplier" if kind == "purchase" else "buyer"
+    if party is not None and party.overseas:
+        # An import: the supplier has no GST number. Ours is on the Bill of Entry.
+        party = None
     if not company.gstin:
         raise AppError(
             f"Add the GST number for {company.name} first (Settings → Companies)",

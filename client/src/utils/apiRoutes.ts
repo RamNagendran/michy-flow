@@ -81,6 +81,7 @@ export const API_ROUTES = {
     list: (companyId: number) => `/companies/${companyId}/parties`,
     one: (companyId: number, id: number) => `/companies/${companyId}/parties/${id}`,
   },
+  fxRate: (currency: string) => `/fx-rates/${currency}`,
 } as const
 
 /** Auth calls where a 401 means "wrong credentials", not "access token expired". */
